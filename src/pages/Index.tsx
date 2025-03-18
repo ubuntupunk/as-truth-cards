@@ -1,12 +1,49 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React from 'react';
+import { cn } from '@/lib/utils';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import CardDeck from '@/components/CardDeck';
+import { useDelayedVisibility } from '@/utils/animations';
 
 const Index = () => {
+  const isHeaderVisible = useDelayedVisibility(100);
+  const isContentVisible = useDelayedVisibility(300);
+  
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      
+      <main className="flex-grow pt-24 pb-16 px-4">
+        <section className="container mx-auto max-w-4xl py-12 space-y-16">
+          <div className="text-center space-y-6">
+            <div className="inline-block px-3 py-1 rounded-full bg-primary text-xs font-medium mb-2 animate-fade-in">
+              Interactive Education
+            </div>
+            
+            <h1 className={cn(
+              "text-4xl md:text-5xl lg:text-6xl font-medium tracking-tight",
+              isHeaderVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4",
+              "transition-all duration-700 ease-out"
+            )}>
+              Revealing Truth
+            </h1>
+            
+            <p className={cn(
+              "max-w-2xl mx-auto text-lg text-muted-foreground",
+              isContentVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4",
+              "transition-all duration-700 ease-out delay-100"
+            )}>
+              Draw a card to explore and debunk harmful misconceptions. 
+              Each card reveals important truths behind common falsehoods.
+            </p>
+          </div>
+          
+          <CardDeck />
+        </section>
+      </main>
+      
+      <Footer />
     </div>
   );
 };
