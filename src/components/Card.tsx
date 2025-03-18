@@ -61,9 +61,21 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false }) => {
         >
           <div className="text-4xl mb-4 mx-auto transform rotate-180">{card.symbol}</div>
           <h3 className="text-lg font-medium mb-3 text-center">{card.title}</h3>
-          <p className="text-sm flex-grow overflow-auto px-2">
-            {card.backDescription}
-          </p>
+          <div className="flex flex-col flex-grow overflow-auto">
+            <p className="text-sm mb-4 px-2">
+              {card.backDescription}
+            </p>
+            {card.sources && card.sources.length > 0 && (
+              <div className="mt-auto">
+                <h4 className="text-xs font-semibold mb-1">Sources:</h4>
+                <ul className="text-xs text-muted-foreground list-disc list-inside">
+                  {card.sources.map((source, i) => (
+                    <li key={i} className="text-left">{source}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
           <div className="mt-4 text-xs text-center text-muted-foreground">Tap to flip back</div>
         </div>
       </div>
