@@ -3,10 +3,12 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useDelayedVisibility } from '@/utils/animations';
+import { ThemeToggle } from './ThemeToggle';
 
 const Header = () => {
   const location = useLocation();
   const isVisible = useDelayedVisibility(100);
+  const isAdmin = location.pathname.startsWith('/admin');
   
   return (
     <header className={cn(
@@ -18,24 +20,28 @@ const Header = () => {
           Truth Cards
         </Link>
         
-        <nav className="flex space-x-8">
-          {[
-            { path: '/', label: 'Home' },
-            { path: '/about', label: 'About' },
-          ].map((link) => (
-            <Link
-              key={link.path}
-              to={link.path}
-              className={cn(
-                "relative py-2 text-sm font-medium transition-colors hover-lift",
-                "after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:origin-bottom-right after:scale-x-0 after:bg-foreground after:transition-transform after:duration-300 hover:after:origin-bottom-left hover:after:scale-x-100",
-                location.pathname === link.path ? "after:scale-x-100" : ""
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
+        <div className="flex items-center space-x-4">
+          <nav className="flex space-x-8">
+            {[
+              { path: '/', label: 'Home' },
+              { path: '/about', label: 'About' },
+              { path: '/admin', label: 'Admin', protected: true },
+            ].filter(link => !link.protected || isAdmin).map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={cn(
+                  "relative py-2 text-sm font-medium transition-colors hover-lift",
+                  "after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:origin-bottom-right after:scale-x-0 after:bg-foreground after:transition-transform after:duration-300 hover:after:origin-bottom-left hover:after:scale-x-100",
+                  location.pathname === link.path ? "after:scale-x-100" : ""
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );
