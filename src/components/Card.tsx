@@ -28,13 +28,21 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false }) => {
     >
       <div 
         className={cn(
-          "relative w-full h-full cursor-pointer",
-          isFlipped ? "flipped" : ""
+          "relative w-full h-full cursor-pointer transform-gpu perspective-1000",
+          isFlipped ? "animate-card-flip" : "animate-card-flip-back",
+          "duration-700 preserve-3d"
         )}
         onClick={handleFlip}
+        style={{ transformStyle: 'preserve-3d' }}
       >
         {/* Card Front */}
-        <div className="card-face card-front absolute inset-0 rounded-xl border border-border bg-card shadow-lg flex flex-col p-6 overflow-hidden dark:border-border">
+        <div 
+          className={cn(
+            "card-face card-front absolute inset-0 rounded-xl border border-border bg-card shadow-lg flex flex-col p-6 overflow-hidden dark:border-border",
+            "backface-hidden"
+          )}
+          style={{ backfaceVisibility: 'hidden' }}
+        >
           <div className="text-4xl mb-4 mx-auto">{card.symbol}</div>
           <h3 className="text-lg font-medium mb-3 text-center">{card.title}</h3>
           <p className="text-sm text-muted-foreground text-center flex-grow flex items-center justify-center px-4">
@@ -44,7 +52,13 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false }) => {
         </div>
         
         {/* Card Back */}
-        <div className="card-face card-back absolute inset-0 rounded-xl border border-border bg-primary shadow-lg flex flex-col p-6 overflow-hidden dark:border-border">
+        <div 
+          className={cn(
+            "card-face card-back absolute inset-0 rounded-xl border border-border bg-primary shadow-lg flex flex-col p-6 overflow-hidden dark:border-border",
+            "backface-hidden transform-gpu rotate-y-180"
+          )}
+          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+        >
           <div className="text-4xl mb-4 mx-auto transform rotate-180">{card.symbol}</div>
           <h3 className="text-lg font-medium mb-3 text-center">{card.title}</h3>
           <p className="text-sm flex-grow overflow-auto px-2">
