@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { CardData, SourceData } from '@/data/cards';
 import { Button } from '@/components/ui/button';
@@ -20,7 +19,8 @@ const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
     ...card, 
     sources: card.sources || [],
     tags: card.tags || [],
-    includedInPalestineStack: card.includedInPalestineStack || false
+    includedInPalestineStack: card.includedInPalestineStack || false,
+    isFeatured: card.isFeatured || false
   });
   const [newSource, setNewSource] = useState<SourceData>({ text: '', url: '' });
   const [newTag, setNewTag] = useState('');
@@ -31,10 +31,10 @@ const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
     setEditedCard(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleCheckboxChange = (checked: boolean) => {
+  const handleCheckboxChange = (field: string, checked: boolean) => {
     setEditedCard(prev => ({ 
       ...prev, 
-      includedInPalestineStack: checked 
+      [field]: checked 
     }));
   };
 
@@ -188,18 +188,32 @@ const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
           )}
         </div>
         
-        <div className="space-y-2">
+        <div className="flex flex-col md:flex-row gap-4">
           <div className="flex items-center space-x-2">
             <Checkbox 
               id="includedInPalestineStack"
               checked={editedCard.includedInPalestineStack || false}
-              onCheckedChange={handleCheckboxChange}
+              onCheckedChange={(checked) => handleCheckboxChange('includedInPalestineStack', checked as boolean)}
             />
             <label
               htmlFor="includedInPalestineStack"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
               Include in Israel/Palestine stack
+            </label>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="isFeatured"
+              checked={editedCard.isFeatured || false}
+              onCheckedChange={(checked) => handleCheckboxChange('isFeatured', checked as boolean)}
+            />
+            <label
+              htmlFor="isFeatured"
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+            >
+              Set as featured card
             </label>
           </div>
         </div>

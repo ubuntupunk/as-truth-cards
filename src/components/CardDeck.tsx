@@ -6,22 +6,6 @@ import Card from './Card';
 import { Shuffle } from 'lucide-react';
 import { useDelayedVisibility } from '@/utils/animations';
 
-// Hero card data
-const heroCard = {
-  id: 0,
-  title: "Discover Hidden Truths",
-  frontDescription: "Explore our deck of cards that reveal the truth behind common misconceptions and stereotypes. Each card offers factual insights backed by research.",
-  backDescription: "Our cards are designed to promote critical thinking and understanding. By exploring these cards, you'll gain a deeper perspective on complex topics often misrepresented in casual conversation.",
-  symbol: "✨",
-  imageUrl: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
-  sources: [
-    {
-      text: "Based on peer-reviewed research and historical documentation",
-    }
-  ],
-  includedInPalestineStack: false
-};
-
 interface CardDeckProps {
   includePalestineStack: boolean;
 }
@@ -31,6 +15,7 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
   const [isSelecting, setIsSelecting] = useState(false);
   const [isDeckVisible, setIsDeckVisible] = useState(true);
   const [filteredCards, setFilteredCards] = useState(cards);
+  const [featuredCard, setFeaturedCard] = useState(cards.find(card => card.isFeatured));
   const isVisible = useDelayedVisibility(300);
   
   // Filter cards based on includePalestineStack prop
@@ -40,6 +25,9 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
     } else {
       setFilteredCards(cards.filter(card => !card.includedInPalestineStack));
     }
+    
+    // Set featured card
+    setFeaturedCard(cards.find(card => card.isFeatured));
   }, [includePalestineStack]);
   
   const handleDrawCard = () => {
@@ -59,6 +47,25 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
     setIsDeckVisible(true);
   };
   
+  // Default featured card if none is set
+  const defaultFeaturedCard = {
+    id: 0,
+    title: "Discover Hidden Truths",
+    frontDescription: "Explore our deck of cards that reveal the truth behind common misconceptions and stereotypes. Each card offers factual insights backed by research.",
+    backDescription: "Our cards are designed to promote critical thinking and understanding. By exploring these cards, you'll gain a deeper perspective on complex topics often misrepresented in casual conversation.",
+    symbol: "✨",
+    imageUrl: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+    sources: [
+      {
+        text: "Based on peer-reviewed research and historical documentation",
+      }
+    ],
+    includedInPalestineStack: false
+  };
+  
+  // Use the featured card if set, otherwise use the default
+  const displayFeaturedCard = featuredCard || defaultFeaturedCard;
+  
   return (
     <div className={cn(
       "w-full max-w-4xl mx-auto px-4",
@@ -69,9 +76,9 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
         <div className="text-center">
           {isDeckVisible ? (
             <div className="space-y-12">
-              {/* Hero Card */}
+              {/* Featured Card */}
               <div className="max-w-md mx-auto">
-                <Card card={heroCard} index={0} isHero={true} />
+                <Card card={displayFeaturedCard} index={0} isHero={true} />
               </div>
               
               {/* Card Stack */}

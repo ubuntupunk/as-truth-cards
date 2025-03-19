@@ -2,7 +2,7 @@
 import React from 'react';
 import { CardData } from '@/data/cards';
 import { Button } from '@/components/ui/button';
-import { Search, Edit, Plus, Trash2 } from 'lucide-react';
+import { Search, Edit, Plus, Trash2, Star } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 
@@ -58,7 +58,10 @@ const CardList: React.FC<CardListProps> = ({
           {filteredCards.map((card) => (
             <div 
               key={card.id} 
-              className="p-4 border border-border rounded-lg bg-card hover:bg-accent/10 transition-colors"
+              className={cn(
+                "p-4 border border-border rounded-lg bg-card hover:bg-accent/10 transition-colors",
+                card.isFeatured && "border-primary/50"
+              )}
             >
               <div className="flex flex-col sm:flex-row justify-between gap-4">
                 <div className="space-y-1">
@@ -66,6 +69,12 @@ const CardList: React.FC<CardListProps> = ({
                     <Badge variant="outline" className="font-mono">#{card.id}</Badge>
                     <h4 className="text-lg font-medium">{card.title}</h4>
                     <span className="text-xl">{card.symbol}</span>
+                    {card.isFeatured && (
+                      <Badge variant="secondary" className="ml-2">
+                        <Star className="h-3 w-3 mr-1 text-amber-500" />
+                        Featured
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground line-clamp-1">
                     {card.frontDescription}

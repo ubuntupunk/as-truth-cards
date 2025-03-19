@@ -13,6 +13,7 @@ export interface CardData {
   sources?: SourceData[];
   tags?: string[];
   includedInPalestineStack?: boolean;
+  isFeatured?: boolean;
 }
 
 export const cards: CardData[] = [
