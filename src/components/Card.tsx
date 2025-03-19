@@ -38,11 +38,21 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false }) => {
         {/* Card Front */}
         <div 
           className={cn(
-            "card-face card-front absolute inset-0 rounded-xl border border-border bg-card shadow-lg flex flex-col p-6 overflow-hidden dark:border-border",
+            "card-face card-front absolute inset-0 rounded-xl border border-border bg-card shadow-lg flex flex-col p-6 overflow-hidden",
+            "dark:bg-slate-800 dark:text-white dark:border-slate-700",
             "backface-hidden"
           )}
           style={{ backfaceVisibility: 'hidden' }}
         >
+          {card.imageUrl && (
+            <div className="mb-4 h-32 overflow-hidden rounded-lg">
+              <img 
+                src={card.imageUrl} 
+                alt={card.title} 
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
           <div className="text-4xl mb-4 mx-auto">{card.symbol}</div>
           <h3 className="text-lg font-medium mb-3 text-center">{card.title}</h3>
           <p className="text-sm text-muted-foreground text-center flex-grow flex items-center justify-center px-4">
@@ -54,7 +64,8 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false }) => {
         {/* Card Back */}
         <div 
           className={cn(
-            "card-face card-back absolute inset-0 rounded-xl border border-border bg-primary shadow-lg flex flex-col p-6 overflow-hidden dark:border-border",
+            "card-face card-back absolute inset-0 rounded-xl border border-border bg-primary shadow-lg flex flex-col p-6 overflow-hidden",
+            "dark:bg-slate-700 dark:text-white dark:border-slate-600",
             "backface-hidden transform-gpu rotate-y-180"
           )}
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
@@ -70,7 +81,20 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false }) => {
                 <h4 className="text-xs font-semibold mb-1">Sources:</h4>
                 <ul className="text-xs text-muted-foreground list-disc list-inside">
                   {card.sources.map((source, i) => (
-                    <li key={i} className="text-left">{source}</li>
+                    <li key={i} className="text-left">
+                      {source.url ? (
+                        <a 
+                          href={source.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="underline hover:text-primary-foreground"
+                        >
+                          {source.text}
+                        </a>
+                      ) : (
+                        source.text
+                      )}
+                    </li>
                   ))}
                 </ul>
               </div>

@@ -1,14 +1,17 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import CardDeck from '@/components/CardDeck';
 import { useDelayedVisibility } from '@/utils/animations';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 const Index = () => {
   const isHeaderVisible = useDelayedVisibility(100);
   const isContentVisible = useDelayedVisibility(300);
+  const [showPalestineStack, setShowPalestineStack] = useState(false);
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -37,9 +40,27 @@ const Index = () => {
               Draw a card to explore and debunk harmful misconceptions. 
               Each card reveals important truths behind common falsehoods.
             </p>
+            
+            <div className={cn(
+              "flex items-center justify-center space-x-2 pt-4",
+              isContentVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4",
+              "transition-all duration-700 ease-out delay-200"
+            )}>
+              <Checkbox 
+                id="showPalestineStack" 
+                checked={showPalestineStack}
+                onCheckedChange={(checked) => setShowPalestineStack(checked as boolean)}
+              />
+              <Label 
+                htmlFor="showPalestineStack"
+                className="text-sm cursor-pointer"
+              >
+                Include Israel/Palestine content
+              </Label>
+            </div>
           </div>
           
-          <CardDeck />
+          <CardDeck includePalestineStack={showPalestineStack} />
         </section>
       </main>
       
