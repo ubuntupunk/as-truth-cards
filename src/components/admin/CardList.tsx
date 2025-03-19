@@ -1,10 +1,10 @@
-
 import React from 'react';
 import { CardData } from '@/data/cards';
 import { Button } from '@/components/ui/button';
 import { Search, Edit, Plus, Trash2, Star } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface CardListProps {
   cards: CardData[];
@@ -23,7 +23,6 @@ const CardList: React.FC<CardListProps> = ({
   searchQuery, 
   setSearchQuery 
 }) => {
-  // Filter cards based on search query
   const filteredCards = cards.filter(card => 
     card.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     card.frontDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
