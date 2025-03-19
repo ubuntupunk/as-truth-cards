@@ -1,16 +1,30 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { cards } from '@/data/cards';
 import Card from './Card';
 import { Shuffle } from 'lucide-react';
 import { useDelayedVisibility } from '@/utils/animations';
 
-const CardDeck: React.FC = () => {
+interface CardDeckProps {
+  includePalestineStack: boolean;
+}
+
+const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
   const [selectedCard, setSelectedCard] = useState<number | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [isDeckVisible, setIsDeckVisible] = useState(true);
+  const [filteredCards, setFilteredCards] = useState(cards);
   const isVisible = useDelayedVisibility(300);
+  
+  // Filter cards based on includePalestineStack prop
+  useEffect(() => {
+    if (includePalestineStack) {
+      setFilteredCards(cards);
+    } else {
+      setFilteredCards(cards.filter(card => !card.includedInPalestineStack));
+    }
+  }, [includePalestineStack]);
   
   const handleDrawCard = () => {
     setIsSelecting(true);
@@ -18,7 +32,7 @@ const CardDeck: React.FC = () => {
     
     // Simulate card selection with delay
     setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * cards.length);
+      const randomIndex = Math.floor(Math.random() * filteredCards.length);
       setSelectedCard(randomIndex);
       setIsSelecting(false);
     }, 1200);
@@ -40,7 +54,7 @@ const CardDeck: React.FC = () => {
           {isDeckVisible ? (
             <div className="space-y-8">
               <div className="relative w-64 h-96 mx-auto">
-                {cards.slice(0, 5).map((_, index) => (
+                {filteredCards.slice(0, 5).map((_, index) => (
                   <div 
                     key={index}
                     className={cn(
@@ -74,7 +88,7 @@ const CardDeck: React.FC = () => {
       ) : (
         <div className="space-y-8">
           <div className="max-w-sm mx-auto">
-            <Card card={cards[selectedCard]} index={0} isRevealed={false} />
+            <Card card={filteredCards[selectedCard]} index={0} isRevealed={false} />
           </div>
           
           <div className="text-center">
