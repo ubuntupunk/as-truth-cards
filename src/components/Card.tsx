@@ -8,9 +8,10 @@ interface CardProps {
   card: CardData;
   index: number;
   isRevealed?: boolean;
+  isHero?: boolean;
 }
 
-const Card: React.FC<CardProps> = ({ card, index, isRevealed = false }) => {
+const Card: React.FC<CardProps> = ({ card, index, isRevealed = false, isHero = false }) => {
   const [isFlipped, setIsFlipped] = useState(isRevealed);
   const isVisible = useDelayedVisibility(100 + index * 50);
   
@@ -22,6 +23,7 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false }) => {
     <div 
       className={cn(
         "card-container aspect-[2/3] w-full max-w-xs mx-auto",
+        isHero ? "max-w-md" : "max-w-xs",
         isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10",
         "transition-all duration-700 ease-out"
       )}
@@ -38,14 +40,19 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false }) => {
         {/* Card Front */}
         <div 
           className={cn(
-            "card-face card-front absolute inset-0 rounded-xl border border-border bg-card shadow-lg flex flex-col p-6 overflow-hidden",
-            "dark:bg-slate-800 dark:text-white dark:border-slate-700",
+            "card-face card-front absolute inset-0 rounded-xl border overflow-hidden",
+            "shadow-lg flex flex-col p-6 overflow-hidden",
+            isHero ? "bg-gradient-to-br from-primary/90 to-primary/30" : "bg-gradient-to-br from-card to-background",
+            "dark:from-slate-700 dark:to-slate-800 dark:text-slate-100 dark:border-slate-600",
             "backface-hidden"
           )}
           style={{ backfaceVisibility: 'hidden' }}
         >
           {card.imageUrl && (
-            <div className="mb-4 h-32 overflow-hidden rounded-lg">
+            <div className={cn(
+              "mb-4 overflow-hidden rounded-lg",
+              isHero ? "h-48" : "h-32"
+            )}>
               <img 
                 src={card.imageUrl} 
                 alt={card.title} 
@@ -54,18 +61,28 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false }) => {
             </div>
           )}
           <div className="text-4xl mb-4 mx-auto">{card.symbol}</div>
-          <h3 className="text-lg font-medium mb-3 text-center">{card.title}</h3>
-          <p className="text-sm text-muted-foreground text-center flex-grow flex items-center justify-center px-4">
+          <h3 className={cn(
+            "font-medium mb-3 text-center",
+            isHero ? "text-xl" : "text-lg"
+          )}>{card.title}</h3>
+          <p className={cn(
+            "text-muted-foreground text-center flex-grow flex items-center justify-center px-4",
+            isHero ? "text-base" : "text-sm"
+          )}>
             {card.frontDescription}
           </p>
-          <div className="mt-4 text-xs text-center text-muted-foreground">Tap to reveal truth</div>
+          <div className="mt-4 text-xs text-center text-muted-foreground">
+            {isHero ? "Tap to learn more" : "Tap to reveal truth"}
+          </div>
         </div>
         
         {/* Card Back */}
         <div 
           className={cn(
-            "card-face card-back absolute inset-0 rounded-xl border border-border bg-primary shadow-lg flex flex-col p-6 overflow-hidden",
-            "dark:bg-slate-700 dark:text-white dark:border-slate-600",
+            "card-face card-back absolute inset-0 rounded-xl border overflow-hidden",
+            "shadow-lg flex flex-col p-6",
+            "bg-gradient-to-br from-secondary/80 to-secondary/30",
+            "dark:from-slate-800 dark:to-slate-900 dark:text-slate-100 dark:border-slate-700",
             "backface-hidden transform-gpu rotate-y-180"
           )}
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}

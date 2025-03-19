@@ -59,3 +59,20 @@
   transform: rotateY(180deg);
 }
 
+/* Card hover effect */
+.card-front, .card-back {
+  transition: box-shadow 0.3s ease;
+}
+
+.card-container:hover .card-front,
+.card-container:hover .card-back {
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* Dark mode card adjustments */
+@media (prefers-color-scheme: dark) {
+  .card-container:hover .card-front,
+  .card-container:hover .card-back {
+    box-shadow: 0 10px 25px -5px rgba(255, 255, 255, 0.1), 0 8px 10px -6px rgba(255, 255, 255, 0.05);
+  }
+}
