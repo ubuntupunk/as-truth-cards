@@ -106,7 +106,7 @@ export const cards: CardData[] = [
   },
   {
     id: 6,
-    title: "The Holocaust Denial",
+    title: "Holocaust Denial",
     frontDescription: "The Holocaust never happened or was greatly exaggerated.",
     backDescription: "The Holocaust is one of the most thoroughly documented events in history, with vast evidence including Nazi records, survivor testimonies, liberation footage, physical sites, and German documentation. Thousands of historical studies confirm approximately six million Jews were murdered. Courts have repeatedly rejected denial claims when examining historical evidence. Holocaust denial is recognized as a form of antisemitism by the International Holocaust Remembrance Alliance.",
     symbol: "❌",
@@ -124,8 +124,8 @@ export const cards: CardData[] = [
   {
     id: 7,
     title: "The Palestinian Struggle Myth",
-    frontDescription: "The Palestinian struggle is solely about religion and hatred of Jews.",
-    backDescription: "The Israeli-Palestinian conflict is complex, involving territorial disputes, historical claims, security concerns, and political rights. Academic research shows the conflict emerged from competing national movements, colonial history, and geopolitical factors. While religious elements exist, reducing it to religious hatred oversimplifies a multifaceted conflict with legitimate concerns on both sides that require nuanced understanding.",
+    frontDescription: "The Palestinian struggle is solely a nationalistic struggle and has nothing to do with religion and hatred of Jews.",
+    backDescription: "The Israeli-Palestinian conflict is complex, involving religious disagreement, territorial disputes, historical claims, security concerns, and political rights. While academic research shows the conflict emerged from competing national movements, colonial and Imperial history, and geopolitical factors, reducing it to mere 'nationalism', downplays a history of religious conflict and oversimplifies a multifaceted conflict with legitimate concerns on both side.",
     symbol: "⚔️",
     sources: [
       {
