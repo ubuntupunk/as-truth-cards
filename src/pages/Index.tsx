@@ -37,8 +37,8 @@ const Index = () => {
               isContentVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4",
               "transition-all duration-700 ease-out delay-100"
             )}>
-              Draw a card to explore and debunk harmful misconceptions. 
-              Each card reveals important truths behind common falsehoods.
+              Draw a card to explore and debunk harmful Jew-hatred misconceptions. 
+              Each card reveals important truths behind common AntiSemitic falsehoods.
             </p>
             
             <div className={cn(
