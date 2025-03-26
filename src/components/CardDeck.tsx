@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { cards } from '@/data/cards';
@@ -15,56 +14,46 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
   const [isSelecting, setIsSelecting] = useState(false);
   const [isDeckVisible, setIsDeckVisible] = useState(true);
   const [filteredCards, setFilteredCards] = useState(cards);
-  const [featuredCard, setFeaturedCard] = useState(cards.find(card => card.isFeatured));
   const isVisible = useDelayedVisibility(300);
   
-  // Filter cards based on includePalestineStack prop
   useEffect(() => {
     if (includePalestineStack) {
       setFilteredCards(cards);
     } else {
       setFilteredCards(cards.filter(card => !card.includedInPalestineStack));
     }
-    
-    // Set featured card
-    setFeaturedCard(cards.find(card => card.isFeatured));
   }, [includePalestineStack]);
   
   const handleDrawCard = () => {
     setIsSelecting(true);
     setIsDeckVisible(false);
     
-    // Simulate card selection with delay
     setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * filteredCards.length);
-      setSelectedCard(randomIndex);
+      let newIndex;
+      do {
+        newIndex = Math.floor(Math.random() * filteredCards.length);
+      } while (newIndex === selectedCard && filteredCards.length > 1);
+      
+      setSelectedCard(newIndex);
       setIsSelecting(false);
     }, 1200);
   };
   
   const handleReset = () => {
-    setSelectedCard(null);
-    setIsDeckVisible(true);
+    setIsSelecting(true);
+    setIsDeckVisible(false);
+    
+    // Use the same draw card logic but with a shorter delay
+    setTimeout(() => {
+      let newIndex;
+      do {
+        newIndex = Math.floor(Math.random() * filteredCards.length);
+      } while (newIndex === selectedCard && filteredCards.length > 1);
+      
+      setSelectedCard(newIndex);
+      setIsSelecting(false);
+    }, 800);
   };
-  
-  // Default featured card if none is set
-  const defaultFeaturedCard = {
-    id: 0,
-    title: "Discover Hidden Truths",
-    frontDescription: "Explore our deck of cards that reveal the truth behind common misconceptions and stereotypes. Each card offers factual insights backed by research.",
-    backDescription: "Our cards are designed to promote critical thinking and understanding. By exploring these cards, you'll gain a deeper perspective on complex topics often misrepresented in casual conversation.",
-    symbol: "✨",
-    imageUrl: "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
-    sources: [
-      {
-        text: "Based on peer-reviewed research and historical documentation",
-      }
-    ],
-    includedInPalestineStack: false
-  };
-  
-  // Use the featured card if set, otherwise use the default
-  const displayFeaturedCard = featuredCard || defaultFeaturedCard;
   
   return (
     <div className={cn(
@@ -76,11 +65,6 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
         <div className="text-center">
           {isDeckVisible ? (
             <div className="space-y-12">
-              {/* Featured Card */}
-              <div className="max-w-md mx-auto">
-                <Card card={displayFeaturedCard} index={0} isHero={true} />
-              </div>
-              
               {/* Card Stack */}
               <div className="relative w-64 h-96 mx-auto">
                 {filteredCards.slice(0, 5).map((_, index) => (
@@ -123,12 +107,23 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
           </div>
           
           <div className="text-center">
-            <button
-              onClick={handleReset}
-              className="rounded-full px-8 py-3 bg-primary text-primary-foreground font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
-            >
-              Draw Another Card
-            </button>
+            {!isSelecting ? (
+              <button
+                onClick={handleReset}
+                className="rounded-full px-8 py-3 bg-primary text-primary-foreground font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+              >
+                Draw Another Card
+              </button>
+            ) : (
+              <div className="flex items-center justify-center">
+                <div className={cn(
+                  "w-16 h-16 rounded-full flex items-center justify-center",
+                  "animate-spin text-primary-foreground dark:text-slate-100"
+                )}>
+                  <Shuffle className="w-8 h-8" />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

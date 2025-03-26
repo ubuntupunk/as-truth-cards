@@ -4,15 +4,17 @@ import { cn } from '@/lib/utils';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import CardDeck from '@/components/CardDeck';
+import FeaturedCard from '@/components/FeaturedCard';
 import { useDelayedVisibility } from '@/utils/animations';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { cards } from '@/data/cards';
 
 const Index = () => {
   const isHeaderVisible = useDelayedVisibility(100);
   const isContentVisible = useDelayedVisibility(300);
   const [showPalestineStack, setShowPalestineStack] = useState(false);
-  
+  const featuredCard = cards.find(card => card.isFeatured);
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
@@ -61,6 +63,8 @@ const Index = () => {
           </div>
           
           <CardDeck includePalestineStack={showPalestineStack} />
+        <div> <FeaturedCard featuredCard={featuredCard} />
+        </div>
         </section>
       </main>
       
