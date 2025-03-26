@@ -41,18 +41,24 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
   
   const handleReset = () => {
     setIsSelecting(true);
-    setIsDeckVisible(false);
     
-    // Use the same draw card logic but with a shorter delay
+    // First hide the current card
     setTimeout(() => {
-      let newIndex;
-      do {
-        newIndex = Math.floor(Math.random() * filteredCards.length);
-      } while (newIndex === selectedCard && filteredCards.length > 1);
+      setSelectedCard(null);
+      setIsDeckVisible(false);
       
-      setSelectedCard(newIndex);
-      setIsSelecting(false);
-    }, 800);
+      // Then show the deck briefly
+      setTimeout(() => {
+        // Finally select a new card
+        let newIndex;
+        do {
+          newIndex = Math.floor(Math.random() * filteredCards.length);
+        } while (newIndex === selectedCard && filteredCards.length > 1);
+        
+        setSelectedCard(newIndex);
+        setIsSelecting(false);
+      }, 800);
+    }, 400);
   };
   
   return (
@@ -101,7 +107,11 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
           )}
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className={cn(
+          "space-y-8",
+          "transition-opacity duration-400 ease-in-out",
+          isSelecting ? "opacity-0" : "opacity-100"
+        )}>
           <div className="max-w-sm mx-auto">
             <Card card={filteredCards[selectedCard]} index={0} isRevealed={false} />
           </div>
