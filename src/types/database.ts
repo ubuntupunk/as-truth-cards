@@ -1,27 +1,17 @@
 // types/database.ts
-export interface CardRecord {
-  id: number;
-  created_at: string;
-  title: string;
-  front_description: string;
-  back_description: string;
-  symbol: string;
-  image_url?: string;
-  tags?: string[];
-  included_in_palestine_stack: boolean;
-  is_featured: boolean;
-  sources?: {
-    text: string;
-    url?: string;
-  }[];
-}
+export type InteractionType = 'VIEW' | 'SHARE' | 'FEEDBACK' | 'THUMBS_UP' | 'THUMBS_DOWN';
 
 export interface UserInteraction {
   id: number;
-  created_at: string;
-  user_id?: string;
-  card_id: number;
-  interaction_type: 'view' | 'share' | 'feedback';
-  feedback_rating?: number;
-  feedback_text?: string;
+  createdAt: Date;
+  userId?: string;
+  cardId: number;
+  interactionType: InteractionType;
+  feedbackRating?: number;
+  feedbackText?: string;
+}
+
+export interface InteractionCounts {
+  thumbsUpCount: number;
+  thumbsDownCount: number;
 }

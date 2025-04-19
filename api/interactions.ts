@@ -16,10 +16,11 @@ export default async function handler(
       return res.status(400).json({ error: 'Missing required interaction fields' });
     }
 
-    const interaction = await cardService.recordInteraction(req.body);
+    const interaction = await cardService.recordInteraction({ cardId, interactionType });
     res.status(201).json(interaction);
-  } catch (error) {
-    console.error('Error recording interaction:', error);
-    res.status(500).json({ error: 'Failed to record interaction' });
+
+  } catch (error: any) {
+    console.error("General error:", error);
+    return res.status(500).json({ error: 'Failed to record interaction', details: error.message });
   }
 }

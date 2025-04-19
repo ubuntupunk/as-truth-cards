@@ -5,12 +5,12 @@ import Footer from '@/components/Footer';
 import CardDeck from '@/components/CardDeck';
 import FeaturedCard from '@/components/FeaturedCard';
 import HeroSection from '@/components/HeroSection';
-import type { CardRecord } from '@/types/database';
+import type { CardData } from '@/types/cards';
 
 const Index = () => {
   const [showPalestineStack, setShowPalestineStack] = useState(false);
-  const [cards, setCards] = useState<CardRecord[]>([]);
-  const [featuredCard, setFeaturedCard] = useState<CardRecord | null>(null);
+  const [cards, setCards] = useState<CardData[]>([]);
+  const [featuredCard, setFeaturedCard] = useState<CardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -54,7 +54,6 @@ const Index = () => {
             </div>
             <div className="w-full">
               <CardDeck
-                cards={cards}
                 includePalestineStack={showPalestineStack}
               />
             </div>

@@ -1,6 +1,6 @@
 // services/database.ts
 import { prisma } from '@/lib/db';
-import type { Card, UserInteraction } from '@prisma/client';
+import type { InteractionCounts, UserInteraction } from '@/types/database';
 
 export const cardService = {
   async getAllCards() {
@@ -19,19 +19,34 @@ export const cardService = {
     });
   },
 
-  async recordInteraction(interaction: {
-    userId?: string;
-    cardId: number;
-    interactionType: string;
-    feedbackRating?: number;
-    feedbackText?: string;
+async recordInteraction(interaction: {
+    cardId: string;
+    interactionType: UserInteraction['interaction_type']; // use the union type
   }) {
-    return await prisma.userInteraction.create({
+    return await prisma.cardInteraction.create({
       data: interaction,
     });
   },
+  
+  async getInteractionCounts(cardId: string) {
+    const thumbsUpCount = await prisma.cardInteraction.count({
+      where: {
+        cardId: cardId,
+        interactionType: 'thumbsUp',
+      },
+    });
 
-  async updateCard(id: number, updates: Partial<Card>) {
+    const thumbsDownCount = await prisma.cardInteraction.count({
+      where: {
+        cardId: cardId,
+        interactionType: 'thumbsDown',
+      },
+    });
+
+    return { thumbsUpCount, thumbsDownCount };
+  },
+
+  async updateCard(id: number, updates: any) {
     return await prisma.card.update({
       where: { id },
       data: updates,

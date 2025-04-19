@@ -1,0 +1,46 @@
+// prisma/seed.ts
+import { PrismaClient } from '@prisma/client';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { cards } from '../src/data/cards.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const prisma = new PrismaClient();
+
+async function main() {
+  console.log('Starting to seed database...');
+  
+  await prisma.card.deleteMany();
+  
+  const createdCards = await Promise.all(
+    cards.map(card => {
+      return prisma.card.create({
+        data: {
+          id: card.id,
+          title: card.title,
+          frontDescription: card.frontDescription,
+          backDescription: card.backDescription,
+          symbol: card.symbol,
+          imageUrl: card.imageUrl || null,
+          sources: card.sources as any,
+          tags: card.tags || [],
+          includedInPalestineStack: card.includedInPalestineStack || false,
+          isFeatured: card.isFeatured || false,
+        }
+      });
+    })
+  );
+
+  console.log(`Seeded ${createdCards.length} cards`);
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

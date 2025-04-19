@@ -1,14 +1,110 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
+// prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]  
+  output = "./generated/client"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["public", "neon_auth"]
+}
+
+model Card {
+  id                      Int       @id @default(autoincrement())
+  createdAt              DateTime  @default(now()) @map("created_at")
+  title                  String
+  frontDescription       String    @map("front_description")
+  backDescription        String    @map("back_description")
+  symbol                 String
+  imageUrl              String?   @map("image_url")
+  tags                   String[]
+  includedInPalestineStack Boolean  @default(false) @map("included_in_palestine_stack")
+  isFeatured             Boolean   @default(false) @map("is_featured")
+  sources                Json?
+  interactions           UserInteraction[]
+
+  @@map("cards")
+  @@schema("public")
+}
+
+enum UserRole {
+  ANONYMOUS     // Basic view access only
+  VERIFIED      // Email verified users - limited interaction
+  ACADEMIC      // Academic institutions
+  RESEARCHER    // Verified researchers
+  MODERATOR     // Can moderate comments
+  ADMIN         // Full access
+
+  @@schema("public")
+}
+
+enum AccessLevel {
+  BASIC         // Can view, share, and rate (thumbs up/down)
+  VERIFIED      // Can provide structured feedback (predefined options)
+  ACADEMIC      // Can provide detailed feedback + academic context
+  MODERATOR     // Can moderate and manage content
+  ADMIN         // Full system access
+
+  @@schema("public")
+}
+
+model User {
+  id            String           @id
+  email         String?         @unique
+  role          UserRole        @default(ANONYMOUS)
+  accessLevel   AccessLevel     @default(BASIC)    // Changed from VIEW_ONLY to BASIC
+  isVerified    Boolean         @default(false)
+  institution   String?         // For academic affiliations
+  verifiedAt    DateTime?       // When their identity was verified
+  moderatedAt   DateTime?       // When they were last moderated
+  bannedUntil   DateTime?       // Temporary bans
+  interactions  UserInteraction[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("users_sync")
+  @@schema("neon_auth")
+}
+
+model UserInteraction {
+  id              Int            @id @default(autoincrement())
+  createdAt       DateTime       @default(now()) @map("created_at")
+  userId          String?        @map("user_id")
+  cardId          Int           @map("card_id")
+  interactionType InteractionType
+  feedbackRating  Int?
+  feedbackText    String?
+  status          ContentStatus  @default(PENDING) // For moderation
+  ipAddress       String?        // Store hashed IP for abuse prevention
+  card            Card          @relation(fields: [cardId], references: [id])
+  user            User?         @relation(fields: [userId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([userId, interactionType])
+  @@map("user_interactions")
+  @@schema("public")
+}
+
+enum ContentStatus {
+  PENDING
+  APPROVED
+  FLAGGED
+  REJECTED
+  REMOVED
+
+  @@schema("public")
+}
+
+enum InteractionType {
+  VIEW
+  SHARE
+  RATING_UP
+  RATING_DOWN
+  STRUCTURED_FEEDBACK  // For VERIFIED users - predefined feedback options
+  ACADEMIC_FEEDBACK    // For ACADEMIC users - detailed feedback
+  MODERATION_ACTION   // For MODERATORS/ADMINS
+
+  @@schema("public")
 }
