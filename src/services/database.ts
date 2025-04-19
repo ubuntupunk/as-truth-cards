@@ -4,6 +4,7 @@ import type { InteractionCounts, UserInteraction } from '@/types/database';
 
 export const cardService = {
   async getAllCards() {
+    if (!prisma) return [];
     return await prisma.card.findMany({
       orderBy: {
         createdAt: 'desc',
@@ -12,6 +13,7 @@ export const cardService = {
   },
 
   async getFeaturedCard() {
+    if (!prisma) return null;
     return await prisma.card.findFirst({
       where: {
         isFeatured: true,
@@ -19,16 +21,18 @@ export const cardService = {
     });
   },
 
-async recordInteraction(interaction: {
+  async recordInteraction(interaction: {
     cardId: string;
-    interactionType: UserInteraction['interaction_type']; // use the union type
+    interactionType: UserInteraction['interactionType']; // use the union type
   }) {
+    if (!prisma) return null;
     return await prisma.cardInteraction.create({
       data: interaction,
     });
   },
   
   async getInteractionCounts(cardId: string) {
+    if (!prisma) return { thumbsUpCount: 0, thumbsDownCount: 0 };
     const thumbsUpCount = await prisma.cardInteraction.count({
       where: {
         cardId: cardId,
@@ -47,6 +51,7 @@ async recordInteraction(interaction: {
   },
 
   async updateCard(id: number, updates: any) {
+    if (!prisma) return null;
     return await prisma.card.update({
       where: { id },
       data: updates,

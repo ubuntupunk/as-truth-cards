@@ -1,28 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { cards } from '@/data/cards';
 import Card from './Card';
 import { Shuffle } from 'lucide-react';
 import { useDelayedVisibility } from '@/utils/animations';
+import { CardData } from '@/types/cards'; // Assuming CardData type is defined here or adjust path
 
 interface CardDeckProps {
   includePalestineStack: boolean;
 }
 
 const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
-  const [selectedCard, setSelectedCard] = useState<number | null>(null);
+  const [allCards, setAllCards] = useState<CardData[]>([]);
+  const [filteredCards, setFilteredCards] = useState<CardData[]>([]);
+  const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
   const [isDeckVisible, setIsDeckVisible] = useState(true);
-  const [filteredCards, setFilteredCards] = useState(cards);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const isVisible = useDelayedVisibility(300);
-  
+
   useEffect(() => {
-    if (includePalestineStack) {
-      setFilteredCards(cards);
-    } else {
-      setFilteredCards(cards.filter(card => !card.includedInPalestineStack));
+    const fetchCards = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const response = await fetch('/api/cards');
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data: CardData[] = await response.json();
+        setAllCards(data);
+      } catch (e) {
+        console.error("Failed to fetch cards:", e);
+        setError("Failed to load cards. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCards();
+  }, []);
+
+  useEffect(() => {
+    if (allCards.length > 0) {
+      if (includePalestineStack) {
+        setFilteredCards(allCards);
+      } else {
+        setFilteredCards(allCards.filter(card => !card.includedInPalestineStack));
+      }
+      // Reset selection when filter changes
+      setSelectedCardIndex(null);
+      setIsDeckVisible(true);
     }
-  }, [includePalestineStack]);
+  }, [includePalestineStack, allCards]);
   
   const handleDrawCard = () => {
     setIsSelecting(true);
@@ -32,50 +62,55 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
       let newIndex;
       do {
         newIndex = Math.floor(Math.random() * filteredCards.length);
-      } while (newIndex === selectedCard && filteredCards.length > 1);
-      
-      setSelectedCard(newIndex);
+      } while (newIndex === selectedCardIndex && filteredCards.length > 1);
+
+      setSelectedCardIndex(newIndex);
       setIsSelecting(false);
-    }, 1200);
+    }, 1200); // Simulate shuffling time
   };
   
   const handleReset = () => {
     setIsSelecting(true);
     
-    // First hide the current card
+    // Hide the current card immediately
+    setSelectedCardIndex(null);
+
+    // Short delay before showing shuffle animation
     setTimeout(() => {
-      setSelectedCard(null);
-      setIsDeckVisible(false);
-      
-      // Then show the deck briefly
+      setIsDeckVisible(false); // Ensure deck isn't shown during shuffle
+
+      // Simulate shuffling and selecting a new card
       setTimeout(() => {
-        // Finally select a new card
         let newIndex;
         do {
           newIndex = Math.floor(Math.random() * filteredCards.length);
-        } while (newIndex === selectedCard && filteredCards.length > 1);
-        
-        setSelectedCard(newIndex);
+        } while (newIndex === selectedCardIndex && filteredCards.length > 1); // Ensure it's a different card if possible
+
+        setSelectedCardIndex(newIndex);
         setIsSelecting(false);
-      }, 800);
-    }, 400);
+      }, 1200); // Shuffle animation time
+    }, 100); // Delay before shuffle starts
   };
   
   return (
     <div className={cn(
       "w-full max-w-4xl mx-auto px-4",
       isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10",
-      "transition-all duration-700 ease-out"
+      "transition-all duration-700 ease-out",
+      isLoading ? "opacity-0" : "opacity-100" // Hide while loading initially
     )}>
-      {selectedCard === null ? (
+      {isLoading && <div className="text-center py-10">Loading cards...</div>}
+      {error && <div className="text-center py-10 text-red-500">{error}</div>}
+      {!isLoading && !error && selectedCardIndex === null ? (
         <div className="text-center">
-          {isDeckVisible ? (
+          {isDeckVisible && filteredCards.length > 0 ? (
             <div className="space-y-12">
-              {/* Card Stack */}
+              {/* Card Stack Representation */}
               <div className="relative w-64 h-96 mx-auto">
-                {filteredCards.slice(0, 5).map((_, index) => (
-                  <div 
-                    key={index}
+                {/* Show a few cards stacked */}
+                {[...Array(Math.min(filteredCards.length, 5))].map((_, index) => (
+                  <div
+                    key={`stack-${index}`}
                     className={cn(
                       "absolute inset-0 rounded-xl border border-border shadow-lg",
                       "bg-gradient-to-br from-card to-background",
@@ -88,14 +123,19 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
                 ))}
               </div>
               
-              <button
-                onClick={handleDrawCard}
-                className="rounded-full px-8 py-3 bg-primary text-primary-foreground font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
-              >
-                Draw a Card
-              </button>
+              {filteredCards.length > 0 ? (
+                <button
+                  onClick={handleDrawCard}
+                  disabled={isSelecting}
+                  className="rounded-full px-8 py-3 bg-primary text-primary-foreground font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+                >
+                  Draw a Card
+                </button>
+              ) : (
+                <p>No cards available for this selection.</p>
+              )}
             </div>
-          ) : (
+          ) : ( // Show shuffle animation when isDeckVisible is false AND we are selecting
             <div className="flex items-center justify-center h-96">
               <div className={cn(
                 "w-16 h-16 rounded-full flex items-center justify-center",
@@ -110,24 +150,27 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
         <div className={cn(
           "space-y-8",
           "transition-opacity duration-400 ease-in-out",
-          isSelecting ? "opacity-0" : "opacity-100"
+          isSelecting ? "opacity-0" : "opacity-100" // Fade out card while selecting new one
         )}>
-          <div className="max-w-sm mx-auto">
-            <Card card={filteredCards[selectedCard]} index={0} isRevealed={false} />
-          </div>
-          
-          <div className="text-center">
+          {selectedCardIndex !== null && filteredCards[selectedCardIndex] ? (
+            <div className="max-w-sm mx-auto">
+              <Card card={filteredCards[selectedCardIndex]} index={0} isRevealed={false} />
+            </div>
+          ) : null /* Handle case where index might be invalid briefly */}
+
+          <div className="text-center h-16"> {/* Reserve space for button/spinner */}
             {!isSelecting ? (
               <button
                 onClick={handleReset}
-                className="rounded-full px-8 py-3 bg-primary text-primary-foreground font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+                disabled={filteredCards.length <= 1} // Disable if only one card
+                className="rounded-full px-8 py-3 bg-primary text-primary-foreground font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg disabled:opacity-50 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
               >
                 Draw Another Card
               </button>
             ) : (
-              <div className="flex items-center justify-center">
+              <div className="flex items-center justify-center pt-3"> {/* Adjust spinner position */}
                 <div className={cn(
-                  "w-16 h-16 rounded-full flex items-center justify-center",
+                  "w-10 h-10 rounded-full flex items-center justify-center", // Smaller spinner
                   "animate-spin text-primary-foreground dark:text-slate-100"
                 )}>
                   <Shuffle className="w-8 h-8" />

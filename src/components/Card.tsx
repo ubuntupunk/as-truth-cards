@@ -104,17 +104,19 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false, isHero = f
               <button
                 className="hover:text-primary-foreground"
                 onClick={() => {
-                  fetch('/api/interactions', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      cardId: card.id,
-                      interactionType: 'thumbsUp',
-                    }),
-                  });
-                  setThumbsUpCount(thumbsUpCount + 1);
+                  if (typeof window !== 'undefined') {
+                    fetch('/api/interactions', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        cardId: card.id,
+                        interactionType: 'thumbsUp',
+                      }),
+                    });
+                    setThumbsUpCount(thumbsUpCount + 1);
+                  }
                 }}
               >
                 <svg
@@ -138,24 +140,26 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false, isHero = f
               <button
                 className="hover:text-primary-foreground"
                 onClick={() => {
-                  fetch('/api/interactions', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      cardId: card.id,
-                      interactionType: 'thumbsDown',
-                    }),
-                  });
-                  setThumbsDownCount(thumbsDownCount + 1);
+                  if (typeof window !== 'undefined') {
+                    fetch('/api/interactions', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        cardId: card.id,
+                        interactionType: 'thumbsDown',
+                      }),
+                    });
+                    setThumbsDownCount(thumbsDownCount + 1);
+                  }
                 }}
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
                   height="24"
-                  viewBox="0 0 24 24 24"
+                  viewBox="0 0 24 24" // Corrected viewBox typo
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
@@ -192,10 +196,11 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false, isHero = f
                           {source.text}
                         </a>
                       ) : (
-                        source.text
+                        <span>{source.text}</span>
                       )}
                     </li>
-                  </ul>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
