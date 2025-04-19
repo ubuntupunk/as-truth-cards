@@ -22,11 +22,14 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
   useEffect(() => {
     const fetchCards = async () => {
       setIsLoading(true);
-      setError(null);
+        setError(null);
+        let response;
       try {
-        const response = await fetch('/api/cards');
+        response = await fetch('/api/cards');
         if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+          const errorText = await response.text();
+          console.error("HTTP error response text:", errorText);
+          throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
         }
         const data: CardData[] = await response.json();
         setAllCards(data);
