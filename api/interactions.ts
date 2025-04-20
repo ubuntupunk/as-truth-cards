@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { cardService } from '../src/services/database';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export default async function handler(
   req: VercelRequest,
@@ -16,7 +18,7 @@ export default async function handler(
       return res.status(400).json({ error: 'Missing required interaction fields' });
     }
 
-    const interaction = await cardService.recordInteraction({ cardId, interactionType });
+    const interaction = await prisma.userInteraction.create({ data: { cardId: parseInt(cardId), interactionType } });
     res.status(201).json(interaction);
 
   } catch (error: any) {

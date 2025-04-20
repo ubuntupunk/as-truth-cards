@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { CardData } from '@/data/cards';
 import { useDelayedVisibility } from '@/utils/animations';
-import { cardService } from '@/services/database';
+
 
 interface CardProps {
   card: CardData;
@@ -16,16 +16,6 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false, isHero = f
   const isVisible = useDelayedVisibility(100 + index * 50);
   const [thumbsUpCount, setThumbsUpCount] = useState(0);
   const [thumbsDownCount, setThumbsDownCount] = useState(0);
-
-  useEffect(() => {
-    const fetchInteractionCounts = async () => {
-      const { thumbsUpCount, thumbsDownCount } = await cardService.getInteractionCounts(String(card.id));
-      setThumbsUpCount(thumbsUpCount);
-      setThumbsDownCount(thumbsDownCount);
-    };
-
-    fetchInteractionCounts();
-  }, [card.id]);
 
   const handleFlip = () => {
     setIsFlipped(!isFlipped);
@@ -112,10 +102,11 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false, isHero = f
                       },
                       body: JSON.stringify({
                         cardId: card.id,
-                        interactionType: 'thumbsUp',
+                        interactionType: 'RATING_UP',
                       }),
+                    }).then(() => {
+                      setThumbsUpCount(thumbsUpCount + 1);
                     });
-                    setThumbsUpCount(thumbsUpCount + 1);
                   }
                 }}
               >
@@ -148,10 +139,11 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false, isHero = f
                       },
                       body: JSON.stringify({
                         cardId: card.id,
-                        interactionType: 'thumbsDown',
+                        interactionType: 'RATING_DOWN',
                       }),
+                    }).then(() => {
+                      setThumbsDownCount(thumbsDownCount + 1);
                     });
-                    setThumbsDownCount(thumbsDownCount + 1);
                   }
                 }}
               >

@@ -1,19 +1,20 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { cardService } from '../../src/services/database';
+import { PrismaClient, Card } from '@prisma/client';
 import { CardData } from '../../src/data/cards'; // Import CardData type
-import { CardRecord } from '../../src/types/database'; // Import CardRecord type
 
-const transformCardRecord = (card: CardRecord): CardData => ({
+const prisma = new PrismaClient();
+
+const transformCardRecord = (card: Card): CardData => ({
   id: card.id,
   title: card.title,
-  frontDescription: card.front_description,
-  backDescription: card.back_description,
+  frontDescription: card.frontDescription,
+  backDescription: card.backDescription,
   symbol: card.symbol,
-  imageUrl: card.image_url,
-  sources: card.sources,
+  imageUrl: card.imageUrl ?? undefined,
+  sources: card.sources as any,
   tags: card.tags,
-  includedInPalestineStack: card.included_in_palestine_stack,
-  isFeatured: card.is_featured,
+  includedInPalestineStack: card.includedInPalestineStack,
+  isFeatured: card.isFeatured,
 });
 
 export default async function handler(
@@ -21,7 +22,11 @@ export default async function handler(
   res: VercelResponse
 ) {
   try {
-    const featuredCardRecord = await cardService.getFeaturedCard();
+    const featuredCardRecord = await prisma.card.findFirst({
+      where: {
+        isFeatured: true,
+      },
+    });
     if (featuredCardRecord) {
       const featuredCard: CardData = transformCardRecord(featuredCardRecord);
       res.status(200).json(featuredCard);
