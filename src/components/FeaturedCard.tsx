@@ -1,6 +1,6 @@
 import React from 'react';
 import Card from './Card';
-import { CardData } from '@/data/cards'; // Import from data/cards instead of types/cards
+// import { CardData } from '../../src/data/cards'; // Import from data/cards instead of types/cards
 
 interface FeaturedCardProps {
   featuredCard?: CardData;
@@ -33,4 +33,3 @@ const FeaturedCard: React.FC<FeaturedCardProps> = ({ featuredCard }) => {
 };
 
 export default FeaturedCard;
-

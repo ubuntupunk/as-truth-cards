@@ -1,9 +1,9 @@
 // components/HeroSection.tsx
 import React from 'react';
-import { cn } from '@/lib/utils';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
-import { useDelayedVisibility } from '@/utils/animations';
+import { cn } from '../../src/lib/utils';
+import { Checkbox } from '../../src/components/ui/checkbox';
+import { Label } from '../../src/components/ui/label';
+import { useDelayedVisibility } from '../../src/utils/animations';
 
 interface HeroSectionProps {
   showPalestineStack: boolean;

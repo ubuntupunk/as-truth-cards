@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { cn } from '@/lib/utils';
-import { CardData } from '@/data/cards';
-import { useDelayedVisibility } from '@/utils/animations';
+import { cn } from '../../src/lib/utils';
+// import { CardData } from '../../src/data/cards';
+import { useDelayedVisibility } from '../../src/utils/animations';
 
 
 interface CardProps {

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { cn } from '@/lib/utils';
+import { cn } from '../../src/lib/utils';
 import Card from './Card';
 import { Shuffle } from 'lucide-react';
-import { useDelayedVisibility } from '@/utils/animations';
-import { CardData } from '@/types/cards'; // Assuming CardData type is defined here or adjust path
+import { useDelayedVisibility } from '../../src/utils/animations';
+import { CardData } from '../../src/types/cards'; // Assuming CardData type is defined here or adjust path
 
 interface CardDeckProps {
   includePalestineStack: boolean;
