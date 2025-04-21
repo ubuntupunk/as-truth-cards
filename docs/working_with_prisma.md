@@ -1,6 +1,6 @@
 Hi, I'm Amazon Q. I can answer your software development questions.
-  Ask me to explain, debug, or optimize your code.
-  You can enter `/` to see a list of quick actions. Use `@` to add saved prompts, files, folders, or your entire workspace as context.
+Ask me to explain, debug, or optimize your code.
+You can enter `/` to see a list of quick actions. Use `@` to add saved prompts, files, folders, or your entire workspace as context.
 
 ---
 
@@ -20,15 +20,15 @@ const fetchCards = async () =&gt; {
   setError(null);
   try {
     const response = await fetch('/api/cards');
-    
+
     // Log the raw response
     const rawResponse = await response.text();
     console.log('Raw API Response:', rawResponse);
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}, body: ${rawResponse}`);
     }
-    
+
     // Try parsing the response
     const data: CardData[] = JSON.parse(rawResponse);
     setAllCards(data);
@@ -57,16 +57,17 @@ To fix this, check your API route handler (/api/cards). Make sure:
 // Example of proper API route formatting
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    const cards = await prisma.cards.findMany();
-    res.status(200).json(cards); // Ensure you're using res.json()
+    const cards = await prisma.cards.findMany()
+    res.status(200).json(cards) // Ensure you're using res.json()
   } catch (error) {
-    console.error('Error fetching cards:', error);
-    res.status(500).json({ error: 'Failed to fetch cards' });
+    console.error('Error fetching cards:', error)
+    res.status(500).json({ error: 'Failed to fetch cards' })
   }
 }
 ```
 
 3. Verify that your Prisma migrations have been applied correctly:
+
 ```bash
 npx prisma migrate reset
 npx prisma generate
@@ -74,6 +75,7 @@ npx prisma db push
 ```
 
 4. Check if your database has the expected data:
+
 ```bash
 npx prisma studio
 ```
@@ -99,10 +101,13 @@ For Vite, the correct flag is `--outDir`. Here's how to fix your build script in
 ```
 
 So the full correction would be to change this line:
+
 ```json
 "build": "vite build --output public",
 ```
+
 to:
+
 ```json
 "build": "vite build --outDir public",
 ```
@@ -116,8 +121,8 @@ import react from '@vitejs/plugin-react-swc'
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: 'public'
-  }
+    outDir: 'public',
+  },
 })
 ```
 
@@ -130,7 +135,7 @@ e
 
 ---
 
-This error typically occurs when trying to use Prisma Client in a browser environment. Prisma Client is designed to run on the server-side, not in the browser. 
+This error typically occurs when trying to use Prisma Client in a browser environment. Prisma Client is designed to run on the server-side, not in the browser.
 
 Here's how to fix this:
 

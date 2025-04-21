@@ -1,2 +1,2 @@
 // lib/db.ts
-import { neon } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless'

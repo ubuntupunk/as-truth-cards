@@ -24,7 +24,8 @@ build/*
 *.sln
 *.sw?
 
-./next/*
+*./next/*
+.next
 prisma/**/generated
 prisma/**/migrations/*
 orm/**/migrations/

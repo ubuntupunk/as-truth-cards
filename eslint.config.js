@@ -1,29 +1,63 @@
-import js from "@eslint/js";
-import globals from "globals";
-import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
-import tseslint from "typescript-eslint";
+import eslint from '@eslint/js';
+import tseslint from 'typescript-eslint';
+import nextPlugin from '@next/eslint-plugin-next';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import prettier from 'eslint-config-prettier';
+import eslintPluginPrettier from 'eslint-plugin-prettier';
 
-export default tseslint.config(
-  { ignores: ["dist"] },
+export default [
+  eslint.configs.recommended,
+  ...tseslint.configs.recommended,
+  prettier,
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ["**/*.{ts,tsx}"],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-    },
+    files: ['**/*.{js,jsx,ts,tsx}'],
     plugins: {
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
+      '@next/next': nextPlugin,
+      'react-refresh': reactRefresh,
+      'prettier': eslintPluginPrettier, // Add the prettier plugin
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
+      'no-case-declarations': 'error',
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true }
       ],
-      "@typescript-eslint/no-unused-vars": "off",
+      '@next/next/no-html-link-for-pages': 'error',
+      '@next/next/no-img-element': 'error',
+      '@next/next/no-unwanted-polyfillio': 'error',
+      'prettier/prettier': [
+        'error',
+        {
+          singleQuote: true,
+          semi: false,
+          trailingComma: 'es5',
+          tabWidth: 2,
+          printWidth: 100,
+          bracketSpacing: true,
+          endOfLine: 'auto',
+        },
+      ],
+      '@typescript-eslint/no-unused-vars': 'off', // Disable the rule
+      '@next/next/no-img-element': 'off', // Disable the rule
     },
-  }
-);
+    settings: {
+      next: {
+        rootDir: ['./'],
+      },
+    },
+  },
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        project: './tsconfig.eslint.json',
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+  },
+];

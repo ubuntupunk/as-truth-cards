@@ -1,96 +1,100 @@
-import React, { useState } from 'react';
-import { CardData, SourceData } from '@/data/cards';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Save, X, Plus, Trash2, Upload } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Checkbox } from '@/components/ui/checkbox';
+import React, { useState } from 'react'
+import { CardData, SourceData } from '@/data/cards'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Save, X, Plus, Trash2, Upload } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
+import { Checkbox } from '@/components/ui/checkbox'
 
 interface CardEditorProps {
-  card: CardData;
-  onSave: (updatedCard: CardData) => void;
-  onCancel: () => void;
+  card: CardData
+  onSave: (updatedCard: CardData) => void
+  onCancel: () => void
 }
 
 const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
-  const [editedCard, setEditedCard] = useState<CardData>({ 
-    ...card, 
+  const [editedCard, setEditedCard] = useState<CardData>({
+    ...card,
     sources: card.sources || [],
     tags: card.tags || [],
     includedInPalestineStack: card.includedInPalestineStack || false,
-    isFeatured: card.isFeatured || false
-  });
-  const [newSource, setNewSource] = useState<SourceData>({ text: '', url: '' });
-  const [newTag, setNewTag] = useState('');
-  const { toast } = useToast();
+    isFeatured: card.isFeatured || false,
+  })
+  const [newSource, setNewSource] = useState<SourceData>({ text: '', url: '' })
+  const [newTag, setNewTag] = useState('')
+  const { toast } = useToast()
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setEditedCard(prev => ({ ...prev, [name]: value }));
-  };
+    const { name, value } = e.target
+    setEditedCard((prev) => ({ ...prev, [name]: value }))
+  }
 
   const handleCheckboxChange = (field: string, checked: boolean) => {
-    setEditedCard(prev => ({ 
-      ...prev, 
-      [field]: checked 
-    }));
-  };
+    setEditedCard((prev) => ({
+      ...prev,
+      [field]: checked,
+    }))
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+    e.preventDefault()
+
     // Simple validation
-    if (!editedCard.title.trim() || !editedCard.frontDescription.trim() || !editedCard.backDescription.trim()) {
+    if (
+      !editedCard.title.trim() ||
+      !editedCard.frontDescription.trim() ||
+      !editedCard.backDescription.trim()
+    ) {
       toast({
-        title: "Validation Error",
-        description: "All fields are required",
-        variant: "destructive",
-      });
-      return;
+        title: 'Validation Error',
+        description: 'All fields are required',
+        variant: 'destructive',
+      })
+      return
     }
-    
-    onSave(editedCard);
+
+    onSave(editedCard)
     toast({
-      title: "Card Saved",
-      description: "The card has been updated successfully",
-    });
-  };
+      title: 'Card Saved',
+      description: 'The card has been updated successfully',
+    })
+  }
 
   const addSource = () => {
     if (newSource.text.trim()) {
-      setEditedCard(prev => ({
+      setEditedCard((prev) => ({
         ...prev,
-        sources: [...(prev.sources || []), { ...newSource }]
-      }));
-      setNewSource({ text: '', url: '' });
+        sources: [...(prev.sources || []), { ...newSource }],
+      }))
+      setNewSource({ text: '', url: '' })
     }
-  };
+  }
 
   const removeSource = (index: number) => {
-    setEditedCard(prev => ({
+    setEditedCard((prev) => ({
       ...prev,
-      sources: prev.sources?.filter((_, i) => i !== index) || []
-    }));
-  };
+      sources: prev.sources?.filter((_, i) => i !== index) || [],
+    }))
+  }
 
   const addTag = () => {
     if (newTag.trim() && !editedCard.tags?.includes(newTag.trim())) {
-      setEditedCard(prev => ({
+      setEditedCard((prev) => ({
         ...prev,
-        tags: [...(prev.tags || []), newTag.trim()]
-      }));
-      setNewTag('');
+        tags: [...(prev.tags || []), newTag.trim()],
+      }))
+      setNewTag('')
     }
-  };
+  }
 
   const removeTag = (index: number) => {
-    setEditedCard(prev => ({
+    setEditedCard((prev) => ({
       ...prev,
-      tags: prev.tags?.filter((_, i) => i !== index) || []
-    }));
-  };
+      tags: prev.tags?.filter((_, i) => i !== index) || [],
+    }))
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 p-6 border border-border rounded-lg bg-card">
@@ -101,45 +105,51 @@ const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
             <Save className="h-4 w-4" />
             Save
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={onCancel} className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onCancel}
+            className="flex items-center gap-2"
+          >
             <X className="h-4 w-4" />
             Cancel
           </Button>
         </div>
       </div>
-      
+
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-2">
             <Label htmlFor="id">ID</Label>
-            <Input 
-              id="id" 
-              name="id" 
-              value={editedCard.id} 
+            <Input
+              id="id"
+              name="id"
+              value={editedCard.id}
               onChange={handleChange}
               type="number"
               readOnly
               disabled
             />
           </div>
-          
+
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="title">Title</Label>
-            <Input 
-              id="title" 
-              name="title" 
-              value={editedCard.title} 
+            <Input
+              id="title"
+              name="title"
+              value={editedCard.title}
               onChange={handleChange}
               placeholder="Card Title"
             />
           </div>
-          
+
           <div className="space-y-2">
             <Label htmlFor="symbol">Symbol</Label>
-            <Input 
-              id="symbol" 
-              name="symbol" 
-              value={editedCard.symbol} 
+            <Input
+              id="symbol"
+              name="symbol"
+              value={editedCard.symbol}
               onChange={handleChange}
               placeholder="📚"
             />
@@ -149,24 +159,24 @@ const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
         <div className="space-y-2">
           <Label htmlFor="imageUrl">Image URL</Label>
           <div className="flex gap-2">
-            <Input 
-              id="imageUrl" 
-              name="imageUrl" 
-              value={editedCard.imageUrl || ''} 
+            <Input
+              id="imageUrl"
+              name="imageUrl"
+              value={editedCard.imageUrl || ''}
               onChange={handleChange}
               placeholder="https://example.com/image.jpg"
               className="flex-1"
             />
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               size="sm"
               onClick={() => {
                 // This would typically open a file picker in a real application
                 toast({
-                  title: "Feature Notice",
-                  description: "Image upload functionality would be implemented here",
-                });
+                  title: 'Feature Notice',
+                  description: 'Image upload functionality would be implemented here',
+                })
               }}
               className="flex items-center gap-2"
             >
@@ -176,24 +186,26 @@ const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
           </div>
           {editedCard.imageUrl && (
             <div className="mt-2 h-32 w-full rounded-md overflow-hidden border border-border">
-              <img 
-                src={editedCard.imageUrl} 
-                alt="Preview" 
+              <img
+                src={editedCard.imageUrl}
+                alt="Preview"
                 className="h-full w-full object-cover"
                 onError={(e) => {
-                  e.currentTarget.src = 'https://placehold.co/600x400?text=Invalid+Image';
+                  e.currentTarget.src = 'https://placehold.co/600x400?text=Invalid+Image'
                 }}
               />
             </div>
           )}
         </div>
-        
+
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex items-center space-x-2">
-            <Checkbox 
+            <Checkbox
               id="includedInPalestineStack"
               checked={editedCard.includedInPalestineStack || false}
-              onCheckedChange={(checked) => handleCheckboxChange('includedInPalestineStack', checked as boolean)}
+              onCheckedChange={(checked) =>
+                handleCheckboxChange('includedInPalestineStack', checked as boolean)
+              }
             />
             <label
               htmlFor="includedInPalestineStack"
@@ -202,9 +214,9 @@ const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
               Include in Israel/Palestine stack
             </label>
           </div>
-          
+
           <div className="flex items-center space-x-2">
-            <Checkbox 
+            <Checkbox
               id="isFeatured"
               checked={editedCard.isFeatured || false}
               onCheckedChange={(checked) => handleCheckboxChange('isFeatured', checked as boolean)}
@@ -220,33 +232,36 @@ const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
 
         <div className="space-y-2">
           <Label htmlFor="frontDescription">Front Description (Myth)</Label>
-          <Textarea 
-            id="frontDescription" 
-            name="frontDescription" 
-            value={editedCard.frontDescription} 
+          <Textarea
+            id="frontDescription"
+            name="frontDescription"
+            value={editedCard.frontDescription}
             onChange={handleChange}
             placeholder="Description shown on the front of the card"
             rows={3}
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="backDescription">Back Description (Truth)</Label>
-          <Textarea 
-            id="backDescription" 
-            name="backDescription" 
-            value={editedCard.backDescription} 
+          <Textarea
+            id="backDescription"
+            name="backDescription"
+            value={editedCard.backDescription}
             onChange={handleChange}
             placeholder="Description shown on the back of the card"
             rows={6}
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label>Tags</Label>
           <div className="flex flex-wrap gap-2 mt-2">
             {editedCard.tags?.map((tag, index) => (
-              <div key={index} className="flex items-center bg-muted rounded-full px-3 py-1 text-sm">
+              <div
+                key={index}
+                className="flex items-center bg-muted rounded-full px-3 py-1 text-sm"
+              >
                 {tag}
                 <button
                   type="button"
@@ -258,103 +273,98 @@ const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
               </div>
             ))}
           </div>
-          
+
           <div className="flex items-center gap-2 mt-2">
-            <Input 
+            <Input
               placeholder="Add a tag"
               value={newTag}
               onChange={(e) => setNewTag(e.target.value)}
               className="flex-1"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addTag();
+                  e.preventDefault()
+                  addTag()
                 }
               }}
             />
-            <Button 
-              type="button" 
-              onClick={addTag}
-              size="icon"
-            >
+            <Button type="button" onClick={addTag} size="icon">
               <Plus className="h-4 w-4" />
             </Button>
           </div>
         </div>
-        
+
         <div className="space-y-2">
           <Label>Sources</Label>
-          
+
           <div className="space-y-2">
             {editedCard.sources?.map((source, index) => (
-              <div key={index} className="flex flex-col space-y-2 p-3 border border-border rounded-md">
+              <div
+                key={index}
+                className="flex flex-col space-y-2 p-3 border border-border rounded-md"
+              >
                 <div className="flex items-start gap-2">
-                  <Input 
+                  <Input
                     value={source.text}
                     onChange={(e) => {
-                      const newSources = [...(editedCard.sources || [])];
+                      const newSources = [...(editedCard.sources || [])]
                       newSources[index] = {
                         ...newSources[index],
-                        text: e.target.value
-                      };
-                      setEditedCard(prev => ({
+                        text: e.target.value,
+                      }
+                      setEditedCard((prev) => ({
                         ...prev,
-                        sources: newSources
-                      }));
+                        sources: newSources,
+                      }))
                     }}
                     placeholder="Source text"
                     className="flex-1"
                   />
-                  <Button 
-                    type="button" 
-                    variant="destructive" 
-                    size="icon" 
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
                     onClick={() => removeSource(index)}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-                <Input 
+                <Input
                   value={source.url || ''}
                   onChange={(e) => {
-                    const newSources = [...(editedCard.sources || [])];
+                    const newSources = [...(editedCard.sources || [])]
                     newSources[index] = {
                       ...newSources[index],
-                      url: e.target.value
-                    };
-                    setEditedCard(prev => ({
+                      url: e.target.value,
+                    }
+                    setEditedCard((prev) => ({
                       ...prev,
-                      sources: newSources
-                    }));
+                      sources: newSources,
+                    }))
                   }}
                   placeholder="Source URL (optional)"
                 />
               </div>
             ))}
           </div>
-          
+
           <div className="flex flex-col space-y-2 mt-2 p-3 border border-border rounded-md">
-            <Input 
+            <Input
               placeholder="Add a source citation"
               value={newSource.text}
-              onChange={(e) => setNewSource(prev => ({ ...prev, text: e.target.value }))}
+              onChange={(e) => setNewSource((prev) => ({ ...prev, text: e.target.value }))}
             />
-            <Input 
+            <Input
               placeholder="Source URL (optional)"
               value={newSource.url}
-              onChange={(e) => setNewSource(prev => ({ ...prev, url: e.target.value }))}
+              onChange={(e) => setNewSource((prev) => ({ ...prev, url: e.target.value }))}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addSource();
+                  e.preventDefault()
+                  addSource()
                 }
               }}
             />
-            <Button 
-              type="button" 
-              onClick={addSource}
-              className="w-full"
-            >
+            <Button type="button" onClick={addSource} className="w-full">
               <Plus className="h-4 w-4 mr-2" />
               Add Source
             </Button>
@@ -362,7 +372,7 @@ const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
         </div>
       </div>
     </form>
-  );
-};
+  )
+}
 
-export default CardEditor;
+export default CardEditor

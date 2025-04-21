@@ -1,33 +1,34 @@
-import React from 'react';
-import { CardData } from '@/data/cards';
-import { Button } from '@/components/ui/button';
-import { Search, Edit, Plus, Trash2, Star } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import React from 'react'
+import { CardData } from '@/data/cards'
+import { Button } from '@/components/ui/button'
+import { Search, Edit, Plus, Trash2, Star } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 
 interface CardListProps {
-  cards: CardData[];
-  onEdit: (card: CardData) => void;
-  onDelete: (cardId: number) => void;
-  onAdd: () => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
+  cards: CardData[]
+  onEdit: (card: CardData) => void
+  onDelete: (cardId: number) => void
+  onAdd: () => void
+  searchQuery: string
+  setSearchQuery: (query: string) => void
 }
 
-const CardList: React.FC<CardListProps> = ({ 
-  cards, 
-  onEdit, 
-  onDelete, 
-  onAdd, 
-  searchQuery, 
-  setSearchQuery 
+const CardList: React.FC<CardListProps> = ({
+  cards,
+  onEdit,
+  onDelete,
+  onAdd,
+  searchQuery,
+  setSearchQuery,
 }) => {
-  const filteredCards = cards.filter(card => 
-    card.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    card.frontDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    card.backDescription.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredCards = cards.filter(
+    (card) =>
+      card.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      card.frontDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      card.backDescription.toLowerCase().includes(searchQuery.toLowerCase())
+  )
 
   return (
     <div className="space-y-4">
@@ -50,22 +51,24 @@ const CardList: React.FC<CardListProps> = ({
 
       {filteredCards.length === 0 ? (
         <div className="text-center py-8 text-muted-foreground">
-          {searchQuery ? "No cards match your search" : "No cards found"}
+          {searchQuery ? 'No cards match your search' : 'No cards found'}
         </div>
       ) : (
         <div className="space-y-3">
           {filteredCards.map((card) => (
-            <div 
-              key={card.id} 
+            <div
+              key={card.id}
               className={cn(
-                "p-4 border border-border rounded-lg bg-card hover:bg-accent/10 transition-colors",
-                card.isFeatured && "border-primary/50"
+                'p-4 border border-border rounded-lg bg-card hover:bg-accent/10 transition-colors',
+                card.isFeatured && 'border-primary/50'
               )}
             >
               <div className="flex flex-col sm:flex-row justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="font-mono">#{card.id}</Badge>
+                    <Badge variant="outline" className="font-mono">
+                      #{card.id}
+                    </Badge>
                     <h4 className="text-lg font-medium">{card.title}</h4>
                     <span className="text-xl">{card.symbol}</span>
                     {card.isFeatured && (
@@ -80,18 +83,18 @@ const CardList: React.FC<CardListProps> = ({
                   </p>
                 </div>
                 <div className="flex items-center space-x-2 shrink-0">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => onEdit(card)}
                     className="flex items-center gap-2"
                   >
                     <Edit className="h-4 w-4" />
                     Edit
                   </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="sm" 
+                  <Button
+                    variant="destructive"
+                    size="sm"
                     onClick={() => onDelete(card.id)}
                     className="flex items-center gap-2"
                   >
@@ -105,7 +108,7 @@ const CardList: React.FC<CardListProps> = ({
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default CardList;
+export default CardList

@@ -11,6 +11,7 @@ The `prisma/seed.ts` script is responsible for populating the database with init
 Previously, the script used an `async function main()` pattern. However, when running seed scripts with Bun, there can be issues with this structure. To ensure compatibility and reliable execution with Bun, the script was refactored to use **top-level await**.
 
 Key changes made:
+
 - Removed the `async function main()` wrapper.
 - Moved the core seeding logic (clearing existing data and creating new records) directly to the top level of the script.
 - Wrapped the logic in a `try...catch...finally` block to handle errors gracefully and ensure the Prisma client disconnects (`prisma.$disconnect()`) in all scenarios.
@@ -26,6 +27,7 @@ The `Card` model has a `sources` field defined as `Json?`. When seeding, the dat
 To reset the database schema and run the seed script, use the following commands:
 
 1.  **Push Schema Changes & Reset:** This command applies any changes from `prisma/schema.prisma` to the database. The `--force-reset` flag will drop the existing database and recreate it based on the schema, effectively clearing all data. **Use with caution, especially in production!**
+
     ```bash
     bunx prisma db push --force-reset
     ```
