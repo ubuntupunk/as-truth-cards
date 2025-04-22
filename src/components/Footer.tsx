@@ -21,19 +21,19 @@ const Footer = () => {
 
           <div className="flex space-x-6">
             <a
-              href="#"
+              href="/privacy"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Privacy
             </a>
             <a
-              href="#"
+              href="terms"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Terms
             </a>
             <a
-              href="#"
+              href="/resources"
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Resources
