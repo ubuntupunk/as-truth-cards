@@ -2,7 +2,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@prisma/client": ["./prisma/generated/client"] // Added alias for Prisma client
     },
     "noImplicitAny": false,
     "noUnusedParameters": false,

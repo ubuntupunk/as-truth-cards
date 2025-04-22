@@ -1,5 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
-import { PrismaClient, Card } from '@prisma/client'
+import { PrismaClient, Card } from '@prisma/client' // Use path alias
+import { NextResponse } from 'next/server'; // Import NextResponse
 import { CardData } from '../../../data/cards' // Import CardData type
 
 const prisma = new PrismaClient()
@@ -17,7 +17,7 @@ const transformCardRecord = (card: Card): CardData => ({
   isFeatured: card.isFeatured,
 })
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export async function GET() { // Export a GET function
   try {
     const featuredCardRecord = await prisma.card.findFirst({
       where: {
@@ -26,12 +26,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
     if (featuredCardRecord) {
       const featuredCard: CardData = transformCardRecord(featuredCardRecord)
-      res.status(200).json(featuredCard)
+      return NextResponse.json(featuredCard); // Use NextResponse
     } else {
-      res.status(404).json({ error: 'No featured card found' })
+      return NextResponse.json({ error: 'No featured card found' }, { status: 404 }); // Use NextResponse
     }
   } catch (error) {
     console.error('Error fetching featured card:', error)
-    res.status(500).json({ error: 'Failed to fetch featured card' })
+    return NextResponse.json({ error: 'Failed to fetch featured card' }, { status: 500 }); // Use NextResponse
   }
 }

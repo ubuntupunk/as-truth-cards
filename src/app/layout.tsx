@@ -1,6 +1,6 @@
 import { StackProvider, StackTheme } from '@stackframe/stack'
 import { stackClientApp } from '@/stack/client'
-import '../index.css'
+import '@/index.css'
 
 export default function RootLayout({ children }: { children: React.ReactNode }): JSX.Element {
   return (

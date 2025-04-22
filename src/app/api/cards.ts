@@ -1,5 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
 import { PrismaClient, Card } from '@prisma/client'
+import { NextResponse } from 'next/server'; // Import NextResponse
 import { CardData } from '../../types/cards'
 import { stackServerApp } from '../../stack/server'
 import * as dotenv from 'dotenv'
@@ -24,101 +24,113 @@ const transformCardRecord = (card: Card): CardData => {
   }
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // --- Admin Check Middleware ---
-  const isAdminRequest = ['POST', 'PUT', 'DELETE'].includes(req.method || '')
-  let user = null
-
-  if (isAdminRequest) {
-    try {
-      user = await stackServerApp.getUser()
-      if (!user) {
-        return res.status(401).json({ error: 'Unauthorized: Not logged in' })
-      }
-      if (!user.roles?.includes('admin')) {
-        return res.status(403).json({ error: 'Forbidden: Admin privileges required' })
-      }
-    } catch (error) {
-      console.error('Error getting user:', error)
-      return res.status(500).json({ error: 'Failed to authenticate user' })
-    }
-  }
-
+// GET
+export async function GET() {
   try {
-    switch (req.method) {
-      case 'GET': {
-        const cardRecords = await prisma.card.findMany({
-          orderBy: {
-            createdAt: 'desc',
-          },
-        })
-        const cards: CardData[] = cardRecords.map(transformCardRecord)
-        res.status(200).json(cards)
-        break
-      }
+    const cardRecords = await prisma.card.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    })
+    const cards: CardData[] = cardRecords.map(transformCardRecord)
+    return NextResponse.json(cards);
+  } catch (error: any) {
+    console.error(`Error handling GET request:`, error)
+    return NextResponse.json({ error: `Failed to handle GET request` }, { status: 500 });
+  }
+}
 
-      case 'POST': {
-        const newCardData = req.body as Omit<CardData, 'id'>
-        const createdCardRecord = await prisma.card.create({
-          data: {
-            ...newCardData,
-            sources: newCardData.sources || [],
-            tags: newCardData.tags || [],
-          },
-        })
-        res.status(201).json(transformCardRecord(createdCardRecord))
-        break
-      }
-
-      case 'PUT': {
-        const updatedCardData = req.body as CardData
-        if (!updatedCardData.id) {
-          return res.status(400).json({ error: 'Bad Request: Card ID is required for update' })
-        }
-        const updatedCardRecord = await prisma.card.update({
-          where: { id: updatedCardData.id },
-          data: {
-            ...updatedCardData,
-            id: undefined,
-            sources: updatedCardData.sources || [],
-            tags: updatedCardData.tags || [],
-          },
-        })
-        res.status(200).json(transformCardRecord(updatedCardRecord))
-        break
-      }
-
-      case 'DELETE': {
-        const { id } = req.query
-        if (!id || typeof id !== 'string') {
-          return res
-            .status(400)
-            .json({ error: 'Bad Request: Card ID is required in query parameters' })
-        }
-        const cardId = parseInt(id, 10)
-        if (isNaN(cardId)) {
-          return res.status(400).json({ error: 'Bad Request: Invalid Card ID format' })
-        }
-
-        await prisma.card.delete({
-          where: { id: cardId },
-        })
-        res.status(204).end()
-        break
-      }
-
-      default: {
-        res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE'])
-        res.status(405).end(`Method ${req.method} Not Allowed`)
-      }
+// POST
+export async function POST(req: Request) {
+  try {
+    const user = await stackServerApp.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized: Not logged in' }, { status: 401 });
     }
-  } catch (error: unknown) {
-    console.error(`Error handling ${req.method} request:`, error)
+    if (!user.roles?.includes('admin')) {
+      return NextResponse.json({ error: 'Forbidden: Admin privileges required' }, { status: 403 });
+    }
+
+    const newCardData = await req.json() as Omit<CardData, 'id'>;
+    const createdCardRecord = await prisma.card.create({
+      data: {
+        ...newCardData,
+        sources: newCardData.sources || [],
+        tags: newCardData.tags || [],
+      },
+    })
+    return NextResponse.json(transformCardRecord(createdCardRecord), { status: 201 });
+  } catch (error: any) {
+    console.error(`Error handling POST request:`, error)
+    return NextResponse.json({ error: `Failed to handle POST request` }, { status: 500 });
+  }
+}
+
+// PUT
+export async function PUT(req: Request) {
+  try {
+    const user = await stackServerApp.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized: Not logged in' }, { status: 401 });
+    }
+    if (!user.roles?.includes('admin')) {
+      return NextResponse.json({ error: 'Forbidden: Admin privileges required' }, { status: 403 });
+    }
+
+    const updatedCardData = await req.json() as CardData;
+    if (!updatedCardData.id) {
+      return NextResponse.json({ error: 'Bad Request: Card ID is required for update' }, { status: 400 });
+    }
+    const updatedCardRecord = await prisma.card.update({
+      where: { id: updatedCardData.id },
+      data: {
+        ...updatedCardData,
+        id: undefined,
+        sources: updatedCardData.sources || [],
+        tags: updatedCardData.tags || [],
+      },
+    })
+    return NextResponse.json(transformCardRecord(updatedCardRecord));
+  } catch (error: any) {
+    console.error(`Error handling PUT request:`, error)
     if ((error as { code?: string }).code === 'P2025') {
-      return res.status(404).json({ error: 'Card not found' })
+      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
     }
-    res.status(500).json({ error: `Failed to handle ${req.method} request` })
-  } finally {
-    await prisma.$disconnect()
+    return NextResponse.json({ error: `Failed to handle PUT request` }, { status: 500 });
+  }
+}
+
+// DELETE
+export async function DELETE(req: Request) {
+  try {
+    const user = await stackServerApp.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized: Not logged in' }, { status: 401 });
+    }
+    if (!user.roles?.includes('admin')) {
+      return NextResponse.json({ error: 'Forbidden: Admin privileges required' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id || typeof id !== 'string') {
+      return NextResponse.json({ error: 'Bad Request: Card ID is required in query parameters' }, { status: 400 });
+    }
+    const cardId = parseInt(id, 10)
+    if (isNaN(cardId)) {
+      return NextResponse.json({ error: 'Bad Request: Invalid Card ID format' }, { status: 400 });
+    }
+
+    await prisma.card.delete({
+      where: { id: cardId },
+    })
+    return new NextResponse(null, { status: 204 });
+  } catch (error: any) {
+    console.error(`Error handling DELETE request:`, error)
+    if ((error as { code?: string }).code === 'P2025') {
+      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
+    }
+    return NextResponse.json({ error: `Failed to handle DELETE request` }, { status: 500 });
   }
 }

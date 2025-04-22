@@ -53,10 +53,10 @@ const FeaturedCard: React.FC<FeaturedCardProps> = ({ featuredCard }) => {
     frontDescription:
       'Explore our deck of cards that reveal the truth behind common misconceptions and stereotypes. Each card offers factual insights backed by research.',
     backDescription:
-      "Our cards are designed to promote critical thinking and understanding. By exploring these cards, you'll gain a deeper perspective on complex topics often misrepresented in casual conversation.",
+      `Our cards are designed to promote critical thinking and understanding. By exploring these cards, you'll gain a deeper perspective on complex topics often misrepresented in casual conversation.\nEach card is a gateway to knowledge, encouraging you to question assumptions and seek the truth. Thumbs up or Thumbs down to record your approval or disapproval. Vetted Users can also submit their own cards to contribute to the deck, fostering a community of informed discussion.\nJoin us in this journey of discovery and enlightenment. Together, we can challenge the status quo and promote a more informed society. Free of hatred, bigotry and unfair discrimination.`,
     symbol: '✨',
     imageUrl:
-      'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
+      '/anti1.jpeg',
     sources: [
       {
         text: 'Based on peer-reviewed research and historical documentation',

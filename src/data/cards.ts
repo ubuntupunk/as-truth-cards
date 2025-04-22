@@ -25,6 +25,7 @@ export const cards: CardData[] = [
       "This myth ignores the diversity of political and economic systems worldwide. Jewish people, like all groups, have varied political views and economic situations. This conspiracy theory has been used to scapegoat Jews for complex societal problems and has roots in the debunked 'Protocols of the Elders of Zion' forgery.",
     symbol: '🌍',
     includedInPalestineStack: false,
+    isFeatured: true,
     sources: [
       {
         text: "United States Holocaust Memorial Museum, 'Protocols of the Elders of Zion'",
