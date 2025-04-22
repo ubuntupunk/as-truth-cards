@@ -26,6 +26,9 @@ build/*
 
 *./next/*
 .next
+
+@eslint
+
 prisma/**/generated
 prisma/**/migrations/*
 orm/**/migrations/
