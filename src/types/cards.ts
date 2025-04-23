@@ -9,5 +9,5 @@ export interface CardData {
   includedInPalestineStack: boolean
   isFeatured?: boolean
   tags?: string[] // Added tags property
-  // Add any other properties that your cards might have
+  interactions: any[];
 }
