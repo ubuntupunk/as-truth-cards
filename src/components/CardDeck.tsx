@@ -1,98 +1,98 @@
 import React, { useState, useEffect } from 'react'
-import { cn } from '../../src/lib/utils';
-import Card from './Card';
-import { Shuffle } from 'lucide-react';
-import { useDelayedVisibility } from '../../src/utils/animations';
-import { CardData } from '../../src/types/cards'; // Assuming CardData type is defined here or adjust path
+import { cn } from '../../src/lib/utils'
+import Card from './Card'
+import { Shuffle } from 'lucide-react'
+import { useDelayedVisibility } from '../../src/utils/animations'
+import { CardData } from '../../src/types/cards' // Assuming CardData type is defined here or adjust path
 
 interface CardDeckProps {
-  includePalestineStack: boolean;
+  includePalestineStack: boolean
 }
 
 const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
-  const [allCards, setAllCards] = useState<CardData[]>([]);
-  const [filteredCards, setFilteredCards] = useState<CardData[]>([]);
-  const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
-  const [isSelecting, setIsSelecting] = useState(false);
-  const [isDeckVisible, setIsDeckVisible] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const isVisible = useDelayedVisibility(300);
+  const [allCards, setAllCards] = useState<CardData[]>([])
+  const [filteredCards, setFilteredCards] = useState<CardData[]>([])
+  const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null)
+  const [isSelecting, setIsSelecting] = useState(false)
+  const [isDeckVisible, setIsDeckVisible] = useState(true)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const isVisible = useDelayedVisibility(300)
 
   useEffect(() => {
     const fetchCards = async () => {
-      setIsLoading(true);
-      setError(null);
+      setIsLoading(true)
+      setError(null)
       try {
-        const response = await fetch('/api/cards');
+        const response = await fetch('/api/cards')
         if (!response.ok) {
-          const errorText = await response.text();
-          console.error('HTTP error response text:', errorText);
-          throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+          const errorText = await response.text()
+          console.error('HTTP error response text:', errorText)
+          throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`)
         }
-        const data: CardData[] = await response.json();
-        setAllCards(data);
+        const data: CardData[] = await response.json()
+        setAllCards(data)
       } catch (e) {
-        console.error('Failed to fetch cards:', e);
-        setError('Failed to load cards. Please try again later.');
+        console.error('Failed to fetch cards:', e)
+        setError('Failed to load cards. Please try again later.')
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
+    }
 
-    fetchCards();
-  }, []);
+    fetchCards()
+  }, [])
 
   useEffect(() => {
     if (allCards.length > 0) {
       if (includePalestineStack) {
-        setFilteredCards(allCards);
+        setFilteredCards(allCards)
       } else {
-        setFilteredCards(allCards.filter((card) => !card.includedInPalestineStack));
+        setFilteredCards(allCards.filter((card) => !card.includedInPalestineStack))
       }
       // Reset selection when filter changes
-      setSelectedCardIndex(null);
-      setIsDeckVisible(true);
+      setSelectedCardIndex(null)
+      setIsDeckVisible(true)
     }
-  }, [includePalestineStack, allCards]);
+  }, [includePalestineStack, allCards])
 
   const handleDrawCard = () => {
-    setIsSelecting(true);
-    setIsDeckVisible(false);
+    setIsSelecting(true)
+    setIsDeckVisible(false)
 
     setTimeout(() => {
-      let newIndex;
+      let newIndex
       do {
-        newIndex = Math.floor(Math.random() * filteredCards.length);
-      } while (newIndex === selectedCardIndex && filteredCards.length > 1);
+        newIndex = Math.floor(Math.random() * filteredCards.length)
+      } while (newIndex === selectedCardIndex && filteredCards.length > 1)
 
-      setSelectedCardIndex(newIndex);
-      setIsSelecting(false);
-    }, 1200); // Simulate shuffling time
-  };
+      setSelectedCardIndex(newIndex)
+      setIsSelecting(false)
+    }, 1200) // Simulate shuffling time
+  }
 
   const handleReset = () => {
-    setIsSelecting(true);
+    setIsSelecting(true)
 
     // Hide the current card immediately
-    setSelectedCardIndex(null);
+    setSelectedCardIndex(null)
 
     // Short delay before showing shuffle animation
     setTimeout(() => {
-      setIsDeckVisible(false); // Ensure deck isn't shown during shuffle
+      setIsDeckVisible(false) // Ensure deck isn't shown during shuffle
 
       // Simulate shuffling and selecting a new card
       setTimeout(() => {
-        let newIndex;
+        let newIndex
         do {
-          newIndex = Math.floor(Math.random() * filteredCards.length);
-        } while (newIndex === selectedCardIndex && filteredCards.length > 1); // Ensure it's a different card if possible
+          newIndex = Math.floor(Math.random() * filteredCards.length)
+        } while (newIndex === selectedCardIndex && filteredCards.length > 1) // Ensure it's a different card if possible
 
-        setSelectedCardIndex(newIndex);
-        setIsSelecting(false);
-      }, 1200); // Shuffle animation time
-    }, 100); // Delay before shuffle starts
-  };
+        setSelectedCardIndex(newIndex)
+        setIsSelecting(false)
+      }, 1200) // Shuffle animation time
+    }, 100) // Delay before shuffle starts
+  }
 
   return (
     <div
@@ -209,7 +209,7 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
         </div>
       )}
     </div>
-  );
-};
+  )
+}
 
-export default CardDeck;
+export default CardDeck

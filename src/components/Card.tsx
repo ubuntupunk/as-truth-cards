@@ -1,20 +1,27 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { cn } from '../../src/lib/utils'
 // import { CardData } from '../../src/data/cards';
 import { useDelayedVisibility } from '../../src/utils/animations'
 import { ThumbsUp, ThumbsDown } from 'lucide-react'
 
-import { CardData } from '@/types/cards'
+import { CardData, FeaturedCardInfo } from '@/types/cards'
 
 interface CardProps {
-  card: CardData
+  card: CardData | FeaturedCardInfo
   index: number
   isRevealed?: boolean
   isHero?: boolean
   isFeatured: boolean
+  isInteractive?: boolean
 }
 
-const Card: React.FC<CardProps> = ({ card, index, isRevealed = false, isHero = false }) => {
+const Card: React.FC<CardProps> = ({
+  card,
+  index,
+  isRevealed = false,
+  isHero = false,
+  isInteractive = true,
+}) => {
   const [isFlipped, setIsFlipped] = useState(isRevealed)
   const isVisible = useDelayedVisibility(100 + index * 50)
   const [liked, setLiked] = useState<boolean | null>(null)
@@ -23,36 +30,39 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false, isHero = f
     setIsFlipped(!isFlipped)
   }
 
-  const handleLike = async (liked: boolean) => {
-    const cardId = card.id
-    const userId = 'user123' // Replace with actual user ID
-    const localStorageKey = `card_${cardId}_${userId}`
+  const handleLike =
+    isInteractive && 'interactions' in card
+      ? async (liked: boolean) => {
+          const cardId = card.id
+          const userId = 'user123' // Replace with actual user ID
+          const localStorageKey = `card_${cardId}_${userId}`
 
-    if (typeof window !== 'undefined') {
-      const hasVoted = localStorage.getItem(localStorageKey)
+          if (typeof window !== 'undefined') {
+            const hasVoted = localStorage.getItem(localStorageKey)
 
-      if (!hasVoted) {
-        setLiked(liked)
-        try {
-          await fetch('/api/interactions', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              cardId: cardId,
-              liked: liked,
-            }),
-          })
-          localStorage.setItem(localStorageKey, 'true')
-        } catch (error) {
-          console.error('Error sending interaction:', error)
+            if (!hasVoted) {
+              setLiked(liked)
+              try {
+                await fetch('/api/interactions', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    cardId: cardId,
+                    liked: liked,
+                  }),
+                })
+                localStorage.setItem(localStorageKey, 'true')
+              } catch (error) {
+                console.error('Error sending interaction:', error)
+              }
+            } else {
+              console.log('User has already voted for this card.')
+            }
+          }
         }
-      } else {
-        console.log('User has already voted for this card.')
-      }
-    }
-  }
+      : undefined
 
   return (
     <div
@@ -118,19 +128,26 @@ const Card: React.FC<CardProps> = ({ card, index, isRevealed = false, isHero = f
           )}
           style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
         >
-          <div className="absolute top-2 left-2">
-            <button
-              onClick={() => handleLike(true)}
-              className="text-green-500 hover:text-green-700"
-            >
-              <ThumbsUp className="w-6 h-6" />
-            </button>
-          </div>
-          <div className="absolute top-2 right-2">
-            <button onClick={() => handleLike(false)} className="text-red-500 hover:text-red-700">
-              <ThumbsDown className="w-6 h-6" />
-            </button>
-          </div>
+          {isInteractive && 'interactions' in card && (
+            <>
+              <div className="absolute top-2 left-2">
+                <button
+                  onClick={() => handleLike?.(true)}
+                  className="text-green-500 hover:text-green-700"
+                >
+                  <ThumbsUp className="w-6 h-6" />
+                </button>
+              </div>
+              <div className="absolute top-2 right-2">
+                <button
+                  onClick={() => handleLike?.(false)}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <ThumbsDown className="w-6 h-6" />
+                </button>
+              </div>
+            </>
+          )}
           <div className="text-4xl mb-4 mx-auto transform rotate-180">{card.symbol}</div>
           <h3 className="text-lg font-medium mb-3 text-center">{card.title}</h3>
           <div className="flex flex-col flex-grow overflow-auto">

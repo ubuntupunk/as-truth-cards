@@ -1,7 +1,7 @@
 // types/database.ts
-export type InteractionType = 
-  | 'VIEW' 
-  | 'SHARE' 
+export type InteractionType =
+  | 'VIEW'
+  | 'SHARE'
   | 'FEEDBACK'
   | 'THUMBS_UP'
   | 'THUMBS_DOWN'

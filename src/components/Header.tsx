@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 import React from 'react'
 import Link from 'next/link'
@@ -6,13 +6,13 @@ import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
 import { ThemeToggle } from './ThemeToggle'
-import { useUser, UserButton } from '@stackframe/stack';
+import { useUser, UserButton } from '@stackframe/stack'
 
 const Header = () => {
   const pathname = usePathname()
   const isVisible = useDelayedVisibility(100)
   const isAdmin = pathname?.startsWith('/admin')
-  const user = useUser();
+  const user = useUser()
 
   return (
     <header
@@ -51,7 +51,10 @@ const Header = () => {
           {user ? (
             <UserButton />
           ) : (
-            <Link href="/handler/sign-in" className="text-sm font-medium transition-colors hover-lift">
+            <Link
+              href="/handler/sign-in"
+              className="text-sm font-medium transition-colors hover-lift"
+            >
               Sign In
             </Link>
           )}
