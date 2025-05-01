@@ -1,3 +1,5 @@
+import { UserInteraction } from './database'
+
 export interface CardData {
   id: number
   title: string
@@ -9,5 +11,5 @@ export interface CardData {
   includedInPalestineStack: boolean
   isFeatured?: boolean
   tags?: string[] // Added tags property
-  interactions: any[];
+  interactions: UserInteraction[];
 }

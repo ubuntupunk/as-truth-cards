@@ -1,5 +1,6 @@
 import { PrismaClient, Card } from '@prisma/client'
 import { NextResponse } from 'next/server'; // Import NextResponse
+import type { UserInteraction } from '@prisma/client'
 import { CardData } from '../../types/cards'
 import { stackServerApp } from '../../stack/server'
 import * as dotenv from 'dotenv'
@@ -9,7 +10,11 @@ dotenv.config({ path: '.env.local' })
 const prisma = new PrismaClient()
 
 // Helper function to transform Prisma Card record to CardData type
-const transformCardRecord = (card: Card): CardData => {
+interface CardWithInteractions extends Card {
+  interactions?: UserInteraction[]
+}
+
+const transformCardRecord = (card: CardWithInteractions): CardData => {
   return {
     id: card.id,
     title: card.title,
@@ -21,6 +26,7 @@ const transformCardRecord = (card: Card): CardData => {
     tags: card.tags,
     includedInPalestineStack: card.includedInPalestineStack,
     isFeatured: card.isFeatured,
+    interactions: card.interactions || [],
   }
 }
 
@@ -31,6 +37,9 @@ export async function GET() {
       orderBy: {
         createdAt: 'desc',
       },
+      include: {
+        interactions: true
+      }
     })
     const cards: CardData[] = cardRecords.map(transformCardRecord)
     return NextResponse.json(cards);
@@ -47,16 +56,22 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized: Not logged in' }, { status: 401 });
     }
-    if (!user.roles?.includes('admin')) {
+    if (!(await user.getPermission('admin'))) {
       return NextResponse.json({ error: 'Forbidden: Admin privileges required' }, { status: 403 });
     }
 
     const newCardData = await req.json() as Omit<CardData, 'id'>;
     const createdCardRecord = await prisma.card.create({
       data: {
-        ...newCardData,
+        title: newCardData.title,
+        frontDescription: newCardData.frontDescription,
+        backDescription: newCardData.backDescription,
+        symbol: newCardData.symbol,
+        imageUrl: newCardData.imageUrl,
         sources: newCardData.sources || [],
         tags: newCardData.tags || [],
+        includedInPalestineStack: newCardData.includedInPalestineStack,
+        isFeatured: newCardData.isFeatured
       },
     })
     return NextResponse.json(transformCardRecord(createdCardRecord), { status: 201 });
@@ -73,7 +88,7 @@ export async function PUT(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized: Not logged in' }, { status: 401 });
     }
-    if (!user.roles?.includes('admin')) {
+    if (!(await user.getPermission('admin'))) {
       return NextResponse.json({ error: 'Forbidden: Admin privileges required' }, { status: 403 });
     }
 
@@ -84,10 +99,15 @@ export async function PUT(req: Request) {
     const updatedCardRecord = await prisma.card.update({
       where: { id: updatedCardData.id },
       data: {
-        ...updatedCardData,
-        id: undefined,
+        title: updatedCardData.title,
+        frontDescription: updatedCardData.frontDescription,
+        backDescription: updatedCardData.backDescription,
+        symbol: updatedCardData.symbol,
+        imageUrl: updatedCardData.imageUrl,
         sources: updatedCardData.sources || [],
         tags: updatedCardData.tags || [],
+        includedInPalestineStack: updatedCardData.includedInPalestineStack,
+        isFeatured: updatedCardData.isFeatured
       },
     })
     return NextResponse.json(transformCardRecord(updatedCardRecord));
@@ -107,7 +127,7 @@ export async function DELETE(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized: Not logged in' }, { status: 401 });
     }
-    if (!user.roles?.includes('admin')) {
+    if (!(await user.getPermission('admin'))) {
       return NextResponse.json({ error: 'Forbidden: Admin privileges required' }, { status: 403 });
     }
 
