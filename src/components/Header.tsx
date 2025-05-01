@@ -28,6 +28,7 @@ const Header = () => {
 
         <div className="flex items-center space-x-4">
           <nav className="flex space-x-8">
+            <ThemeToggle />
             {[
               { path: '/', label: 'Home' },
               { path: '/about', label: 'About' },
@@ -58,7 +59,6 @@ const Header = () => {
               Sign In
             </Link>
           )}
-          <ThemeToggle />
         </div>
       </div>
     </header>

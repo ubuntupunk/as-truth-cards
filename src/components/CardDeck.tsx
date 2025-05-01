@@ -129,7 +129,17 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
                     style={{
                       transform: `translateY(${index * 2}px) rotate(${index % 2 === 0 ? index * 2 : -index * 2}deg)`,
                     }}
-                  />
+                  >
+                    {index === 0 && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <img 
+                          src="/truthcard.png" 
+                          alt="Card deck" 
+                          className="w-3/4 h-3/4 object-contain opacity-70"
+                        />
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
 
