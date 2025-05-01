@@ -1,4 +1,4 @@
-import { PrismaClient, Card, UserInteraction } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
 import { NextResponse } from 'next/server'
 import { CardData } from '../../../types/cards'
 import { stackServerApp } from '../../../stack/server'
@@ -6,11 +6,19 @@ import * as dotenv from 'dotenv'
 
 dotenv.config({ path: '.env.local' })
 
-type CardWithInteractions = Card & {
-  interactions?: UserInteraction[]
+type CardWithInteractions = Awaited<ReturnType<PrismaClient['card']['findUnique']>> & {
+  interactions?: Awaited<ReturnType<PrismaClient['userInteraction']['findMany']>>
 }
 
-const prisma = new PrismaClient()
+let prisma: PrismaClient
+
+// Initialize Prisma client with error handling
+function getPrismaClient(): PrismaClient {
+  if (!prisma) {
+    prisma = new PrismaClient()
+  }
+  return prisma
+}
 
 // Helper function to transform Prisma Card record to CardData type
 const transformCardRecord = (card: CardWithInteractions): CardData => {
@@ -32,6 +40,7 @@ const transformCardRecord = (card: CardWithInteractions): CardData => {
 // GET
 export async function GET() {
   try {
+    const prisma = getPrismaClient()
     const cardRecords = await prisma.card.findMany({
       orderBy: {
         createdAt: 'desc',
@@ -57,6 +66,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Forbidden: Admin privileges required' }, { status: 403 })
     }
 
+    const prisma = getPrismaClient()
     const newCardData = (await req.json()) as Omit<CardData, 'id'>
     const { interactions, ...cardData } = newCardData
     const createdCardRecord = await prisma.card.create({

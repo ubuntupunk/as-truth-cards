@@ -1,8 +1,6 @@
+.
 
-
-TODO:
-
-1. ./src/app/admin.tsx
+./src/app/admin.tsx
 9:10  Warning: 'Alert' is defined but never used.  @typescript-eslint/no-unused-vars
 9:17  Warning: 'AlertDescription' is defined but never used.  @typescript-eslint/no-unused-vars
 9:35  Warning: 'AlertTitle' is defined but never used.  @typescript-eslint/no-unused-vars
@@ -14,58 +12,61 @@ TODO:
 31:28  Warning: 'setShowExportDialog' is assigned a value but never used.  @typescript-eslint/no-unused-vars
 144:9  Warning: 'handleExport' is assigned a value but never used.  @typescript-eslint/no-unused-vars
 
-2. ./src/app/api/cards/route.ts
+./src/app/api/cards/route.ts
 61:13  Warning: 'interactions' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+94:13  Warning: 'interactions' is assigned a value but never used.  @typescript-eslint/no-unused-vars
 
- 94:13  Warning: 'interactions' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+./src/components/Card.tsx
+27:10  Warning: 'liked' is assigned a value but never used.  @typescript-eslint/no-unused-vars
 
-3. ./src/components/Card.tsx
-20:10  Warning: 'liked' is assigned a value but never used.  @typescript-eslint/no-unused-vars
-
-4. ./src/components/FeaturedCard.tsx
-10:54  Warning: 'featuredCard' is defined but never used.  @typescript-eslint/no-unused-vars
-12:10  Warning: 'liked' is assigned a value but never used.  @typescript-eslint/no-unused-vars
-
-5. ./src/components/ThemeProvider.tsx
+./src/components/ThemeProvider.tsx
 3:10  Warning: 'useTheme' is defined but never used.  @typescript-eslint/no-unused-vars
 
-6. ./src/components/ui/calendar.tsx
+./src/components/ui/calendar.tsx
 48:25  Warning: '_props' is defined but never used.  @typescript-eslint/no-unused-vars
 49:26  Warning: '_props' is defined but never used.  @typescript-eslint/no-unused-vars
 
-7. ./src/components/ui/chart.tsx
+./src/components/ui/chart.tsx
 65:55  Warning: '_' is defined but never used.  @typescript-eslint/no-unused-vars
 
-8. ./src/components/ui/form.tsx
+./src/components/ui/form.tsx
 10:3  Warning: 'useFormContext' is defined but never used.  @typescript-eslint/no-unused-vars
 
-9. ./src/components/ui/navigation-menu.tsx
+./src/components/ui/navigation-menu.tsx
 3:10  Warning: 'cva' is defined but never used.  @typescript-eslint/no-unused-vars
 
-10. ./src/components/ui/sidebar.tsx
+./src/components/ui/sidebar.tsx
 3:24  Warning: 'cva' is defined but never used.  @typescript-eslint/no-unused-vars
 
-11. ./src/components/ui/toggle.tsx
+./src/components/ui/toggle.tsx
 3:10  Warning: 'cva' is defined but never used.  @typescript-eslint/no-unused-vars
 
-12. ./src/contexts/sidebar-context.tsx
+./src/contexts/sidebar-context.tsx
 15:14  Warning: Fast refresh only works when a file only exports components. Move your React context(s) to a separate file.  react-refresh/only-export-components
 
-13. ./src/contexts/use-sidebar.tsx
+./src/contexts/use-sidebar.tsx
 3:10  Warning: 'SidebarContextValue' is defined but never used.  @typescript-eslint/no-unused-vars
 
-14. ./src/hooks/use-sidebar.tsx
+./src/hooks/use-sidebar.tsx
 2:26  Warning: 'SidebarContextValue' is defined but never used.  @typescript-eslint/no-unused-vars
 
-15. ./src/hooks/use-toast.ts
+./src/hooks/use-toast.ts
 15:7  Warning: 'actionTypes' is assigned a value but only used as a type.  @typescript-eslint/no-unused-vars
 
-16. ./src/lib/db.ts
+./src/lib/db.ts
 2:10  Warning: 'neon' is defined but never used.  @typescript-eslint/no-unused-vars
 
-17. ./src/services/database.ts
+./src/services/database.ts
 2:15  Warning: 'InteractionCounts' is defined but never used.  @typescript-eslint/no-unused-vars
 14:27  Warning: 'interaction' is defined but never used.  @typescript-eslint/no-unused-vars
 21:30  Warning: 'cardId' is defined but never used.  @typescript-eslint/no-unused-vars
 25:20  Warning: 'id' is defined but never used.  @typescript-eslint/no-unused-vars
 25:32  Warning: 'updates' is defined but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+ ✓ Linting and checking validity of types 
+unhandledRejection [Error [PageNotFoundError]: Cannot find module for page: /_document] {
+  type: 'PageNotFoundError',
+  code: 'ENOENT'
+}
+error: script "build" exited with code 1

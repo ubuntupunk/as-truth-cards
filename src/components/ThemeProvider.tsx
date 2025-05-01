@@ -24,16 +24,24 @@ export function ThemeProvider({
     const root = window.document.documentElement
     root.classList.remove('light', 'dark')
 
+    const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light'
+
+    const appliedTheme = theme === 'system' ? systemTheme : theme
+    root.classList.add(appliedTheme)
+
     if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light'
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      const handleChange = () => {
+        const newSystemTheme = mediaQuery.matches ? 'dark' : 'light'
+        root.classList.remove('light', 'dark')
+        root.classList.add(newSystemTheme)
+      }
 
-      root.classList.add(systemTheme)
-      return
+      mediaQuery.addEventListener('change', handleChange)
+      return () => mediaQuery.removeEventListener('change', handleChange)
     }
-
-    root.classList.add(theme)
   }, [theme])
 
   const value = {
