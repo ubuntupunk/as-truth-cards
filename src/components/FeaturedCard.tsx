@@ -21,7 +21,7 @@ const FeaturedCard: React.FC<FeaturedCardProps> = ({ featuredCard }) => {
       },
     ],
     includedInPalestineStack: false,
-    tags: []
+    tags: [],
   }
 
   return (
