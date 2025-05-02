@@ -1,25 +1,35 @@
-import React from 'react'
+
+'use client'
+
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 
 const TermsPage = () => {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Terms and Conditions</h1>
-      <p className="mb-4">
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-grow pt-24 pb-16 px-4">
+        <section className="container mx-auto max-w-4xl py-12 space-y-16">
+          <h1 className="text-4xl font-bold tracking-tight text-center">Terms and Conditions</h1>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <p className="mb-4">
         Welcome to Truth Cards (the “Site”). These Terms and Conditions govern your use of the Site.
         By accessing or using the Site, you agree to be bound by these Terms and Conditions.
       </p>
 
-      <h2 className="text-2xl font-semibold mb-4">Intellectual Property</h2>
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Intellectual Property</h2>
       <p className="mb-4">
         The Site and its original content, features, and functionality are owned by Netbones
         Solutions Pty Ltd and are protected by international copyright, trademark, patent, trade
         secret, and other intellectual property or proprietary rights laws.
       </p>
 
-      <h2 className="text-2xl font-semibold mb-4">Use License</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Use License</h2>
       <p className="mb-4">
         Permission is granted to view and/or temporarily download one copy of the materials
-        (information or software) on [Netbone's website for personal, non-commercial transitory
+        (information or software) on Truth Cards website for personal, non-commercial transitory
         viewing only. This is the grant of a license, not a transfer of title, and under this
         license you may not:
       </p>
@@ -44,9 +54,11 @@ const TermsPage = () => {
         whether in electronic or printed format.
       </p>
 
-      <h2 className="text-2xl font-semibold mb-4">Disclaimer</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Disclaimer</h2>
       <p className="mb-4">
-        The materials on the Netbones website are provided on an 'as is' basis. Neither Truth Cards
+        The materials on the Truth Cards website are provided on an 'as is' basis. Neither Truth Cards
         nor Netbones makes any warranties, expressed or implied, and hereby disclaims and negates
         all other warranties including, without limitation, implied warranties or conditions of
         merchantability, fitness for a particular purpose, or non-infringement of intellectual
@@ -58,7 +70,9 @@ const TermsPage = () => {
         relating to such materials or on any sites linked to this site.
       </p>
 
-      <h2 className="text-2xl font-semibold mb-4">Content Sensitivity</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Content Sensitivity</h2>
       <p className="mb-4">
         The content presented on Truth Cards may include sensitive topics or perspectives that could
         elicit strong emotional responses. This content is provided for informational or
@@ -69,27 +83,33 @@ const TermsPage = () => {
         significant emotional distress.
       </p>
 
-      <h2 className="text-2xl font-semibold mb-4">Limitations</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Limitations</h2>
       <p className="mb-4">
         In no event shall Netbones or its suppliers be liable for any damages (including, without
         limitation, damages for loss of data or profit, or due to business interruption) arising out
-        of the use or inability to use the materials on [Your Netbones's website, even if Netbones
+        of the use or inability to use the materials on Truth Cards website, even if Netbones
         or a Netbones authorized representative has been notified orally or in writing of the
         possibility of such damage. Because some jurisdictions do not allow limitations on implied
         warranties, or limitations of liability for consequential or incidental damages, these
         limitations may not apply to you.
       </p>
 
-      <h2 className="text-2xl font-semibold mb-4">Accuracy of Materials</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Accuracy of Materials</h2>
       <p className="mb-4">
-        The materials appearing on Netbones's website could include technical, typographical, or
-        photographic errors. [Netbones does not warrant that any of the materials on its website are
-        accurate, complete or current. Netbones may make changes to the materials contained on its
-        website at any time without notice. However Netbones does not make any commitment to update
+        The materials appearing on Truth Cards website could include technical, typographical, or
+        photographic errors. Truth Cards does not warrant that any of the materials on its website are
+        accurate, complete or current. Truth Cards may make changes to the materials contained on its
+        website at any time without notice. However Truth Cards does not make any commitment to update
         the materials.
       </p>
 
-      <h2 className="text-2xl font-semibold mb-4">Links</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Links</h2>
       <p className="mb-4">
         Netbones has not reviewed all of the sites linked to its website and is not responsible for
         the contents of any such linked site. The inclusion of any link does not imply endorsement
@@ -97,25 +117,35 @@ const TermsPage = () => {
         risk.
       </p>
 
-      <h2 className="text-2xl font-semibold mb-4">Modifications</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Modifications</h2>
       <p className="mb-4">
         Netbones may revise these terms of service for its website at any time without notice. By
         using this website you are agreeing to be bound by the then current version of these terms
         of service.
       </p>
 
-      <h2 className="text-2xl font-semibold mb-4">Governing Law</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Governing Law</h2>
       <p className="mb-4">
         These terms and conditions are governed by and construed in accordance with the laws of the
         Republic of Sputh Africa and you irrevocably submit to the exclusive jurisdiction of the
         courts in that State or location.
       </p>
 
-      <h2 className="text-2xl font-semibold mb-4">Contact Information</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Contact Information</h2>
       <p className="mb-4">
         If you have any questions about these Terms and Conditions, please contact us at
         hello@netbones.co.za.
       </p>
+          </section>
+        </section>
+      </main>
+      <Footer />
     </div>
   )
 }

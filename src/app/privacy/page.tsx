@@ -1,15 +1,24 @@
-import React from 'react'
+'use client'  
+
+import Header from '@/components/Header'
+import Footer from '@/components/Footer'
 
 const PrivacyPage = () => {
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
-      <p className="mb-4">
+    <div className="min-h-screen flex flex-col">
+      <Header />
+      <main className="flex-grow pt-24 pb-16 px-4">
+        <section className="container mx-auto max-w-4xl py-12 space-y-16">
+          <h1 className="text-4xl font-bold tracking-tight text-center">Privacy Policy</h1>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <p className="mb-4">
         This Privacy Policy describes how Netbones collects, uses, and discloses your personal
-        information when you visit or make a purchase from [Your Website Address] (the “Site”).
+        information when you visit, interact with or make a purchase from Truth Cards (the “Site”).
       </p>
 
-      <h2 className="text-2xl font-semibold mb-4">Personal Information We Collect</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Personal Information We Collect</h2>
       <p className="mb-4">
         When you visit the Site, we collect certain information about your device, your interaction
         with the Site, and information necessary to process your purchases. We may also collect
@@ -17,7 +26,7 @@ const PrivacyPage = () => {
         refer to any information about an identifiable individual (including the information below)
         as “Personal Information”.
       </p>
-      <h3 className="text-xl font-medium mb-2">Device information</h3>
+            <h3 className="text-xl font-medium mb-2">Device information</h3>
       <ul className="list-disc list-inside mb-4">
         <li>
           Examples of Personal Information collected: version of web browser, IP address, time zone,
@@ -35,7 +44,9 @@ const PrivacyPage = () => {
         <li>Disclosure for a business purpose: shared with our processor Vercel.</li>
       </ul>
 
-      <h2 className="text-2xl font-semibold mb-4">Sharing Your Personal Information</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Sharing Your Personal Information</h2>
       <p className="mb-4">
         We share your Personal Information with service providers to help us provide our services
         and fulfill our contracts with you, as described above. For example:
@@ -52,7 +63,9 @@ const PrivacyPage = () => {
         </li>
       </ul>
 
-      <h2 className="text-2xl font-semibold mb-4">Your Rights</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Your Rights</h2>
       <p className="mb-4">
         If you are a resident of the EEA, you have the right to access Personal Information we hold
         about you, to port it to a new service, and to ask that your Personal Information be
@@ -67,7 +80,9 @@ const PrivacyPage = () => {
         and the United States.
       </p>
 
-      <h2 className="text-2xl font-semibold mb-4">Contact</h2>
+          </section>
+          <section className="bg-card rounded-lg p-6 shadow-sm">
+            <h2 className="text-2xl font-semibold mb-6 text-primary">Contact</h2>
       <p className="mb-4">
         For more information about our privacy practices, if you have questions, or if you would
         like to make a complaint, please contact us by e-mail at [email address] or by mail using
@@ -85,6 +100,10 @@ const PrivacyPage = () => {
         hello@netbones.co.za
         <br />
       </p>
+          </section>
+        </section>
+      </main>
+      <Footer />
     </div>
   )
 }

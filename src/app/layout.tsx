@@ -11,9 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }):
       <body>
         <StackProvider app={stackClientApp}>
           <StackTheme>
-            <ThemeProvider>
-              {children}
-            </ThemeProvider>
+            <ThemeProvider>{children}</ThemeProvider>
           </StackTheme>
         </StackProvider>
       </body>
