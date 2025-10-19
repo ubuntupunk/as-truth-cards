@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect, useState } from 'react'
 
 // Delayed visibility hook for staggered animations

@@ -16,7 +16,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ showPalestineStack, setShowPa
 
   return (
     <div className="text-center space-y-6">
-      <div className="inline-block px-3 py-1 rounded-full bg-primary text-xs font-medium mb-2 animate-fade-in">
+      <div className="inline-block px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-medium mb-2 animate-fade-in">
         Interactive Education
       </div>
 
