@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "bunx prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest",
+    "clean": "rm -rf .next dist node_modules/.cache prisma/generated .turbo",
+    "db:generate": "bunx prisma generate",
     "db:reset": "bunx prisma migrate reset",
     "db:deploy": "bunx prisma migrate deploy",
     "db:seed": "bunx prisma db seed"

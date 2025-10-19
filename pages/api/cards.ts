@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { PrismaClient, Card } from '@prisma/client';
+import { PrismaClient, Card } from '../../prisma/generated/client';
 import { CardData } from '../../src/data/cards'; // Import CardData type
 import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
