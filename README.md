@@ -1,18 +1,12 @@
-# Welcome to your Lovable project
+# React Card Deck Application
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/b1d59b50-5b81-4729-a0e8-c01a18e92e0b
+A modern React application built with TypeScript, featuring a card deck interface with admin functionality.
 
 ## How can I edit this code?
 
 There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/b1d59b50-5b81-4729-a0e8-c01a18e92e0b) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
 
 **Use your preferred IDE**
 
@@ -62,8 +56,16 @@ This project is built with .
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/b1d59b50-5b81-4729-a0e8-c01a18e92e0b) and click on Share -> Publish.
+This project can be easily deployed using Vercel:
 
-## I want to use a custom domain - is that possible?
+1. Push your code to a Git repository (GitHub, GitLab, or Bitbucket)
+2. Connect your repository to [Vercel](https://vercel.com)
+3. Vercel will automatically detect the framework and deploy your application
+4. Your app will be available at a vercel.app domain, with the option to add custom domains
 
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+Alternatively, you can deploy using the Vercel CLI:
+
+```sh
+npm i -g vercel
+vercel
+```
