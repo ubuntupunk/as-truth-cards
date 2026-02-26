@@ -12,7 +12,7 @@ interface CardDeckProps {
 
 const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
   const [selectedCard, setSelectedCard] = useState<number | null>(null)
-  const [isSelecting, setIsSelecting] = useState(false)
+  const [_isSelecting, setIsSelecting] = useState(false)
   const [isDeckVisible, setIsDeckVisible] = useState(true)
   const [filteredCards, setFilteredCards] = useState(cards)
   const [featuredCard, setFeaturedCard] = useState(

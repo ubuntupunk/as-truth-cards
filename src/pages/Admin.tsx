@@ -1,5 +1,5 @@
 import { Info, Save, X } from 'lucide-react'
-import React, { useState } from 'react'
+import { useState } from 'react'
 import CardEditor from '@/components/admin/CardEditor'
 import CardList from '@/components/admin/CardList'
 import Footer from '@/components/Footer'
@@ -53,7 +53,7 @@ const Admin = () => {
   }
 
   const handleExport = () => {
-    const dataStr = `export interface CardData {
+    const _dataStr = `export interface CardData {
   id: number;
   title: string;
   frontDescription: string;

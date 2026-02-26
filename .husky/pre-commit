@@ -1,1 +1,1 @@
-bunx biome format --write --staged --unsafe
+bunx biome format --write --staged
