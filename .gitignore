@@ -44,3 +44,6 @@ sketch
 .env.local
 
 # End of https://www.toptal.com/developers/gitignore/api/react
+
+# Prisma
+prisma/generated/

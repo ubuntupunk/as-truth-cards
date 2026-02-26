@@ -1,22 +1,29 @@
--- Add role field to users_sync table
--- Run this in Neon SQL editor or via psql
+-- Setup Admin Role System
+-- This script creates the user_profiles table and sets up role management
 
-ALTER TABLE neon_auth.users_sync 
-ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'VERIFIED';
+-- Step 1: Create user_profiles table (run once)
+CREATE TABLE IF NOT EXISTS user_profiles (
+  id VARCHAR PRIMARY KEY,
+  role VARCHAR(20) NOT NULL DEFAULT 'ANONYMOUS',
+  bio TEXT,
+  website TEXT,
+  location TEXT,
+  avatar TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Create index for better performance on role queries
-CREATE INDEX IF NOT EXISTS idx_users_sync_role ON neon_auth.users_sync(role);
+-- Step 2: Create index for faster role lookups
+CREATE INDEX IF NOT EXISTS idx_user_profiles_role ON user_profiles(role);
 
--- Update existing users to have VERIFIED role by default
--- You can manually update specific users to ADMIN role later
-UPDATE neon_auth.users_sync 
-SET role = 'VERIFIED' 
-WHERE role IS NULL;
-
--- Example: Set a specific user as admin (replace with your email/id)
--- UPDATE neon_auth.users_sync 
--- SET role = 'ADMIN' 
--- WHERE id = 'your-user-id-here';
-
--- Show current users and their roles
-SELECT id, name, role, created_at FROM neon_auth.users_sync ORDER BY created_at;
+-- Step 3: Show existing users from Stack Auth's users_sync table
+-- You can use these IDs to assign admin roles
+SELECT
+  u.id,
+  u.email,
+  u.name,
+  u.created_at,
+  p.role
+FROM neon_auth.users_sync u
+LEFT JOIN user_profiles p ON u.id = p.id
+ORDER BY u.created_at;

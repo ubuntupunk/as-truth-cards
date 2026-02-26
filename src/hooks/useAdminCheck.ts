@@ -17,7 +17,9 @@ export const useAdminCheck = () => {
       }
 
       try {
-        // Primary Method: Check user role from database API
+        // Primary Method: Check user role from database
+        // Note: You need to create an API endpoint at /api/auth/user-role
+        // that queries the user_profiles table
         const response = await fetch('/api/auth/user-role', {
           method: 'GET',
           headers: {
@@ -35,7 +37,8 @@ export const useAdminCheck = () => {
             setLoading(false)
             return
           }
-        } else {
+        } else if (response.status !== 404) {
+          // 404 means endpoint doesn't exist, fall back to email check
           console.error(
             'Failed to fetch user role:',
             response.status,
