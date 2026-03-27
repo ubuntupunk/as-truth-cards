@@ -7,7 +7,7 @@
     "postinstall": "prisma generate",
     "dev": "vite",
     "dev:all": "concurrently \"vite\" \"npm run server:dev\"",
-    "build": "vite build",
+    "build": "prisma generate && vite build",
     "build:all": "vite build && pnpm db:generate",
     "build:dev": "vite build --mode development",
     "lint": "biome check",
