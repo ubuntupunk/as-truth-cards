@@ -1,80 +1,166 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Info, Save, X } from 'lucide-react'
-import { useState } from 'react'
+import { useState } from 'preact/hooks'
 import CardEditor from '@/components/admin/CardEditor'
 import CardList from '@/components/admin/CardList'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { type CardData, cards as initialCards } from '@/data/cards'
-import { useAdminCheck } from '@/hooks/useAdminCheck'
 import { useToast } from '@/hooks/use-toast'
+import { useAdminCheck } from '@/hooks/useAdminCheck'
+
+interface CardData {
+  id: number
+  title: string
+  frontDescription: string
+  backDescription: string
+  symbol: string
+  imageUrl?: string
+  tags?: string[]
+  includedInPalestineStack?: boolean
+  isFeatured?: boolean
+  sources?: unknown[]
+}
 
 const Admin = () => {
   const { isAdmin, loading, isSignedIn } = useAdminCheck()
-  const [cards, setCards] = useState<CardData[]>(initialCards)
   const [searchQuery, setSearchQuery] = useState('')
   const [editingCard, setEditingCard] = useState<CardData | null>(null)
   const [showExportDialog, setShowExportDialog] = useState(false)
   const { toast } = useToast()
+  const queryClient = useQueryClient()
+
+  const { data: cards = [], isLoading } = useQuery<CardData[]>({
+    queryKey: ['cards'],
+    queryFn: async () => {
+      const res = await fetch('/api/cards')
+      if (!res.ok) throw new Error('Failed to fetch cards')
+      return res.json()
+    },
+    enabled: isAdmin && !loading,
+  })
+
+  const createMutation = useMutation({
+    mutationFn: async (newCard: Omit<CardData, 'id'>) => {
+      const res = await fetch('/api/cards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCard),
+      })
+      if (!res.ok) throw new Error('Failed to create card')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cards'] })
+      setEditingCard(null)
+      toast({
+        title: 'Card Created',
+        description: 'The card has been created successfully',
+      })
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'Failed to create card',
+        variant: 'destructive',
+      })
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, ...data }: CardData) => {
+      const res = await fetch(`/api/cards/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error('Failed to update card')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cards'] })
+      setEditingCard(null)
+      toast({
+        title: 'Card Updated',
+        description: 'The card has been updated successfully',
+      })
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'Failed to update card',
+        variant: 'destructive',
+      })
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await fetch(`/api/cards/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete card')
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cards'] })
+      toast({ title: 'Card Deleted', description: 'The card has been removed' })
+    },
+    onError: () => {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete card',
+        variant: 'destructive',
+      })
+    },
+  })
 
   const handleEdit = (card: CardData) => {
     setEditingCard(card)
   }
 
   const handleAddNew = () => {
-    const newId = Math.max(0, ...cards.map((c) => c.id)) + 1
     setEditingCard({
-      id: newId,
+      id: 0,
       title: 'New Card',
       frontDescription: '',
       backDescription: '',
       symbol: '🔄',
+      includedInPalestineStack: false,
+      isFeatured: false,
     })
   }
 
   const handleSave = (updatedCard: CardData) => {
-    // Check if it's a new card or an update
-    if (cards.some((card) => card.id === updatedCard.id)) {
-      setCards(
-        cards.map((card) => (card.id === updatedCard.id ? updatedCard : card)),
-      )
+    if (updatedCard.id === 0) {
+      createMutation.mutate(updatedCard)
     } else {
-      setCards([...cards, updatedCard])
+      updateMutation.mutate(updatedCard)
     }
-    setEditingCard(null)
   }
 
   const handleDelete = (cardId: number) => {
-    // In a real app, you might want to show a confirmation dialog
-    setCards(cards.filter((card) => card.id !== cardId))
-    toast({
-      title: 'Card Deleted',
-      description: 'The card has been removed',
-    })
+    deleteMutation.mutate(cardId)
   }
 
   const handleExport = () => {
-    const _dataStr = `export interface CardData {
-  id: number;
-  title: string;
-  frontDescription: string;
-  backDescription: string;
-  symbol: string;
-}
-
-export const cards: CardData[] = ${JSON.stringify(cards, null, 2)};
-`
-
-    // Display the data for copying
     setShowExportDialog(true)
-
-    // In a real application, you might want to save this to a file
-    // or send it to an API endpoint
     toast({
       title: 'Export Ready',
       description: 'Copy the code below to update your data file',
     })
+  }
+
+  if (loading || isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-grow pt-24 pb-16 px-4 md:px-8">
+          <div className="container mx-auto max-w-4xl text-center py-12">
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
   }
 
   return (
@@ -83,15 +169,7 @@ export const cards: CardData[] = ${JSON.stringify(cards, null, 2)};
 
       <main className="flex-grow pt-24 pb-16 px-4 md:px-8">
         <div className="container mx-auto max-w-4xl">
-          {/* Loading State */}
-          {loading && (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Checking permissions...</p>
-            </div>
-          )}
-
-          {/* Unauthorized State */}
-          {!loading && !isSignedIn && (
+          {!isSignedIn && (
             <div className="text-center py-12">
               <h1 className="text-2xl font-bold mb-4">Sign in required</h1>
               <p className="text-muted-foreground">
@@ -100,8 +178,7 @@ export const cards: CardData[] = ${JSON.stringify(cards, null, 2)};
             </div>
           )}
 
-          {/* Forbidden State */}
-          {!loading && isSignedIn && !isAdmin && (
+          {isSignedIn && !isAdmin && (
             <div className="text-center py-12">
               <h1 className="text-2xl font-bold mb-4">Access denied</h1>
               <p className="text-muted-foreground">
@@ -110,8 +187,7 @@ export const cards: CardData[] = ${JSON.stringify(cards, null, 2)};
             </div>
           )}
 
-          {/* Admin Panel - Only shown when authorized */}
-          {!loading && isAdmin && (
+          {isAdmin && (
             <>
               <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">Admin Panel</h1>

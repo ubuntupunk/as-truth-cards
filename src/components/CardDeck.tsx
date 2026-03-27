@@ -1,10 +1,23 @@
+import { useQuery } from '@tanstack/react-query'
 import { Shuffle } from 'lucide-react'
+import { useEffect, useState } from 'preact/hooks'
 import type React from 'react'
-import { useEffect, useState } from 'react'
-import { cards } from '@/data/cards'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
 import Card from './Card'
+
+interface CardData {
+  id: number
+  title: string
+  frontDescription: string
+  backDescription: string
+  symbol: string
+  imageUrl?: string
+  tags?: string[]
+  includedInPalestineStack?: boolean
+  isFeatured?: boolean
+  sources?: unknown[]
+}
 
 interface CardDeckProps {
   includePalestineStack: boolean
@@ -12,31 +25,30 @@ interface CardDeckProps {
 
 const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
   const [selectedCard, setSelectedCard] = useState<number | null>(null)
-  const [_isSelecting, setIsSelecting] = useState(false)
+  const [isSelecting, setIsSelecting] = useState(false)
   const [isDeckVisible, setIsDeckVisible] = useState(true)
-  const [filteredCards, setFilteredCards] = useState(cards)
-  const [featuredCard, setFeaturedCard] = useState(
-    cards.find((card) => card.isFeatured),
-  )
   const isVisible = useDelayedVisibility(300)
 
-  // Filter cards based on includePalestineStack prop
-  useEffect(() => {
-    if (includePalestineStack) {
-      setFilteredCards(cards)
-    } else {
-      setFilteredCards(cards.filter((card) => !card.includedInPalestineStack))
-    }
+  const { data: cards = [], isLoading } = useQuery<CardData[]>({
+    queryKey: ['cards'],
+    queryFn: async () => {
+      const res = await fetch('/api/cards')
+      if (!res.ok) throw new Error('Failed to fetch cards')
+      return res.json()
+    },
+  })
 
-    // Set featured card
-    setFeaturedCard(cards.find((card) => card.isFeatured))
-  }, [includePalestineStack])
+  const filteredCards = cards.filter(
+    (card) => includePalestineStack || !card.includedInPalestineStack,
+  )
+
+  const featuredCard = cards.find((card) => card.isFeatured)
 
   const handleDrawCard = () => {
+    if (filteredCards.length === 0) return
     setIsSelecting(true)
     setIsDeckVisible(false)
 
-    // Simulate card selection with delay
     setTimeout(() => {
       const randomIndex = Math.floor(Math.random() * filteredCards.length)
       setSelectedCard(randomIndex)
@@ -49,8 +61,7 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
     setIsDeckVisible(true)
   }
 
-  // Default featured card if none is set
-  const defaultFeaturedCard = {
+  const defaultFeaturedCard: CardData = {
     id: 0,
     title: 'Discover Hidden Truths',
     frontDescription:
@@ -61,15 +72,20 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
     imageUrl:
       'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
     sources: [
-      {
-        text: 'Based on peer-reviewed research and historical documentation',
-      },
+      { text: 'Based on peer-reviewed research and historical documentation' },
     ],
     includedInPalestineStack: false,
   }
 
-  // Use the featured card if set, otherwise use the default
   const displayFeaturedCard = featuredCard || defaultFeaturedCard
+
+  if (isLoading) {
+    return (
+      <div className="w-full max-w-4xl mx-auto px-4 text-center py-12">
+        <p className="text-muted-foreground">Loading cards...</p>
+      </div>
+    )
+  }
 
   return (
     <div
@@ -83,12 +99,10 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
         <div className="text-center">
           {isDeckVisible ? (
             <div className="space-y-12">
-              {/* Featured Card */}
               <div className="max-w-md mx-auto">
                 <Card card={displayFeaturedCard} index={0} isHero={true} />
               </div>
 
-              {/* Card Stack */}
               <div className="relative w-64 h-96 mx-auto">
                 {filteredCards.slice(0, 5).map((_, index) => (
                   <div
@@ -98,11 +112,6 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
                       'bg-gradient-to-br from-card to-background',
                       'dark:from-slate-700 dark:to-slate-800 dark:border-slate-600',
                       'transition-all duration-300 ease-out',
-                      index === 0
-                        ? 'rotate-0'
-                        : index % 2 === 0
-                          ? `rotate-${index}`
-                          : `-rotate-${index}`,
                     )}
                     style={{
                       transform: `translateY(${index * 2}px) rotate(${index % 2 === 0 ? index * 2 : -index * 2}deg)`,
@@ -113,7 +122,8 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
 
               <button
                 onClick={handleDrawCard}
-                className="rounded-full px-8 py-3 bg-primary text-primary-foreground font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
+                disabled={filteredCards.length === 0}
+                className="rounded-full px-8 py-3 bg-primary text-primary-foreground font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Draw a Card
               </button>

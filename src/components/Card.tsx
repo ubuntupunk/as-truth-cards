@@ -1,5 +1,6 @@
+import { ThumbsDown, ThumbsUp } from 'lucide-react'
+import { useState } from 'preact/hooks'
 import type React from 'react'
-import { useState } from 'react'
 import type { CardData } from '@/data/cards'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
@@ -18,11 +19,47 @@ const Card: React.FC<CardProps> = ({
   isHero = false,
 }) => {
   const [isFlipped, setIsFlipped] = useState(isRevealed)
+  const [userVote, setUserVote] = useState<'up' | 'down' | null>(null)
+  const [isVoting, setIsVoting] = useState(false)
   const isVisible = useDelayedVisibility(100 + index * 50)
 
   const handleFlip = () => {
-    setIsFlipped(!isFlipped)
+    if (!isVoting) {
+      setIsFlipped(!isFlipped)
+    }
   }
+
+  const handleVote = async (vote: 'up' | 'down') => {
+    if (userVote || isVoting) return
+
+    const localStorageKey = `card_${card.id}_voted`
+    if (localStorage.getItem(localStorageKey)) {
+      return
+    }
+
+    setIsVoting(true)
+    setUserVote(vote)
+    localStorage.setItem(localStorageKey, 'true')
+
+    try {
+      await fetch('/api/interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cardId: card.id,
+          interactionType: vote === 'up' ? 'RATING_UP' : 'RATING_DOWN',
+        }),
+      })
+    } catch (error) {
+      console.error('Failed to record vote:', error)
+    } finally {
+      setIsVoting(false)
+    }
+  }
+
+  const hasVoted =
+    typeof window !== 'undefined' &&
+    !!localStorage.getItem(`card_${card.id}_voted`)
 
   return (
     <div
@@ -40,6 +77,14 @@ const Card: React.FC<CardProps> = ({
           'duration-700 preserve-3d',
         )}
         onClick={handleFlip}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            handleFlip()
+          }
+        }}
+        role="button"
+        tabIndex={0}
         style={{ transformStyle: 'preserve-3d' }}
       >
         {/* Card Front */}
@@ -113,7 +158,7 @@ const Card: React.FC<CardProps> = ({
                 <h4 className="text-xs font-semibold mb-1">Sources:</h4>
                 <ul className="text-xs text-muted-foreground list-disc list-inside">
                   {card.sources.map((source, i) => (
-                    <li key={i} className="text-left">
+                    <li key={source.url || i} className="text-left">
                       {source.url ? (
                         <a
                           href={source.url}
@@ -132,8 +177,47 @@ const Card: React.FC<CardProps> = ({
               </div>
             )}
           </div>
-          <div className="mt-4 text-xs text-center text-muted-foreground">
-            Tap to flip back
+          {/* Rating Buttons */}
+          <div className="mt-4 flex justify-center gap-4">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleVote('up')
+              }}
+              disabled={hasVoted || isVoting}
+              className={cn(
+                'p-2 rounded-full transition-colors',
+                userVote === 'up'
+                  ? 'bg-green-500 text-white'
+                  : 'hover:bg-green-100 dark:hover:bg-green-900',
+                hasVoted && 'opacity-50 cursor-not-allowed',
+              )}
+              aria-label="Helpful"
+            >
+              <ThumbsUp className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleVote('down')
+              }}
+              disabled={hasVoted || isVoting}
+              className={cn(
+                'p-2 rounded-full transition-colors',
+                userVote === 'down'
+                  ? 'bg-red-500 text-white'
+                  : 'hover:bg-red-100 dark:hover:bg-red-900',
+                hasVoted && 'opacity-50 cursor-not-allowed',
+              )}
+              aria-label="Not helpful"
+            >
+              <ThumbsDown className="h-5 w-5" />
+            </button>
+          </div>
+          <div className="mt-2 text-xs text-center text-muted-foreground">
+            {hasVoted ? 'Thanks for your feedback!' : 'Was this helpful?'}
           </div>
         </div>
       </div>
