@@ -2,13 +2,15 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { dirname from 'path';
 import cardsRouter from './api/cards.js';
 import interactionsRouter from './api/interactions.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const currentFilePath = fileURLToPath(import.meta.url);
+const projectRoot = dirname(dirname(currentFilePath));
 const isProduction = process.env.NODE_ENV === 'production';
 
 app.use(cors());
@@ -18,9 +20,9 @@ app.use('/api/cards', cardsRouter);
 app.use('/api/interactions', interactionsRouter);
 
 if (isProduction) {
-  app.use(express.static(path.join(__dirname, '../dist')));
+  app.use(express.static(path.join(projectRoot, 'dist')));
   app.get('*', (_req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+    res.sendFile(path.join(projectRoot, 'dist/index.html'));
   });
 }
 
