@@ -7,7 +7,6 @@
     "dev": "vite",
     "dev:all": "concurrently \"vite\" \"npm run server:dev\"",
     "build": "vite build",
-    "build:server": "tsc -p tsconfig.server.json",
     "build:all": "vite build && pnpm db:generate",
     "build:dev": "vite build --mode development",
     "lint": "biome check",
@@ -22,7 +21,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx server/seed.ts",
     "server:dev": "tsx watch server/index.ts",
-    "start": "node dist/server/index.js"
+    "start": "tsx server/index.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

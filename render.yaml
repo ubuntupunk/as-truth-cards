@@ -1,9 +1,10 @@
 services:
   - type: web
     name: as-truth-cards
-    env: node
-    buildCommand: pnpm install && pnpm build && pnpm build:server && pnpm db:generate && pnpm db:seed
-    startCommand: node dist/server/index.js
+    runtime: node
+    plan: starter
+    buildCommand: pnpm install && pnpm build && pnpm db:generate
+    startCommand: pnpm start
     envVars:
       - key: NODE_ENV
         value: production
@@ -13,4 +14,4 @@ services:
         sync: false
     hooks:
       - type: post-deploy
-        command: pnpm db:push --accept-data-loss
+        command: pnpm db:push --accept-data-loss && pnpm db:seed

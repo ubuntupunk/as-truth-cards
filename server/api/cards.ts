@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
         tags: data.tags || [],
         includedInPalestineStack: data.includedInPalestineStack ?? false,
         isFeatured: data.isFeatured ?? false,
-        sources: data.sources,
+        sources: data.sources as object | undefined,
       },
     });
     res.status(201).json(card);
@@ -80,7 +80,7 @@ router.put('/:id', async (req, res) => {
         ...(data.tags && { tags: data.tags }),
         ...(data.includedInPalestineStack !== undefined && { includedInPalestineStack: data.includedInPalestineStack }),
         ...(data.isFeatured !== undefined && { isFeatured: data.isFeatured }),
-        ...(data.sources !== undefined && { sources: data.sources }),
+        ...(data.sources !== undefined && { sources: data.sources as object }),
       },
     });
     res.json(card);

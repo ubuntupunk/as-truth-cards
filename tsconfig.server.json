@@ -7,8 +7,7 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": "server",
     "declaration": false
   },
-  "include": ["server"]
+  "include": ["server", "src/data/cards.ts"]
 }

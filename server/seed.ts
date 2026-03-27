@@ -18,7 +18,7 @@ async function main() {
         tags: card.tags || [],
         includedInPalestineStack: card.includedInPalestineStack ?? false,
         isFeatured: card.isFeatured ?? false,
-        sources: card.sources ?? [],
+        sources: card.sources as object,
       },
     })
   }
