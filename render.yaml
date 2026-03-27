@@ -3,8 +3,8 @@ services:
     name: as-truth-cards
     runtime: node
     plan: starter
-    buildCommand: pnpm install && pnpm build && npx prisma generate
-    startCommand: pnpm start
+    buildCommand: pnpm install && pnpm build && npx prisma generate --schema=prisma/schema.prisma
+    startCommand: npx tsx server/index.ts
     envVars:
       - key: NODE_ENV
         value: production
