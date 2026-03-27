@@ -2,8 +2,8 @@ services:
   - type: web
     name: as-truth-cards
     env: node
-    buildCommand: pnpm install && pnpm build && pnpm db:generate
-    startCommand: node server/index.js
+    buildCommand: pnpm install && pnpm build && pnpm build:server && pnpm db:generate
+    startCommand: node dist/server/index.js
     envVars:
       - key: NODE_ENV
         value: production
