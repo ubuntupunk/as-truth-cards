@@ -3,7 +3,7 @@ services:
     name: as-truth-cards
     runtime: node
     plan: starter
-    buildCommand: pnpm install && pnpm build && npx prisma generate --schema=prisma/schema.prisma
+    buildCommand: npm install && npm build && npx prisma generate --schema=prisma/schema.prisma
     startCommand: npx tsx server/index.ts
     envVars:
       - key: NODE_ENV
@@ -14,4 +14,4 @@ services:
         sync: false
     hooks:
       - type: post-deploy
-        command: npx prisma generate && npx prisma db push --accept-data-loss && pnpm db:seed
+        command: npx prisma generate

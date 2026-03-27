@@ -1,9 +1,10 @@
 {
-  "name": "vite_react_shadcn_ts",
+  "name": "as-truth-cards",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "vite",
     "dev:all": "concurrently \"vite\" \"npm run server:dev\"",
     "build": "vite build",
