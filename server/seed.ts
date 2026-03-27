@@ -1,5 +1,5 @@
 import prisma from './lib/db.js'
-import { cards } from '../src/data/cards.js'
+import { cards } from '../src/data/cards'
 
 async function main() {
   console.log('Seeding database...')
