@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: as-truth-cards
+    env: node
+    buildCommand: pnpm install && pnpm build && pnpm db:generate
+    startCommand: node server/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: VITE_ADMIN_EMAIL
+        sync: false
