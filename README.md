@@ -1,5 +1,12 @@
 # React Card Deck Application
 
+[![GitHub](https://img.shields.io/badge/GitHub-ubuntupunk/as--truth--cards-blue)](https://github.com/ubuntupunk/as-truth-cards)
+[![License](https://img.shields.io/badge/License-GPL-green.svg)](LICENSE)
+
+<a href="https://github.com/pedromxavier/flag-badges">
+    <img src="https://raw.githubusercontent.com/pedromxavier/flag-badges/main/badges/ZA.svg" alt="made in za">
+</a>
+
 ## Project info
 
 A modern React application built with TypeScript, featuring a card deck interface with admin functionality.
