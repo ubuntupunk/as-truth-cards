@@ -1,0 +1,14 @@
+{
+  "version": "0.3",
+  "source": "Draft.md",
+  "cardsTested": 3,
+  "claimsExtracted": 12,
+  "cards": {
+    "dual-loyalty": 3,
+    "jerusalem-sovereignty": 4,
+    "replacement-theology": 5
+  },
+  "result": "PASS",
+  "schemaRefinement": "Add claim_interpretations so interpretations can attach to individual claims as well as cards.",
+  "externalSourcesAdded": false
+}
