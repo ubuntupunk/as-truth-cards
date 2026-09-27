@@ -9,7 +9,7 @@ application. Written to be used as the basis for supervision instructions.
 **How to read this document.** Every factual claim below was verified against the working
 tree, the database, or the build at the commit base. Claims that are *interpretation* or
 *recommendation* are marked as such. Where something is unknown, it is stated as unknown
-rather than guessed. Section 8 lists the decisions that need an architect's ruling.
+rather than guessed. Section 10 lists the decisions that need an architect's ruling.
 
 ---
 
@@ -32,7 +32,18 @@ all. Integration is therefore greenfield work, not an incremental wiring job.
 
 There are also two pre-existing host issues (an unauthenticated write API, and a failing
 `typecheck:all`) that will affect any plan which puts curated content behind the existing
-admin UI. These are detailed in Section 7.
+admin UI. These are detailed in Section 9.
+
+**The finding that should be read first: this repository contains two applications, not one.**
+`main` and `dev` share a one-day-old common ancestor (2025-03-19) and were then developed
+independently for eleven months. `main` is a Vite/Preact/Express app on Render and holds all
+the graph work. `dev` is a Next.js app, dormant since April 2025. `AGENTS.md` describes `dev`,
+not the code anyone is currently working on — which is why the repo's own documentation
+disagrees with the tree. Section 3 has the full timeline; **D0 is the decision to resolve it.**
+
+The card UI that motivated keeping `dev` turns out to exist on `main` as well, with one small
+portable exception (Section 4). So "the card shuffle" is not, on its own, a reason to continue
+on `dev` — the case for `dev` rests on its auth model and enums (3.4), not its UI.
 
 ---
 
@@ -58,27 +69,153 @@ server — and almost nothing else.
 Verified: `rg 'trope_graph|TropeGraph' dist/` returns nothing. The graph does not currently
 exist at runtime for any user. It is a build-time and authoring-time asset only.
 
-### 2.1 `AGENTS.md` is materially inaccurate
+### 2.1 `AGENTS.md` describes the *other* branch
 
-**The architect should not trust `AGENTS.md` as a description of the repo.** It states the
-project is "Next.js", with "Stack" authentication and "shadcn-ui". Verified reality:
+**Correction to an earlier draft of this report.** An initial version of this section
+claimed `AGENTS.md` simply misdescribes the stack as Next.js. That was wrong, and the error
+mattered: `AGENTS.md` is an accurate description of the **`dev` branch**, not of `main`.
+See Section 3.
 
-- **Not Next.js.** It is Vite + React with a separate Express server. `next` is not a
-  dependency. The only reason it looks Next-ish is that some shadcn components and the
-  Stack Auth client hook were copied from Next.js projects.
-- **Stack Auth is a real dependency** (`@stackframe/stack ^2.8.78`) but is wired
-  **client-side only** — see Section 7.1. `AGENTS.md`'s implication of server-enforced
-  auth is wrong.
-- **The Prisma models do not match `AGENTS.md`'s description either** — see Section 3.1.
+`AGENTS.md` is therefore not a documentation bug so much as a **branch-ambiguity** bug — it
+silently assumes the reader is on `main` while describing `dev`. An agent following it on
+`main` will look for Next.js and Stack server-side auth and find neither.
 
-`AGENTS.md` also instructs agents to run `npm run test` and `npm run lint`; neither script
-exists. The real commands are in `package.json` (Section 6).
+One claim is wrong on both branches: `AGENTS.md` instructs agents to run `npm run test` and
+`npm run lint`; neither script exists.
+exists. The real commands are in `package.json` (Section 8).
 
 ---
 
-## 3. The host application today
+## 3. Repository history: two applications, not a migration
 
-### 3.1 Data model is flat and card-shaped
+The repo is not one app that changed frameworks. It is **two divergent applications** that
+split one day after creation and were developed independently for eleven months.
+
+```
+dev vs origin/dev : 0 behind, 0 ahead    (in sync with its remote, but dormant)
+dev vs main       : 17 dev-only, 32 main-only
+merge base        : 7279c23, 2025-03-19
+```
+
+### 3.1 Timeline (all dates from git, verified)
+
+| Date | Branch | Event |
+|---|---|---|
+| 2025-03-18 | both | Created as `vite_react_shadcn_ts` by GPT Engineer (`00b8235`) |
+| 2025-03-19 | — | **Split.** Merge base `7279c23` |
+| 2025-03 → 04 | `dev` | Active work; **migrated to Next.js pages router 2025-04-20** |
+| 2025-04-21 | `dev` | Last functional commit (`dae192f rm .next`) — then stops |
+| 2025-10-19 | `dev` | One stray Prisma import fix — then dormant |
+| 2025-10-19 | `main` | Drop Lovable branding; add **Vercel** deploy instructions |
+| 2025-10 → 2026-02 | `main` | 4-month dormancy |
+| 2026-02-26 | `main` | Biome, Husky, admin auth hook, `UserProfile` |
+| **2026-03-27** | `main` | **Went the opposite way: Vite → Preact + Express**, then Render, then 9 consecutive Render fixes |
+| 2026-04 | `main` | `tropes added` — the graph arrives |
+
+### 3.2 Direction of travel — the key correction
+
+A natural assumption is that the Next.js line is the intended future. **The evidence points
+the other way:**
+
+- **Next.js has never been a dependency on `main`.** Every historical revision of
+  `package.json` on that branch was checked; zero hits.
+- **The Next.js migration was started and abandoned in April 2025.** `dev` has had no
+  functional commits since 2025-04-21.
+- **`dev` has never had a Render config** — no `render.yaml`, and no reference to
+  `render.com` anywhere in its tree. Next.js and Render are on *opposite branches*.
+- **The surviving line moved away from Next.js**, adopting Preact + Express in March 2026.
+
+There were also **three** deployment targets over time: Vercel (2025-10, README) → Render
+(2026-03, `render.yaml`). See risk 9.6.
+
+### 3.3 Stack comparison
+
+| | `dev` (dormant) | `main` (active) |
+|---|---|---|
+| Framework | **Next.js 15.3.1**, pages router | Vite 5.4.1 |
+| React | 19.1.0 | 18.3.1 (+ preact 10.29) |
+| API | `pages/api/*` | Express 4 (`server/`) |
+| Prisma | 6.5.0 | 5.22.0 |
+| Lockfile | `bun.lockb` | `pnpm-lock.yaml` |
+| Lint / test | eslint + vitest configured | Biome; **no test runner** |
+| Stack Auth | `src/stack/{client,server}.ts` | client hook only |
+| `trope-cards/` | **absent** | present |
+| `Card` write API | none (reads only) | **unauthenticated writes** |
+| `User` model | `User`, `AccessLevel`, `ContentStatus` | `UserProfile`, `UserRole` only |
+
+### 3.4 What `dev` has that `main` never received
+
+`dev` contains genuinely better material, which is why it is worth mining before deletion:
+
+- **A `StackServerApp` in `src/stack/server.ts`.** *Caveat: it is imported nowhere*, and no
+  API route checks it, so `dev` does not actually enforce auth either. It is unused
+  infrastructure, not working auth.
+- **A richer authorization model** — `AccessLevel` (BASIC / VERIFIED / ACADEMIC / MODERATOR /
+  ADMIN) and `ContentStatus` (PENDING / APPROVED / FLAGGED / REJECTED / REMOVED), plus
+  `User.institution`, `verifiedAt`, `moderatedAt`. `main` has a bare `UserRole` and no
+  content lifecycle.
+- **A read-only card API**, where `main` exposes unauthenticated writes. The *more advanced*
+  branch is the *safer* one, by accident.
+- **eslint + vitest configured.** `main` has no test runner at all.
+
+`dev` also has three components `main` lacks: `HeroSection.tsx`, `CardSection.tsx`,
+`FeaturedCard.tsx` (on `main` the featured-card logic is inlined in `CardDeck.tsx`).
+
+---
+
+## 4. The card UI: is it a reason to keep `dev`?
+
+**The stated reason to continue on `dev` does not survive verification.** The card
+shuffle/draw/flip UI exists on **both** branches. `main` is not missing it.
+
+### 4.1 Feature-by-feature
+
+| Feature | `main` | `dev` |
+|---|---|---|
+| Shuffle / draw-a-card | yes | yes |
+| Card flip (3D, `perspective-1000`, `preserve-3d`) | yes | yes |
+| Thumbs up / down voting | yes | yes |
+| Featured card | yes (inlined in `CardDeck`) | yes (own component) |
+| Hero section | no | yes |
+| Data fetching | `@tanstack/react-query` | manual `useEffect` + `useState` + error state |
+| **Never re-draws the same card twice** | **no** | **yes** |
+
+`main` carries the same UX and adds react-query on top. The one genuine functional
+difference is small and precisely located:
+
+```ts
+// dev — retries to guarantee a different card (src/components/CardDeck.tsx:60)
+let newIndex;
+do {
+  newIndex = Math.floor(Math.random() * filteredCards.length);
+} while (newIndex === selectedCardIndex && filteredCards.length > 1);
+```
+
+```ts
+// main — a single draw; can return the same card twice in a row (CardDeck.tsx:53)
+const randomIndex = Math.floor(Math.random() * filteredCards.length)
+setSelectedCard(randomIndex)
+```
+
+**Assessment:** the "don't repeat" loop is a ~3-line change that can be ported to `main` in
+minutes, with a re-roll or exclude-drawn set as a follow-up if desired. It is a ticket, not
+a reason to maintain a second application. If the card UI is what the project values, `main`
+already has it.
+
+### 4.2 One caveat on `main`'s UI
+
+`main` mixes runtimes in its card components: `Card.tsx` and `CardDeck.tsx` both import
+`useState` from **`preact/hooks`** while importing `type React` from **`react`**. It builds
+(`✓ built in 24.44s`) and the flip markup is a correct 3D CSS implementation, so this is
+latent fragility rather than a live defect — but it is the same preact/React ambiguity that
+produces the 8 `typecheck:all` errors in 7.2, and it is concentrated in exactly the two
+files that implement the card UX.
+
+---
+
+## 5. The host application today
+
+### 5.1 Data model is flat and card-shaped
 
 `prisma/schema.prisma` defines three models and one enum:
 
@@ -92,7 +229,7 @@ A host card is a *display unit*: a front (the trope), a back (the debunk), a sym
 tags. It is exactly the shape the PRD describes. It has **no** concept of a mechanism, a
 claim, a premise, a conclusion, or a source with provenance.
 
-### 3.2 API surface
+### 5.2 API surface
 
 `server/index.ts` mounts two routers and a health check, serves `dist/` in production, and
 listens on `PORT` (default 3001) with permissive CORS.
@@ -101,9 +238,9 @@ listens on `PORT` (default 3001) with permissive CORS.
 - `GET/POST /api/interactions` (routes in `server/api/interactions.ts`)
 - `GET /health`
 
-**There is no `/api/auth/*` router at all.** See Section 7.1.
+**There is no `/api/auth/*` router at all.** See Section 9.1.
 
-### 3.3 Frontend
+### 5.3 Frontend
 
 `src/pages/`: `Index`, `About`, `Admin`, `NotFound`.
 `src/components/`: `CardDeck`, `Card`, `Header`, `Footer`, `ThemeProvider`, `ThemeToggle`,
@@ -111,7 +248,7 @@ listens on `PORT` (default 3001) with permissive CORS.
 
 The build is healthy: `pnpm run build` → `✓ built in 20.40s`.
 
-### 3.4 Host migration state is inconsistent
+### 5.4 Host migration state is inconsistent
 
 `db:migrate` is `prisma migrate dev`, but there is **no `prisma/migrations/` directory**.
 The actual applied SQL lives in `prisma/sql/` (3 files) and is not managed by the Prisma CLI:
@@ -128,9 +265,9 @@ adjacent to the integration work but will be hit by anyone who runs the document
 
 ---
 
-## 4. The `trope-cards/` subsystem
+## 6. The `trope-cards/` subsystem
 
-### 4.1 What it is for
+### 6.1 What it is for
 
 The host answers *"what is this trope, and what is the debunk?"*. The graph answers the
 questions the host cannot: *what mechanism of operation does this trope rely on, which
@@ -141,7 +278,7 @@ That is a meaningful upgrade in epistemic quality — a card asserting a debunk 
 evidence; a graph showing a documented inference chain with located sources is strong. The
 architecture in `trope-cards/docs/` argues this case in detail (13 documents, listed in 4.5).
 
-### 4.2 Layout
+### 6.2 Layout
 
 ```
 trope-cards/
@@ -164,7 +301,7 @@ trope-cards/
   trope-card-deck-draft.md   Editorial drafts
 ```
 
-### 4.3 Data model — 36 tables, 17 enums, in schema `trope_graph`
+### 6.3 Data model — 36 tables, 17 enums, in schema `trope_graph`
 
 Verified by extracting `CREATE TABLE` statements from the migrations. Grouped by concern:
 
@@ -181,7 +318,7 @@ Verified by extracting `CREATE TABLE` statements from the migrations. Grouped by
   `research_events`, `sources`
 - **Shared:** `question_cards`, `questions`, `sources`
 
-### 4.4 Schema isolation — the key integration enabler
+### 6.4 Schema isolation — the key integration enabler
 
 `trope_graph` is a **Postgres schema inside the same database**, not a separate database.
 Every object is schema-qualified; the migrations contain no `public.` writes (the single
@@ -193,7 +330,7 @@ same-database integration viable. The cost of that decision is that the graph's 
 runner and the host's Prisma migrations now coexist in one database, which is a coordination
 problem, not a blocking one.
 
-### 4.5 Design documents
+### 6.5 Design documents
 
 `ARGUMENT_CHAIN_ENGINE.md`, `CLAIM_DECOMPOSITION_ENGINE.md`, `CLAIM_EXTRACTION.md`,
 `CLAIM_EXTRACTION_PILOT.md`, `EVIDENCE_LAYER.md`, `IDENTITY_RETROJECTION_CLUSTER.md`,
@@ -202,7 +339,7 @@ problem, not a blocking one.
 
 `TROPE_GRAPH_SCHEMA.md` and `TROPE_GRAPH_MIGRATION.md` are the natural entry points.
 
-### 4.6 `versions/` — release provenance
+### 6.6 `versions/` — release provenance
 
 Ten trees preserving v0.1 → v0.9, including the four original `tar.gz` archives
 (`trope-graph-schema-v0.1` … `v0.4`) which were extracted and then deleted in a separate,
@@ -217,9 +354,9 @@ is **excluded from Biome** in `biome.json` specifically to protect that guarante
 
 ---
 
-## 5. Current state and known gaps
+## 7. Current state and known gaps
 
-### 5.1 Seeded corpus (verified via `trope-graph:verify`)
+### 7.1 Seeded corpus (verified via `trope-graph:verify`)
 
 ```
 collections 5 · mechanisms 14 · concepts 6 · cards 47 · claims 19
@@ -230,7 +367,7 @@ argumentChains 2 · argumentChainSteps 4 · inferenceStepRelations 2
 `trope-graph:check` is **green end-to-end**: migration `--check` (read-only, no drift) →
 4 validators → `typecheck:graph` → idempotency verify → structural drift check. Exit 0.
 
-### 5.2 Deliberately deferred, not overlooked
+### 7.2 Deliberately deferred, not overlooked
 
 These are the known gaps. They are documented in the README as intentional holds, and any
 integration plan should assume they remain open.
@@ -248,7 +385,7 @@ integration plan should assume they remain open.
 5. **Aliasing is normalized, not resolved** — the graph stores normalized alias keys, so
    `evil jew` etc. resolve at read time rather than being merged in data.
 
-### 5.3 The system's own quality posture
+### 7.3 The system's own quality posture
 
 Three properties are worth knowing, because they are deliberate and should be preserved:
 
@@ -265,9 +402,9 @@ Three properties are worth knowing, because they are deliberate and should be pr
 
 ---
 
-## 6. Commands
+## 8. Commands
 
-Graph subsystem (all require `TROPE_GRAPH_DATABASE_URL`, see Section 7.3):
+Graph subsystem (all require `TROPE_GRAPH_DATABASE_URL`, see Section 9.3):
 
 | Command | Purpose |
 |---|---|
@@ -287,9 +424,9 @@ Host: `pnpm dev` (Vite), `pnpm run dev:all` (Vite + server), `pnpm run build`,
 
 ---
 
-## 7. Risks the architect should supervise
+## 9. Risks the architect should supervise
 
-### 7.1 CRITICAL — the host API has no authentication, including writes
+### 9.1 CRITICAL — the host API has no authentication, including writes
 
 This is pre-existing and unrelated to the graph, but it will affect any plan that exposes
 curated content through the host. Verified:
@@ -315,7 +452,7 @@ carries claim provenance and legal-case references. Recommend that authenticatio
 server-side authorization land **before** any write path to `trope_graph` is exposed, not
 after.
 
-### 7.2 `typecheck:all` fails — 8 errors, 3 unrelated causes
+### 9.2 `typecheck:all` fails — 8 errors, 3 unrelated causes
 
 Filed as `as-truth-cards-g66` (P2). Pre-existing; baseline-verified against a stash during the
 consolidation. `typecheck:graph` is clean, so the graph is not implicated.
@@ -332,7 +469,7 @@ consolidation. `typecheck:graph` is clean, so the graph is not implicated.
 likely surface further errors while the runtime is preact. This is a decision about which
 React surface is authoritative, and it should be made deliberately.
 
-### 7.3 The repository `.env` points at live production
+### 9.3 The repository `.env` points at live production
 
 `.env` resolves `DATABASE_URL` to a **live Neon instance**:
 `ep-wandering-hall-a2zhlxru-pooler.eu-central-1.aws.neon.tech`. The graph client accepts
@@ -349,7 +486,7 @@ code that connects to the graph must go through `url.ts` and must not bypass the
 When the graph is eventually deployed against a real database, the loopback guard will need
 an explicit, reviewed bypass — that is a decision to make deliberately, at that time.
 
-### 7.4 Deployment does not run graph migrations
+### 9.4 Deployment does not run graph migrations
 
 `render.yaml` uses `buildCommand: npm install && npm build && npx prisma generate` and
 `startCommand: npx tsx server/index.ts`. **No `trope-graph:migrate` step is invoked.** When
@@ -357,7 +494,7 @@ the graph is pointed at a deployed database, its `trope_graph` schema will not e
 migration is added to the deploy path. Note also that `npm build` (rather than
 `npm run build`) is relied upon, which is worth correcting while touching this file.
 
-### 7.5 Two migration systems in one database
+### 9.5 Two migration systems in one database
 
 Prisma (`prisma/sql/*.sql`, ad-hoc) and the graph's hand-rolled runner
 (`trope-cards/drizzle/*.sql`, SHA-256 ledger in `trope_graph.schema_migrations`) will
@@ -366,7 +503,23 @@ ordering guarantee between them, and no shared lock. *Verification:* the graph's
 `migrate:check` is proven genuinely read-only, so it is safe to run against a
 Prisma-migrated database — but coordinate deliberately.
 
-### 7.6 Tooling footgun (resolved, recorded for awareness)
+### 9.6 The README documents a deployment target the project abandoned
+
+`README.md` still instructs the reader to deploy to **Vercel**, including
+`npm i -g vercel` and `vercel` CLI steps. The actual deploy config is **Render**, added in
+`727aafe` (2026-03-27) and never reflected back into the README. Vercel instructions survived
+every subsequent commit that touched `render.yaml`.
+
+This is not cosmetic. Following the README today produces a broken deployment: the app is an
+Express server with a `tsx` start command, which Vercel's static/Next.js model does not host.
+Anyone onboarding, or any agent reading the README to learn how this ships, is actively misled.
+
+`render.yaml` also has a latent bug worth fixing while it is open: `buildCommand` uses
+`npm build` rather than `npm run build`, and the project is pnpm-based throughout
+(`pnpm-lock.yaml`, `pnpm-workspace.yaml`, `pnpm exec`), so the deploy path is inconsistent with
+the documented toolchain.
+
+### 9.7 Tooling footguns (resolved, recorded for awareness)
 
 The pre-commit hook was `bunx biome format --write --staged`, which **fails** whenever a
 staged path falls outside Biome's include list — so any commit touching a `.md`, `.sql`, or
@@ -378,9 +531,53 @@ and verified; the global one is removed.
 
 ---
 
-## 8. Decisions required from the architect
+## 10. Decisions required from the architect
 
 These are the open questions. Recommendations are offered but the ruling is the architect's.
+
+### D0 — What to do about the `dev` branch and the divergent-app problem
+
+**This is the decision that should be made first, because several others depend on it.**
+
+The framing question: is this a repository with a stale branch, or two applications? Verified,
+it is the latter. `main` and `dev` share a one-day-old common ancestor and have been developed
+independently for eleven months, with no tests on either side to arbitrate correctness.
+
+Options, roughly in ascending order of cost:
+
+- **(a) Salvage `dev`'s ideas onto `main`, delete the branch.** Mine the `AccessLevel` and
+  `ContentStatus` enums and the `StackServerApp` from `dev` (3.4), port the no-repeat draw
+  loop (4.1), then delete `dev` so there is one app again. `main` already builds, deploys, and
+  holds all the graph work. **Recommended.** This captures essentially everything of value in
+  `dev` at a fraction of the cost of maintaining it, and resolves the branch ambiguity that is
+  currently making `AGENTS.md` wrong.
+- **(b) Port `trope-cards/` onto `dev` and abandon `main`.** Would mean moving the graph to a
+  Next.js app, re-deriving the Render deploy, and porting the Preact/Render work — while
+  discarding eleven months of `main` commits. Only defensible if a Next.js deployment is a
+  hard requirement (e.g. a hosting decision already made). **Nothing in the repo suggests one.**
+- **(c) Start clean on a third branch.** The user's stated fallback if a structural problem
+  is confirmed. Viable, but note what it discards: a working Render deployment, a verified
+  36-table graph with a 5-stage check gate, and 11 months of content commits. A clean start is
+  only justified if the *product* direction is changing, not just the framework. If the goal
+  is the card UI, note that the card UI is the one asset both branches already share (4.1).
+
+**Structural problems that actually exist** (so the "is it structural?" test can be answered
+directly rather than assumed):
+
+1. **No tests on `main`.** `dev` has vitest configured; `main` has no runner. This is the most
+   serious structural gap, and it is the strongest argument for *not* starting clean — a
+   rewrite without tests is how the current situation happened.
+2. **Unauthenticated write API on `main`** (9.1) — worse than `dev`, which is read-only.
+3. **Two migration systems, no coordination** (9.5).
+4. **A React/Preact hybrid** in exactly the card components (4.2).
+
+None of these require a new branch. All four are cheaper to fix in place than to re-encounter
+in a rewrite. My recommendation is (a), with a test harness established *before* any further
+feature work.
+
+**Free win regardless of which option is chosen:** `AGENTS.md` should be corrected to name the
+branch it describes, or deleted. As it stands it will keep misleading agents and new
+contributors until the ambiguity is resolved.
 
 ### D1 — How should the graph be exposed to the host?
 
@@ -440,7 +637,7 @@ the instructions to run scripts that do not exist.
 
 ---
 
-## 9. Verification appendix
+## 11. Verification appendix
 
 Every non-obvious claim in this report, and how it was checked:
 
@@ -467,8 +664,34 @@ Every non-obvious claim in this report, and how it was checked:
 | v0.1–v0.4 byte-identical to archives | `diff -rq` against extracted `tar.gz` from `3313109^` |
 | Versions excluded from Biome | `biome.json` negation; verified it blocks a broadened `includes` |
 | Graph untouched by `PRD.md`/`SPEC.md` | `rg -in 'trope' PRD.md SPEC.md README.md` → no matches |
+| Repo is two divergent apps, split 2025-03-19 | merge base `7279c23`; `dev` 17-only / `main` 32-only |
+| Born as Vite + shadcn | first commit `00b8235` "Use tech stack vite_react_shadcn_ts" |
+| `dev` is Next.js, `main` is not | `dev:package.json` has `next ^15.3.1`; no revision of `main:package.json` ever had it |
+| `main` went Vite → Preact + Express | `ddc7313` (2026-03-27) "Complete v1 implementation - pnpm, Preact, Express API" |
+| `dev` has no Render config | `git ls-tree dev` → no `render.yaml`; no `render.com` match in tree |
+| README says Vercel, deploy is Render | `README.md:66-77` vs `render.yaml:6-7` |
+| Card UI (shuffle/flip/thumbs) on **both** branches | keyword search of `CardDeck.tsx`/`Card.tsx` on each branch |
+| `dev` is the only one that avoids re-draws | `dev:CardDeck.tsx:60` do-while; `main:CardDeck.tsx:53` single draw |
+| `main` has thumbs voting too | `main:Card.tsx` imports `ThumbsUp`/`ThumbsDown` |
+| `dev` extras | `HeroSection.tsx`, `CardSection.tsx`, `FeaturedCard.tsx` absent from `main` |
+| `dev` has `AccessLevel`/`ContentStatus` enums | `dev:prisma/schema.prisma` |
+| `dev`'s `StackServerApp` is unused | `git grep -l 'stack/server' dev` → no matches |
+| `dev` card API is read-only | no `req.method` switch in `pages/api/cards.ts` |
+| `main` has no test runner | `main:package.json` scripts — no `test` |
+| `main` card components mix runtimes | `main:Card.tsx:2-3` `preact/hooks` + `type React from 'react'` |
 
 **Not verified / unknown:** whether the host's Neon database is the intended eventual home
 for the graph, or whether a separate database is preferred; the production status of the
 `ADMIN` role migration (`prisma/sql/set_admin_user.sql`); whether `dist/` is current or
-stale; the intended editorial standard for "a located source" (D4).
+stale; the intended editorial standard for "a located source" (D4); **why the Next.js
+migration on `dev` was abandoned** — no commit, issue, or doc in the repo records a decision,
+which is itself the strongest argument for writing down the outcome of D0; whether the
+Render deployment is currently live and healthy (no deployed instance was inspected); and
+whether the three extra `dev` components (`HeroSection`, `CardSection`, `FeaturedCard`)
+represent desired design work or abandoned experiments.
+
+**One caveat on this document's own history.** Section 2.1 originally claimed `AGENTS.md`
+simply misdescribed the stack as Next.js. That was wrong: `AGENTS.md` accurately describes
+`dev`. The error came from describing the checked-out branch without checking for others. The
+correction is left in place deliberately — a briefing that hides its own corrections is less
+trustworthy than one that shows them.
