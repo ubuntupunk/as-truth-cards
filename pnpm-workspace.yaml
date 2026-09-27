@@ -1,7 +1,9 @@
-ignoredBuiltDependencies:
-  - '@prisma/client'
-  - '@prisma/engines'
-  - '@swc/core'
-  - esbuild
-  - prisma
-  - sharp
+# All of these ship native binaries or generated clients and must run their postinstall.
+# They are the only packages in the tree permitted to execute install scripts.
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  '@swc/core': true
+  esbuild: true
+  prisma: true
+  sharp: true
