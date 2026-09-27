@@ -1,0 +1,27 @@
+{
+  "generatedFrom": "trope-cards/scripts/validate-*.mjs",
+  "validators": {
+    "draft": {
+      "errors": [],
+      "warnings": [
+        "mechanism \"double-standard\" is defined in taxonomy.ts but used by no card."
+      ]
+    },
+    "claim-decomposition": {
+      "errors": [],
+      "warnings": []
+    },
+    "argument-chains": {
+      "errors": [],
+      "warnings": []
+    },
+    "evidence": {
+      "errors": [],
+      "warnings": [
+        "evidence_items is empty. The evidence layer is schema-only so far; no located passages have been recorded. This is expected at this stage of the project.",
+        "evidence_items.evidence_status, evidence_items.locator_type, evidence_items.type are plain text, so the evidence vocabularies are not enforced by the database. Every other vocabulary in trope_graph is an enum. This validator is currently the only guard."
+      ]
+    }
+  },
+  "valid": true
+}

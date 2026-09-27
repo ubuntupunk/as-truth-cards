@@ -1,0 +1,1066 @@
+[
+  {
+    "id": "shylock-01",
+    "card": "Shylock",
+    "type": "TACTIC",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "The Shylock reference invokes a moneylender to portray Jews as inherently deceptive in commerce, predatory lenders, or naturally associated with usury. — SOURCE_REQUIRED: literary/historical sources."
+  },
+  {
+    "id": "shylock-02",
+    "card": "Shylock",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The stereotype predates Shakespeare and is connected in the draft to medieval European restrictions on Jewish landholding and guild membership and resulting occupational patterns. — SOURCE_REQUIRED: comparative historical scholarship."
+  },
+  {
+    "id": "shylock-03",
+    "card": "Shylock",
+    "type": "MECHANISM",
+    "status": "ESTABLISHED",
+    "statement": "A discriminatory institutional condition can help produce a social role which is subsequently cited as evidence of an alleged group character trait. — SOURCE_REQUIRED: historical scholarship."
+  },
+  {
+    "id": "mossad-agent-01",
+    "card": "Mossad Agent",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "A person is portrayed as a covert Israeli intelligence operative without evidence beyond Jewish identity, Israeli connections, or political position."
+  },
+  {
+    "id": "mossad-agent-02",
+    "card": "Mossad Agent",
+    "type": "MECHANISM",
+    "status": "ESTABLISHED",
+    "statement": "The accusation transforms ordinary participation in debate into alleged evidence of clandestine infiltration."
+  },
+  {
+    "id": "mossad-agent-03",
+    "card": "Mossad Agent",
+    "type": "HISTORICAL_ANALOGY",
+    "status": "ESTABLISHED",
+    "statement": "The draft connects this structure to older “hidden hand” accusations alleging secret Jewish influence through visible institutions. — SOURCE_REQUIRED: historical sources."
+  },
+  {
+    "id": "zio-nazi-01",
+    "card": "Zio Nazi",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "A direct equivalence is drawn between Nazi Germany and Israel or Zionism."
+  },
+  {
+    "id": "zio-nazi-02",
+    "card": "Zio Nazi",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "Criticism of Israeli conduct can include historical analogy without necessarily constituting Holocaust inversion."
+  },
+  {
+    "id": "zio-nazi-03",
+    "card": "Zio Nazi",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "The draft identifies Holocaust inversion where the analogy reverses persecuted/persecutor roles or repurposes the Holocaust to erase Jewish vulnerability. — SOURCE_REQUIRED: Holocaust-memory scholarship."
+  },
+  {
+    "id": "world-domination-01",
+    "card": "World Domination",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "Jews or “Zionists” are said to secretly control banks, media, governments, universities, or other institutions as part of a coordinated hidden agenda."
+  },
+  {
+    "id": "world-domination-02",
+    "card": "World Domination",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The modern conspiracy tradition is connected in the draft to the forged *Protocols of the Elders of Zion*."
+  },
+  {
+    "id": "world-domination-03",
+    "card": "World Domination",
+    "type": "MECHANISM",
+    "status": "ESTABLISHED",
+    "statement": "The recurring structure is a hidden collective command/control explanation for institutional events. — SOURCE_REQUIRED: conspiracy-history scholarship."
+  },
+  {
+    "id": "dual-loyalty-01",
+    "card": "Dual Loyalty",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "Jews are said to be incapable of full civic loyalty because their primary allegiance supposedly lies with Jews, Israel, or a “Jewish agenda.”"
+  },
+  {
+    "id": "dual-loyalty-02",
+    "card": "Dual Loyalty",
+    "type": "MECHANISM",
+    "status": "ESTABLISHED",
+    "statement": "An individual's political preference or religious connection is converted into evidence of collective disloyalty."
+  },
+  {
+    "id": "dual-loyalty-03",
+    "card": "Dual Loyalty",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "A genuine, evidenced individual conflict of interest is distinguishable from a blanket presumption that Jewish identity creates divided citizenship."
+  },
+  {
+    "id": "blood-libel-01",
+    "card": "Blood Libel",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "Historical blood libel accused Jews of murdering Christian children for ritual purposes."
+  },
+  {
+    "id": "blood-libel-02",
+    "card": "Blood Libel",
+    "type": "MECHANISM",
+    "status": "ESTABLISHED",
+    "statement": "The draft identifies a structural mutation in which an older accusation concerning Jewish pleasure in suffering/death is transferred to “Zionists.”"
+  },
+  {
+    "id": "blood-libel-03",
+    "card": "Blood Libel",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "A documented allegation that Israeli forces killed children is not automatically blood libel; the trope is identified where the allegation becomes a collective assertion about Jews/Zionists inherently desiring or celebrating child death."
+  },
+  {
+    "id": "holocaust-denial-01",
+    "card": "Holocaust Denial / Distortion",
+    "type": "DEFINITION",
+    "status": "ESTABLISHED",
+    "statement": "Holocaust denial rejects or radically minimises the Nazi genocide of European Jews."
+  },
+  {
+    "id": "holocaust-denial-02",
+    "card": "Holocaust Denial / Distortion",
+    "type": "DEFINITION",
+    "status": "ESTABLISHED",
+    "statement": "Holocaust distortion can involve minimising scale, manipulating chronology, selective comparison, or rhetorical inversion."
+  },
+  {
+    "id": "holocaust-denial-03",
+    "card": "Holocaust Denial / Distortion",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "A disputed analogy about Israel is not automatically Holocaust denial."
+  },
+  {
+    "id": "holocaust-denial-04",
+    "card": "Holocaust Denial / Distortion",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "The card is strongest where the historical record is falsified or deliberately inverted. — SOURCE_REQUIRED: primary historical record and scholarship."
+  },
+  {
+    "id": "talmud-01",
+    "card": "Talmud",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "The Talmud is treated as a single binding operational manual and isolated passages are presented as proof of hidden Jewish doctrine."
+  },
+  {
+    "id": "talmud-02",
+    "card": "Talmud",
+    "type": "ESTABLISHED_IN_DRAFT",
+    "status": "ESTABLISHED",
+    "statement": "The draft describes the Talmud as a large corpus preserving rabbinic argument, disagreement, and minority opinions. — SOURCE_REQUIRED: authoritative Jewish studies source."
+  },
+  {
+    "id": "talmud-03",
+    "card": "Talmud",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "Quotations require attention to speaker, context, surrounding argument, and later legal status."
+  },
+  {
+    "id": "talmud-04",
+    "card": "Talmud",
+    "type": "QUESTION",
+    "status": "OPEN",
+    "statement": "Is a quotation being presented as a binding teaching when the source records a dispute? — RESEARCH: primary text/context."
+  },
+  {
+    "id": "chosen-master-01",
+    "card": "Chosen People / Master Race",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "Jewish chosenness is recast as equivalent to racial supremacy."
+  },
+  {
+    "id": "chosen-master-02",
+    "card": "Chosen People / Master Race",
+    "type": "THEOLOGICAL",
+    "status": "ESTABLISHED",
+    "statement": "The draft presents chosenness as commonly framed in terms of covenant, obligation, and responsibility rather than biological superiority. — SOURCE_REQUIRED: Jewish theological sources."
+  },
+  {
+    "id": "chosen-master-03",
+    "card": "Chosen People / Master Race",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "Jewish theological terminology is translated into Nazi racial categories and used as evidence that Judaism inherently teaches domination."
+  },
+  {
+    "id": "chosen-master-04",
+    "card": "Chosen People / Master Race",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "Theological discussion of chosenness is not, by itself, treated as antisemitic."
+  },
+  {
+    "id": "haavara-01",
+    "card": "Haavara / “Blood for Goods”",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The card concerns the 1933 Haavara Agreement and later Jewish rescue negotiations, including controversy surrounding Rudolf Kastner."
+  },
+  {
+    "id": "haavara-02",
+    "card": "Haavara / “Blood for Goods”",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "These events are presented in the trope as proof that Zionists or Jewish leaders collaborated with Nazism."
+  },
+  {
+    "id": "haavara-03",
+    "card": "Haavara / “Blood for Goods”",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The draft characterises the evidence as involving desperate and controversial rescue arrangements under Nazi persecution and competing Jewish political interests."
+  },
+  {
+    "id": "haavara-04",
+    "card": "Haavara / “Blood for Goods”",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "Haavara, the Kastner case, and later rescue negotiations should not be collapsed into one undifferentiated event. — SOURCE_REQUIRED: primary documents and historical scholarship."
+  },
+  {
+    "id": "protocols-01",
+    "card": "Elders of Zion",
+    "type": "FACT",
+    "status": "ESTABLISHED",
+    "statement": "*Protocols of the Elders of Zion* is presented as a fabricated conspiracy text rather than a record of an actual Jewish organisation."
+  },
+  {
+    "id": "protocols-02",
+    "card": "Elders of Zion",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "It was assembled and circulated in the Russian Empire in the early twentieth century. — SOURCE_REQUIRED: archival/historical scholarship."
+  },
+  {
+    "id": "protocols-03",
+    "card": "Elders of Zion",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "It became an influential modern antisemitic conspiracy text. — SOURCE_REQUIRED: historical scholarship."
+  },
+  {
+    "id": "protocols-04",
+    "card": "Elders of Zion",
+    "type": "EDITORIAL",
+    "status": "ESTABLISHED",
+    "statement": "The card should identify it as a forgery first and a trope second."
+  },
+  {
+    "id": "jews-not-white-01",
+    "card": "Jews Are Not White",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "Racial classification is used to make a predetermined political argument."
+  },
+  {
+    "id": "jews-not-white-02",
+    "card": "Jews Are Not White",
+    "type": "FACT",
+    "status": "ESTABLISHED",
+    "statement": "Jewish populations include Ashkenazi, Sephardi, Mizrahi, Ethiopian, and other communities with different histories and social classifications. — SOURCE_REQUIRED: demographic/historical sources."
+  },
+  {
+    "id": "jews-not-white-03",
+    "card": "Jews Are Not White",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "Categorical racial definitions flatten population diversity; the card should concern racial essentialism rather than establishing one universally correct racial category."
+  },
+  {
+    "id": "goy-01",
+    "card": "Goy",
+    "type": "LINGUISTIC",
+    "status": "ESTABLISHED",
+    "statement": "*Goy* is a Hebrew word meaning “nation” and is also used in the Hebrew Bible for Israel."
+  },
+  {
+    "id": "goy-02",
+    "card": "Goy",
+    "type": "PRIMARY_TEXT",
+    "status": "ESTABLISHED",
+    "statement": "Genesis 12:2 is cited in the draft as describing Abraham's descendants becoming a *goy gadol*, “great nation.” — SOURCE_REQUIRED: specified Hebrew text/translation."
+  },
+  {
+    "id": "goy-03",
+    "card": "Goy",
+    "type": "LINGUISTIC",
+    "status": "ESTABLISHED",
+    "statement": "In later Jewish usage, *goy* can refer to a non-Jew."
+  },
+  {
+    "id": "goy-04",
+    "card": "Goy",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "The word's biblical range makes simplistic claims about its meaning misleading; theological claims should be separated from lexical claims."
+  },
+  {
+    "id": "replacement-01",
+    "card": "Replacement Theology",
+    "type": "THEOLOGY",
+    "status": "ESTABLISHED",
+    "statement": "Replacement theology/supersessionism refers to positions in which the Church is understood to supersede or fulfil Israel's covenantal role."
+  },
+  {
+    "id": "replacement-02",
+    "card": "Replacement Theology",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "Different Christian traditions formulate the doctrine differently."
+  },
+  {
+    "id": "replacement-03",
+    "card": "Replacement Theology",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "Applying the doctrine to Jewish claims about land, identity, or covenant can be politically consequential without necessarily constituting an antisemitic claim about Jews."
+  },
+  {
+    "id": "replacement-04",
+    "card": "Replacement Theology",
+    "type": "EDITORIAL",
+    "status": "ESTABLISHED",
+    "statement": "The draft cautions against treating “Islamic replacement” as one established doctrine; Islamic traditions contain multiple positions. — SOURCE_REQUIRED: comparative theological sources."
+  },
+  {
+    "id": "apartheid-collab-01",
+    "card": "Apartheid Collaborators",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "Israel had relationships with apartheid South Africa."
+  },
+  {
+    "id": "apartheid-collab-02",
+    "card": "Apartheid Collaborators",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The broader record includes relationships between apartheid South Africa and multiple foreign governments and corporations."
+  },
+  {
+    "id": "apartheid-collab-03",
+    "card": "Apartheid Collaborators",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "Jewish South Africans were prominent in the anti-apartheid movement."
+  },
+  {
+    "id": "apartheid-collab-04",
+    "card": "Apartheid Collaborators",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "Whether Israel was uniquely responsible requires a comparative evidentiary argument rather than denial of the relationship itself. — SOURCE_REQUIRED: comparative archival record."
+  },
+  {
+    "id": "white-settlers-01",
+    "card": "White, European Settlers",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "All Israeli Jews are characterised as white European settlers."
+  },
+  {
+    "id": "white-settlers-02",
+    "card": "White, European Settlers",
+    "type": "FACT",
+    "status": "ESTABLISHED",
+    "statement": "Israeli Jews have diverse geographic and historical origins, including communities rooted in the Middle East, North Africa, Europe, and Ethiopia. — SOURCE_REQUIRED: demographic source."
+  },
+  {
+    "id": "white-settlers-03",
+    "card": "White, European Settlers",
+    "type": "EDITORIAL",
+    "status": "ESTABLISHED",
+    "statement": "Claims about proportions should only be made with a defined population and current demographic source."
+  },
+  {
+    "id": "settler-colonial-01",
+    "card": "Settler-Colonialism",
+    "type": "ACADEMIC_FRAMEWORK",
+    "status": "ESTABLISHED",
+    "statement": "Settler-colonialism is used by scholars as a framework for analysing Zionism and Israel."
+  },
+  {
+    "id": "settler-colonial-02",
+    "card": "Settler-Colonialism",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "The framework should not itself be treated as inherently antisemitic."
+  },
+  {
+    "id": "settler-colonial-03",
+    "card": "Settler-Colonialism",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "The draft identifies a rhetorical move when the framework is presented as resolving every historical question by definition."
+  },
+  {
+    "id": "settler-colonial-04",
+    "card": "Settler-Colonialism",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "The draft identifies historical complexity potentially omitted by a single settler/indigenous binary: Jewish indigeneity, continuous Jewish presence, immigration, Arab nationalism, Ottoman rule, British administration, and the Holocaust. — SOURCE_REQUIRED: competing scholarship."
+  },
+  {
+    "id": "zionist-slur-01",
+    "card": "Zionist-as-Slur",
+    "type": "LINGUISTIC",
+    "status": "ESTABLISHED",
+    "statement": "“Zionist” can function as a straightforward political descriptor; criticism of Zionism is not inherently antisemitic."
+  },
+  {
+    "id": "zionist-slur-02",
+    "card": "Zionist-as-Slur",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "The card is triggered when “Zionist” substitutes for “Jew” and carries sinister collective characteristics or exclusion/dehumanisation."
+  },
+  {
+    "id": "zionist-slur-03",
+    "card": "Zionist-as-Slur",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "The draft rejects an unsupported generalisation that the term is “increasingly” a codeword and instead proposes examining whether a political label is functioning as a proxy for an ethnic/religious group."
+  },
+  {
+    "id": "litmus-01",
+    "card": "Litmus Test / Deplatforming",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "Assumed position on Zionism is treated as sufficient reason to exclude, boycott, deny a platform, or attack reputation without examining actual conduct or argument."
+  },
+  {
+    "id": "litmus-02",
+    "card": "Litmus Test / Deplatforming",
+    "type": "MECHANISM",
+    "status": "ESTABLISHED",
+    "statement": "The rhetorical move is guilt by assumed affiliation."
+  },
+  {
+    "id": "litmus-03",
+    "card": "Litmus Test / Deplatforming",
+    "type": "CASE_LINK",
+    "status": "ESTABLISHED",
+    "statement": "The draft proposes the Adam Mendelsohn/UCT dispute as a regional example and requires sourcing allegations to court records or party filings."
+  },
+  {
+    "id": "litmus-04",
+    "card": "Litmus Test / Deplatforming",
+    "type": "SOURCE_REQUIRED",
+    "status": "ESTABLISHED",
+    "statement": "The UCT lecture itself should not be used to infer disputed subsequent statements or litigation claims; those require direct procedural sources."
+  },
+  {
+    "id": "platform-control-01",
+    "card": "Platform / Institutional Control",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "A “Zionist” or Jewish influence is alleged to secretly control a platform, university, donor board, government agency, or legislation."
+  },
+  {
+    "id": "platform-control-02",
+    "card": "Platform / Institutional Control",
+    "type": "MECHANISM",
+    "status": "ESTABLISHED",
+    "statement": "The relevant distinction is between documented influence by identifiable actors and a hidden collective Jewish/Zionist command structure."
+  },
+  {
+    "id": "platform-control-03",
+    "card": "Platform / Institutional Control",
+    "type": "COUNTER_TEST",
+    "status": "ESTABLISHED",
+    "statement": "Identify actual actor, evidence of influence, mechanism, and decision."
+  },
+  {
+    "id": "platform-control-04",
+    "card": "Platform / Institutional Control",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "When those particulars disappear and “the Zionists” become the unexplained agent, the conspiracy structure is present."
+  },
+  {
+    "id": "river-sea-01",
+    "card": "River to Sea",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "“From the river to the sea, Palestine will be free” has multiple interpretations."
+  },
+  {
+    "id": "river-sea-02",
+    "card": "River to Sea",
+    "type": "INTERPRETATION",
+    "status": "ESTABLISHED",
+    "statement": "Supporters can use the phrase to mean Palestinian freedom and equal rights."
+  },
+  {
+    "id": "river-sea-03",
+    "card": "River to Sea",
+    "type": "INTERPRETATION",
+    "status": "ESTABLISHED",
+    "statement": "Critics interpret it as implying elimination of Israel."
+  },
+  {
+    "id": "river-sea-04",
+    "card": "River to Sea",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "Historical use by Palestinian movements and speaker context matter; a particular charter alone should not determine every contemporary speaker's meaning. — SOURCE_REQUIRED: historical usage + speaker-specific context."
+  },
+  {
+    "id": "weaponizing-01",
+    "card": "Weaponizing Antisemitism",
+    "type": "CLAIM",
+    "status": "ESTABLISHED",
+    "statement": "Accusations of antisemitism may be deployed strategically to silence criticism of Israel."
+  },
+  {
+    "id": "weaponizing-02",
+    "card": "Weaponizing Antisemitism",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "The subject is legitimate to investigate but can itself become a rhetorical shield if every antisemitism allegation is automatically dismissed as bad faith."
+  },
+  {
+    "id": "weaponizing-03",
+    "card": "Weaponizing Antisemitism",
+    "type": "COUNTER_TEST",
+    "status": "ESTABLISHED",
+    "statement": "Examine whether the allegation is supported by content/context or invoked merely to terminate debate."
+  },
+  {
+    "id": "jews-white-01",
+    "card": "Jews Are White",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "All Jews are assigned a single “white” identity and that classification is used to settle political questions about indigeneity, power, or victimhood."
+  },
+  {
+    "id": "jews-white-02",
+    "card": "Jews Are White",
+    "type": "FACT",
+    "status": "ESTABLISHED",
+    "statement": "Jewish populations have diverse histories and are classified differently across societies. — SOURCE_REQUIRED: demographic/social-classification sources."
+  },
+  {
+    "id": "jews-white-03",
+    "card": "Jews Are White",
+    "type": "MECHANISM",
+    "status": "ESTABLISHED",
+    "statement": "The rhetorical mechanism is insistence that a complex population fit one political category."
+  },
+  {
+    "id": "not-semites-01",
+    "card": "Jews Are Not Semites",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "“Antisemitism” is presented as a nineteenth-century European political term for anti-Jewish hostility."
+  },
+  {
+    "id": "not-semites-02",
+    "card": "Jews Are Not Semites",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The draft attributes popularisation to Wilhelm Marr in the 1870s/1880s and states that the term was coined/popularised by antisemites rather than as a Jewish self-description. — SOURCE_REQUIRED: historical lexical sources."
+  },
+  {
+    "id": "not-semites-03",
+    "card": "Jews Are Not Semites",
+    "type": "LINGUISTIC",
+    "status": "ESTABLISHED",
+    "statement": "The modern term “antisemitism” refers specifically to hostility toward Jews; this differs from broader linguistic/historical use of “Semitic.” — SOURCE_REQUIRED: authoritative linguistic/historical source."
+  },
+  {
+    "id": "cape-union-01",
+    "card": "Cape Union Mart",
+    "type": "CASE",
+    "status": "ESTABLISHED",
+    "statement": "The Western Cape High Court judgment in *Cape Union Mart International (Pty) Ltd and Another v Ockards and Others* is identified by the draft as dated 4 September 2026 and [2026] ZAWCHC 477. — SOURCE_REQUIRED: judgment."
+  },
+  {
+    "id": "cape-union-02",
+    "card": "Cape Union Mart",
+    "type": "CASE",
+    "status": "ESTABLISHED",
+    "statement": "The court granted a final interdict concerning specified claims associating Cape Union Mart/brands with Israel, genocide, military conflict in Gaza, or killing/complicity in killing children. — SOURCE_REQUIRED: judgment."
+  },
+  {
+    "id": "cape-union-03",
+    "card": "Cape Union Mart",
+    "type": "CASE",
+    "status": "ESTABLISHED",
+    "statement": "The judgment did not prohibit boycott activity or public protest and required compliance with the Regulation of Gatherings Act. — SOURCE_REQUIRED: judgment."
+  },
+  {
+    "id": "cape-union-04",
+    "card": "Cape Union Mart",
+    "type": "CASE",
+    "status": "ESTABLISHED",
+    "statement": "The draft says respondents failed to establish relevant factual propositions with admissible evidence sufficient for their defences. — SOURCE_REQUIRED: judgment."
+  },
+  {
+    "id": "cape-union-05",
+    "card": "Cape Union Mart",
+    "type": "LIVE",
+    "status": "LIVE",
+    "statement": "Appeal/leave status must be updated from the current procedural record before publication."
+  },
+  {
+    "id": "uct-resolutions-01",
+    "card": "UCT Resolutions",
+    "type": "INSTITUTIONAL",
+    "status": "ESTABLISHED",
+    "statement": "UCT Council adopted resolutions in June 2024 concerning a boycott of Israel and the IHRA definition. — SOURCE_REQUIRED: actual resolutions/minutes."
+  },
+  {
+    "id": "uct-resolutions-02",
+    "card": "UCT Resolutions",
+    "type": "CASE_LINK",
+    "status": "ESTABLISHED",
+    "statement": "The Mendelsohn litigation challenges aspects of process and institutional governance. — SOURCE_REQUIRED: pleadings/judgment."
+  },
+  {
+    "id": "uct-resolutions-03",
+    "card": "UCT Resolutions",
+    "type": "EDITORIAL",
+    "status": "ESTABLISHED",
+    "statement": "The existence of the resolutions should not itself be treated as evidence of antisemitism."
+  },
+  {
+    "id": "uct-resolutions-04",
+    "card": "UCT Resolutions",
+    "type": "SOURCE_REQUIRED",
+    "status": "ESTABLISHED",
+    "statement": "Substantive political debate should be separated from institutional-process claims and sourced to the underlying resolutions and pleadings."
+  },
+  {
+    "id": "sa-jfp-01",
+    "card": "SA Jews for a Free Palestine",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "An argument from identity treats criticism of a position as incapable of being antisemitic because the speaker/organisation is Jewish."
+  },
+  {
+    "id": "sa-jfp-02",
+    "card": "SA Jews for a Free Palestine",
+    "type": "LOGIC",
+    "status": "ESTABLISHED",
+    "statement": "Identity can be relevant context but does not logically determine whether a proposition is antisemitic."
+  },
+  {
+    "id": "sa-jfp-03",
+    "card": "SA Jews for a Free Palestine",
+    "type": "SOURCE_REQUIRED",
+    "status": "ESTABLISHED",
+    "statement": "The card must identify exact statement, speaker, date, and procedural status rather than infer motive or make a general claim about the organisation."
+  },
+  {
+    "id": "mendelsohn-01",
+    "card": "Mendelsohn",
+    "type": "CASE",
+    "status": "ESTABLISHED",
+    "statement": "The card should identify Professor Adam Mendelsohn and his UCT role. — SOURCE_REQUIRED: institutional record."
+  },
+  {
+    "id": "mendelsohn-02",
+    "card": "Mendelsohn",
+    "type": "CASE",
+    "status": "ESTABLISHED",
+    "statement": "The 29 April 2026 inaugural lecture is part of the chronology. — SOURCE_REQUIRED: UCT record."
+  },
+  {
+    "id": "mendelsohn-03",
+    "card": "Mendelsohn",
+    "type": "CASE",
+    "status": "ESTABLISHED",
+    "statement": "UCT resolutions form part of the chronology. — SOURCE_REQUIRED: resolutions."
+  },
+  {
+    "id": "mendelsohn-04",
+    "card": "Mendelsohn",
+    "type": "LIVE",
+    "status": "LIVE",
+    "statement": "Statements/conduct complained of must be taken from the actual pleadings/affidavits rather than inferred from the lecture."
+  },
+  {
+    "id": "mendelsohn-05",
+    "card": "Mendelsohn",
+    "type": "LIVE",
+    "status": "LIVE",
+    "statement": "Causes of action must be represented exactly as pleaded."
+  },
+  {
+    "id": "mendelsohn-06",
+    "card": "Mendelsohn",
+    "type": "LIVE",
+    "status": "LIVE",
+    "statement": "Respondents' defence must be represented from their actual filings."
+  },
+  {
+    "id": "mendelsohn-07",
+    "card": "Mendelsohn",
+    "type": "LIVE",
+    "status": "LIVE",
+    "statement": "Court/procedural history must be sourced to court records."
+  },
+  {
+    "id": "mendelsohn-08",
+    "card": "Mendelsohn",
+    "type": "LIVE",
+    "status": "LIVE",
+    "statement": "The card should identify what remains unresolved as of the publication date."
+  },
+  {
+    "id": "jerusalem-01",
+    "card": "Jerusalem Sovereignty",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "Jordan controlled East Jerusalem from 1948 until 1967."
+  },
+  {
+    "id": "jerusalem-02",
+    "card": "Jerusalem Sovereignty",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "Israel has exercised control over East Jerusalem since 1967."
+  },
+  {
+    "id": "jerusalem-03",
+    "card": "Jerusalem Sovereignty",
+    "type": "LEGAL",
+    "status": "ESTABLISHED",
+    "statement": "Historical administration, sovereignty, and present international legal status are distinct categories."
+  },
+  {
+    "id": "jerusalem-04",
+    "card": "Jerusalem Sovereignty",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "Competing sovereignty claims and international positions must be represented without collapsing control into sovereignty. — SOURCE_REQUIRED: primary/legal/institutional sources."
+  },
+  {
+    "id": "quran-land-01",
+    "card": "Quran / Land Claim",
+    "type": "THEOLOGY",
+    "status": "ESTABLISHED",
+    "statement": "Islamic scripture contains passages concerning the Children of Israel and a blessed/holy land. — SOURCE_REQUIRED: specified verses and translation."
+  },
+  {
+    "id": "quran-land-02",
+    "card": "Quran / Land Claim",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "Scriptural description does not by itself establish modern exclusive territorial sovereignty for Jews or Muslims."
+  },
+  {
+    "id": "quran-land-03",
+    "card": "Quran / Land Claim",
+    "type": "THEOLOGY",
+    "status": "ESTABLISHED",
+    "statement": "Scriptural description and modern international sovereignty are different categories."
+  },
+  {
+    "id": "apartheid-map-01",
+    "card": "The “Apartheid Map”",
+    "type": "METHODOLOGY",
+    "status": "ESTABLISHED",
+    "statement": "Popular sequences of maps should be tested against actual legal and political status at each date."
+  },
+  {
+    "id": "apartheid-map-02",
+    "card": "The “Apartheid Map”",
+    "type": "FACT",
+    "status": "ESTABLISHED",
+    "statement": "Maps can conflate land ownership, administrative control, proposed partition, armistice lines, military occupation, and sovereign annexation."
+  },
+  {
+    "id": "apartheid-map-03",
+    "card": "The “Apartheid Map”",
+    "type": "MECHANISM",
+    "status": "ESTABLISHED",
+    "statement": "The card identifies map-category errors as a source of misleading argument."
+  },
+  {
+    "id": "apartheid-map-04",
+    "card": "The “Apartheid Map”",
+    "type": "SOURCE_REQUIRED",
+    "status": "ESTABLISHED",
+    "statement": "A companion evidence map should provide dates and a legend explaining what each colour represents."
+  },
+  {
+    "id": "voting-rights-01",
+    "card": "Voting Rights",
+    "type": "FACT",
+    "status": "ESTABLISHED",
+    "statement": "Israeli citizens, West Bank/Gaza residents, and Palestinian Authority voters occupy different political/legal categories relevant to voting claims."
+  },
+  {
+    "id": "voting-rights-02",
+    "card": "Voting Rights",
+    "type": "FACT",
+    "status": "ESTABLISHED",
+    "statement": "Arab citizens of Israel participate in Israeli elections."
+  },
+  {
+    "id": "voting-rights-03",
+    "card": "Voting Rights",
+    "type": "FACT",
+    "status": "ESTABLISHED",
+    "statement": "Palestinian residents of territories under Palestinian administration have a different political and legal status."
+  },
+  {
+    "id": "voting-rights-04",
+    "card": "Voting Rights",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "“Arabs cannot vote” is overbroad; the specific election and jurisdiction must be identified. — SOURCE_REQUIRED: election/legal sources."
+  },
+  {
+    "id": "nakba-01",
+    "card": "Nakba Symmetry",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The card compares Palestinian displacement in 1947–49 with displacement/migration of Jewish populations from Arab and Muslim-majority countries during the same broad period."
+  },
+  {
+    "id": "nakba-02",
+    "card": "Nakba Symmetry",
+    "type": "COMPARATIVE",
+    "status": "ESTABLISHED",
+    "statement": "The histories should not be implied to be identical."
+  },
+  {
+    "id": "nakba-03",
+    "card": "Nakba Symmetry",
+    "type": "METHODOLOGY",
+    "status": "ESTABLISHED",
+    "statement": "Comparative completeness requires that one population movement not disappear when the other is used as historical evidence. — SOURCE_REQUIRED: comparative demographic/historical sources."
+  },
+  {
+    "id": "balfour-01",
+    "card": "Balfour / Colonial Origins",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The Balfour Declaration should be placed in a wider diplomatic sequence rather than treated as a solitary act creating Israel."
+  },
+  {
+    "id": "balfour-02",
+    "card": "Balfour / Colonial Origins",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The draft identifies McMahon–Hussein correspondence, Sykes–Picot, Ottoman surrender, post-war mandates, Faisal–Weizmann, British policy, and later UN partition proposals as relevant chronology."
+  },
+  {
+    "id": "balfour-03",
+    "card": "Balfour / Colonial Origins",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "The historical significance of the sequence requires competing interpretations rather than a single “gotcha.”"
+  },
+  {
+    "id": "balfour-04",
+    "card": "Balfour / Colonial Origins",
+    "type": "SOURCE_REQUIRED",
+    "status": "ESTABLISHED",
+    "statement": "The card should be a chronology of dates/documents with disputed interpretations attached to specific claims."
+  },
+  {
+    "id": "palestinian-flag-01",
+    "card": "Palestinian Flag",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The modern Palestinian flag belongs to a broader Pan-Arab flag tradition and is historically related to the Arab Revolt flag. — SOURCE_REQUIRED: vexillological/historical source."
+  },
+  {
+    "id": "palestinian-flag-02",
+    "card": "Palestinian Flag",
+    "type": "INTERPRETIVE",
+    "status": "ESTABLISHED",
+    "statement": "The genealogy of the design does not by itself invalidate Palestinian national identity."
+  },
+  {
+    "id": "palestinian-flag-03",
+    "card": "Palestinian Flag",
+    "type": "METHODOLOGY",
+    "status": "ESTABLISHED",
+    "statement": "Distinguish origin of the design from meaning acquired through later Palestinian nationalism."
+  },
+  {
+    "id": "chronology-01",
+    "card": "Chronology",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The First Zionist Congress took place in 1897."
+  },
+  {
+    "id": "chronology-02",
+    "card": "Chronology",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "Palestinian Arab nationalism developed through overlapping late-Ottoman, Arab-nationalist, local, and post-World War I movements."
+  },
+  {
+    "id": "chronology-03",
+    "card": "Chronology",
+    "type": "METHODOLOGY",
+    "status": "ESTABLISHED",
+    "statement": "The stronger formulation is that competing national movements developed on different timelines, rather than asserting a simplistic single start date for Palestinian nationalism. — SOURCE_REQUIRED: historical scholarship."
+  },
+  {
+    "id": "anc-hamas-01",
+    "card": "ANC / Hamas Equivalence",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The card distinguishes the ANC's historical relationship with the PLO/Arafat from later relationships between South African political actors and Hamas."
+  },
+  {
+    "id": "anc-hamas-02",
+    "card": "ANC / Hamas Equivalence",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "Mandela's 1990 statement concerning Israel's right to exist is relevant evidence."
+  },
+  {
+    "id": "anc-hamas-03",
+    "card": "ANC / Hamas Equivalence",
+    "type": "METHODOLOGY",
+    "status": "ESTABLISHED",
+    "statement": "A 1990 statement should not be used to imply that all later ANC policy is frozen at that date."
+  },
+  {
+    "id": "anc-hamas-04",
+    "card": "ANC / Hamas Equivalence",
+    "type": "SOURCE_REQUIRED",
+    "status": "ESTABLISHED",
+    "statement": "The card should be constructed as a timeline rather than a single quotation."
+  },
+  {
+    "id": "israel-apartheid-01",
+    "card": "Israel–Apartheid Severance",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "Israel's relationship with apartheid South Africa changed over time."
+  },
+  {
+    "id": "israel-apartheid-02",
+    "card": "Israel–Apartheid Severance",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "The draft identifies the 1987 severance of remaining military ties and Shimon Peres's public denunciation of apartheid as relevant evidence. — SOURCE_REQUIRED: primary historical sources."
+  },
+  {
+    "id": "israel-apartheid-03",
+    "card": "Israel–Apartheid Severance",
+    "type": "HISTORICAL",
+    "status": "ESTABLISHED",
+    "statement": "Earlier Israeli-South African military and economic relationships are not erased by later severance."
+  },
+  {
+    "id": "israel-apartheid-04",
+    "card": "Israel–Apartheid Severance",
+    "type": "METHODOLOGY",
+    "status": "ESTABLISHED",
+    "statement": "This card should be paired with Apartheid Collaborators to present the chronology rather than select a single period."
+  },
+  {
+    "id": "false-binary-01",
+    "card": "False Binary / “Choose Sides”",
+    "type": "TACTIC",
+    "status": "ESTABLISHED",
+    "statement": "An observer is required to choose one collective side and neutrality/qualification/criticism of both sides is treated as moral failure."
+  },
+  {
+    "id": "false-binary-02",
+    "card": "False Binary / “Choose Sides”",
+    "type": "CONTEXT_DEPENDENT",
+    "status": "CONTEXT_DEPENDENT",
+    "statement": "Some legal or factual questions genuinely have binary answers."
+  },
+  {
+    "id": "false-binary-03",
+    "card": "False Binary / “Choose Sides”",
+    "type": "COUNTER_TEST",
+    "status": "ESTABLISHED",
+    "statement": "Ask whether choosing a side has replaced examination of the particular claim."
+  },
+  {
+    "id": "depo-01",
+    "card": "Depo-Provera",
+    "type": "FACT",
+    "status": "ESTABLISHED",
+    "statement": "The draft identifies disproportionate administration of Depo-Provera and informed-consent failures affecting Ethiopian-Israeli women as documented issues."
+  },
+  {
+    "id": "depo-02",
+    "card": "Depo-Provera",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "Allegations of coercion must be distinguished from documented medical-ethics failures."
+  },
+  {
+    "id": "depo-03",
+    "card": "Depo-Provera",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "Claims about deliberate state intent must be separated from the underlying medical-ethics evidence."
+  },
+  {
+    "id": "depo-04",
+    "card": "Depo-Provera",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "Claims of a systematic genocidal programme require a separate evidentiary showing and should not be inferred from the underlying facts alone. — SOURCE_REQUIRED: primary/institutional evidence."
+  },
+  {
+    "id": "ihra-jda-01",
+    "card": "IHRA vs Jerusalem Declaration",
+    "type": "INSTITUTIONAL",
+    "status": "ESTABLISHED",
+    "statement": "The IHRA Working Definition is described in the draft as a non-legally binding definition adopted by IHRA in 2016."
+  },
+  {
+    "id": "ihra-jda-02",
+    "card": "IHRA vs Jerusalem Declaration",
+    "type": "INSTITUTIONAL",
+    "status": "ESTABLISHED",
+    "statement": "It defines antisemitism as a certain perception of Jews that may be expressed as hatred and includes examples, several concerning Israel."
+  },
+  {
+    "id": "ihra-jda-03",
+    "card": "IHRA vs Jerusalem Declaration",
+    "type": "INSTITUTIONAL",
+    "status": "ESTABLISHED",
+    "statement": "The Jerusalem Declaration was developed subsequently as an alternative framework."
+  },
+  {
+    "id": "ihra-jda-04",
+    "card": "IHRA vs Jerusalem Declaration",
+    "type": "CONTESTED",
+    "status": "CONTESTED",
+    "statement": "The Jerusalem Declaration argues that the IHRA definition is unclear in important respects and proposes a different core definition/contextual guidelines."
+  },
+  {
+    "id": "ihra-jda-05",
+    "card": "IHRA vs Jerusalem Declaration",
+    "type": "METHODOLOGY",
+    "status": "ESTABLISHED",
+    "statement": "The existence of a competing definition does not itself establish which framework should be treated as correct; the graph should model the documented dispute over definitions, scope, examples, and institutional use."
+  }
+]
