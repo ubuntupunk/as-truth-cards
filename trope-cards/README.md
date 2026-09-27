@@ -11,10 +11,16 @@ winner, and no preferred political interpretation.
 
 ## Relationship to the host application
 
-The graph lives in the `trope_graph` schema. The host Next.js application owns
-`public` via Prisma, including its own `cards` table. The two never collide
-because the graph qualifies every object with its schema. `trope_graph.cards` is
-a different table from `public.cards`.
+The graph lives in the `trope_graph` schema. The host application — a Vite SPA
+with a separate Express API, not Next.js — owns `public` via Prisma, including
+its own `cards` table. The two never collide because the graph qualifies every
+object with its schema. `trope_graph.cards` is a different table from
+`public.cards`.
+
+The graph is currently **not** served over any API and is not part of the
+frontend bundle. It is an authoring and validation toolchain. See
+[ARCHITECT_REPORT.md](docs/ARCHITECT_REPORT.md) for the integration decisions
+still to be made.
 
 The graph client accepts `DATABASE_URL` as a fallback so it can share the host's
 connection. **Every write path refuses a non-loopback host by default**, because
