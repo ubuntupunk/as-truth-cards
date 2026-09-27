@@ -1,0 +1,17 @@
+{
+  "card": "jesus-was-a-zionist",
+  "chain": [
+    {
+      "evidence": "Acts 1:6 passage concerning restoration of the kingdom to Israel",
+      "claim": "Jesus' followers expected restoration concerning Israel",
+      "relation": "SUPPORTS",
+      "strength": "DIRECT"
+    },
+    {
+      "claim": "Jesus was a Zionist",
+      "inference": "RETROSPECTIVE_IDENTITY",
+      "status": "CONTESTED"
+    }
+  ],
+  "rule": "Evidence supports a proposition; it does not automatically establish a downstream interpretive conclusion."
+}

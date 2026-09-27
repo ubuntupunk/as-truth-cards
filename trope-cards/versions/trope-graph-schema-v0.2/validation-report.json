@@ -1,0 +1,41 @@
+{
+  "corpus": {
+    "expected": 41,
+    "parsed": 41,
+    "ok": true
+  },
+  "types": {
+    "TACTIC": 13,
+    "FACT": 12,
+    "THEOLOGY": 6,
+    "REFERENCE": 6,
+    "CASE": 4
+  },
+  "statuses": {
+    "ESTABLISHED": 8,
+    "CONTEXT_DEPENDENT": 15,
+    "CONTESTED": 15,
+    "LIVE": 3
+  },
+  "collections": {
+    "classic": 12,
+    "zionism-coded": 12,
+    "south-africa": 4,
+    "fact-rebuttal": 13
+  },
+  "mechanismUse": {
+    "essentialisation": 4,
+    "conspiracy": 4,
+    "collectivisation": 3,
+    "inversion": 4,
+    "equivalence": 8,
+    "demonisation": 1,
+    "substitution": 2,
+    "context-stripping": 14,
+    "racial-essentialism": 3,
+    "exclusion": 2,
+    "guilt-by-association": 1
+  },
+  "errors": [],
+  "warnings": []
+}

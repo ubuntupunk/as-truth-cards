@@ -1,0 +1,10 @@
+{
+  "valid": true,
+  "checks": {
+    "hasChains": true,
+    "hasCounterSteps": true,
+    "hasStepRelations": true,
+    "hasChallenge": true,
+    "hasQualifies": true
+  }
+}
