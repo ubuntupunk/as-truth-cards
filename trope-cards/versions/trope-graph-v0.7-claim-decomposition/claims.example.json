@@ -1,0 +1,40 @@
+{
+  "cards": [
+    {
+      "slug": "jesus-was-a-zionist",
+      "claims": [
+        {"slug":"jesus-was-jewish","epistemicStatus":"ESTABLISHED"},
+        {"slug":"jesus-engaged-israel-jewish-scripture","epistemicStatus":"ESTABLISHED"},
+        {"slug":"modern-zionism-is-a-later-political-category","epistemicStatus":"ESTABLISHED"},
+        {"slug":"jesus-was-a-zionist","epistemicStatus":"CONTESTED","requiresInference":true}
+      ]
+    },
+    {
+      "slug": "canaanite-card",
+      "claims": [
+        {"slug":"canaan-was-inhabited-by-diverse-populations","epistemicStatus":"ESTABLISHED"},
+        {"slug":"israelite-ethnogenesis-occurred-within-canaanite-context","epistemicStatus":"CONTESTED"},
+        {"slug":"ancient-levantine-ancestry-persists-in-modern-populations","epistemicStatus":"ESTABLISHED"},
+        {"slug":"palestinians-are-descended-from-canaanites","epistemicStatus":"CONTESTED","requiresInference":true}
+      ]
+    }
+  ],
+  "inferenceSteps": [
+    {
+      "id":"jesus-zionism-1",
+      "cardSlug":"jesus-was-a-zionist",
+      "inferenceType":"RETROSPECTIVE_IDENTITY",
+      "epistemicStatus":"CONTESTED",
+      "premises":["jesus-was-jewish","jesus-engaged-israel-jewish-scripture","modern-zionism-is-a-later-political-category"],
+      "conclusions":["jesus-was-a-zionist"]
+    },
+    {
+      "id":"canaanite-1",
+      "cardSlug":"canaanite-card",
+      "inferenceType":"RETROSPECTIVE_IDENTITY",
+      "epistemicStatus":"CONTESTED",
+      "premises":["canaan-was-inhabited-by-diverse-populations","israelite-ethnogenesis-occurred-within-canaanite-context","ancient-levantine-ancestry-persists-in-modern-populations"],
+      "conclusions":["palestinians-are-descended-from-canaanites"]
+    }
+  ]
+}
