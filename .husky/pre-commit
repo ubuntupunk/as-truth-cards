@@ -1,1 +1,12 @@
-bunx biome format --write --staged
+# Format the tree rather than `--staged`.
+#
+# Biome treats explicitly-passed paths as in-scope even when `files.includes`
+# excludes them, so `--staged` fails the commit as soon as a staged file is
+# outside the configured globs (a Markdown doc, a `.sql` migration, or the
+# archived trees under trope-cards/versions/). Passing the root lets Biome
+# apply its own include list, which is what defines what this project owns.
+#
+# The risk of this over `--staged` is that it can format unstaged working-tree
+# files too. That is safe here because formatting is idempotent and the only
+# thing that must not be reformatted is already excluded above.
+bunx biome format --write .
