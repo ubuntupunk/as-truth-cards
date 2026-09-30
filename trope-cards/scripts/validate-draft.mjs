@@ -37,6 +37,24 @@ const allowedStatuses = new Set([
   'LIVE',
 ])
 
+/**
+ * Axes come from the `card_axis` enum in drizzle/0008.
+ *
+ * Four values, not the three in the deck draft. HISTORICAL is authored on
+ * `canaanite-card` and describes a continuity argument; the enum carries it so the
+ * classification is persisted rather than quietly dropped to fit the original three.
+ *
+ * These are duplicated from the migration rather than derived, because this script parses
+ * seed sources as text and cannot import the TypeScript enum. `test/schema-axis.test.ts`
+ * asserts that this list and the `card_axis` enum agree, so the duplication cannot rot.
+ */
+const allowedAxes = new Set([
+  'TACTIC',
+  'FACT_REBUTTAL',
+  'THEOLOGICAL',
+  'HISTORICAL',
+])
+
 const knownMechanisms = new Set(tupleSlugs(taxonomy, 'mechanismsSeed'))
 const knownConcepts = new Set(tupleSlugs(taxonomy, 'conceptsSeed'))
 const knownCollections = new Set(
@@ -75,6 +93,23 @@ for (const row of rows) {
 
   for (const m of row.mechanisms ?? []) {
     if (!knownMechanisms.has(m)) errors.push(`${slug}: unknown mechanism ${m}`)
+  }
+
+  // Axis was authored on every card and read by nobody until migration 0008, so it is
+  // checked as strictly as collection and mechanism: a missing, empty, misspelled, or
+  // duplicated axis is an error, because each of those means a card reaches the database
+  // without the rhetorical classification the editor gave it.
+  const axes = row.axis ?? []
+  if (axes.length === 0) {
+    errors.push(
+      `${slug}: no axis; a card must be classified along at least one axis`,
+    )
+  }
+  for (const a of axes) {
+    if (!allowedAxes.has(a)) errors.push(`${slug}: unknown axis ${a}`)
+  }
+  if (new Set(axes).size !== axes.length) {
+    errors.push(`${slug}: repeated axis in [${axes.join(', ')}]`)
   }
 
   if (row.primaryType === 'CASE' && !collections.includes('south-africa')) {
@@ -152,9 +187,25 @@ report(
       mechanisms: knownMechanisms.size,
       collections: knownCollections.size,
       concepts: knownConcepts.size,
+      axes: allowedAxes.size,
     },
     types: tally('primaryType'),
     statuses: tally('status'),
+    // Axis is reported separately from `types` because it is a different dimension, not a
+    // refinement of it. A card may appear under several axes and one primaryType, so this
+    // counts values, not cards: the two totals differ by the number of multi-axis cards.
+    axes: {
+      values: Object.fromEntries(
+        [
+          ...rows
+            .flatMap((r) => r.axis ?? [])
+            .reduce((m, a) => m.set(a, (m.get(a) ?? 0) + 1), new Map()),
+        ].sort((a, b) => b[1] - a[1]),
+      ),
+      cards: rows.length,
+      authored: rows.reduce((n, r) => n + (r.axis ?? []).length, 0),
+      multiAxis: rows.filter((r) => (r.axis ?? []).length > 1).length,
+    },
     collections: Object.fromEntries(
       [
         ...rows

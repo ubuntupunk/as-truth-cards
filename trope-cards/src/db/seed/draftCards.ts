@@ -7,7 +7,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['zionism-coded'],
     primaryType: 'THEOLOGY',
     status: 'CONTESTED',
-    axis: ['THEOLOGICAL', 'FACT-REBUTTAL'],
+    axis: ['THEOLOGICAL', 'FACT_REBUTTAL'],
     mechanisms: ['anachronism', 'retrospective-identity'],
     summary:
       'Examines the Islamic theological description of Jesus as a prophet and the retrospective use of the category Muslim for a first-century figure.',
@@ -20,7 +20,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'FACT',
     status: 'CONTESTED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['anachronism', 'retrospective-identity'],
     summary:
       'Examines the retrospective application of the modern Palestinian national/geographical identity to the historical Jesus, Mary, and Joseph.',
@@ -33,7 +33,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['zionism-coded'],
     primaryType: 'THEOLOGY',
     status: 'CONTESTED',
-    axis: ['THEOLOGICAL', 'FACT-REBUTTAL'],
+    axis: ['THEOLOGICAL', 'FACT_REBUTTAL'],
     mechanisms: ['anachronism', 'retrospective-identity'],
     summary:
       'Tests the proposition that Qur’anic references to the Children of Israel and the land establish that Muhammad held the modern political ideology of Zionism.',
@@ -46,7 +46,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'REFERENCE',
     status: 'CONTESTED',
-    axis: ['THEOLOGICAL', 'FACT-REBUTTAL'],
+    axis: ['THEOLOGICAL', 'FACT_REBUTTAL'],
     mechanisms: ['context-stripping'],
     summary:
       'Primary-source reference card for Qur’anic passages concerning the Children of Israel and the land, separated from later political interpretations.',
@@ -127,7 +127,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['classic'],
     primaryType: 'FACT',
     status: 'ESTABLISHED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['context-stripping', 'inversion'],
     summary:
       'Distinguishes denial of the Nazi genocide of European Jews from minimisation, chronology manipulation, selective comparison, or inversion.',
@@ -160,7 +160,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['classic'],
     primaryType: 'FACT',
     status: 'CONTESTED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['inversion', 'context-stripping'],
     summary:
       'Examines the Haavara Agreement and related rescue controversies without collapsing distinct episodes into one claim.',
@@ -171,7 +171,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['classic'],
     primaryType: 'FACT',
     status: 'ESTABLISHED',
-    axis: ['FACT-REBUTTAL', 'TACTIC'],
+    axis: ['FACT_REBUTTAL', 'TACTIC'],
     mechanisms: ['conspiracy'],
     summary:
       'The Protocols of the Elders of Zion as a fabricated conspiracy text and influential antisemitic forgery.',
@@ -215,7 +215,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['zionism-coded'],
     primaryType: 'FACT',
     status: 'CONTESTED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['equivalence', 'context-stripping'],
     summary:
       "A comparative history question concerning Israel's relationship with apartheid South Africa and claims of unique responsibility.",
@@ -226,7 +226,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['zionism-coded'],
     primaryType: 'FACT',
     status: 'CONTEXT_DEPENDENT',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['racial-essentialism'],
     summary:
       'Examines claims that Israeli Jews can be categorised simply as white European settlers.',
@@ -237,7 +237,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['zionism-coded'],
     primaryType: 'FACT',
     status: 'CONTESTED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['essentialisation', 'equivalence'],
     summary:
       'Treats settler-colonialism as an analytical framework whose explanatory scope and omissions should be examined rather than treated as a complete historical verdict.',
@@ -314,7 +314,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['zionism-coded'],
     primaryType: 'REFERENCE',
     status: 'ESTABLISHED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['context-stripping'],
     summary:
       'Explains the nineteenth-century political coinage of antisemitism and the distinction between linguistic Semitic classification and the modern term.',
@@ -325,7 +325,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['south-africa'],
     primaryType: 'CASE',
     status: 'LIVE',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     summary:
       'South African legal case concerning protest claims and alleged association with Israel, genocide, or military conflict.',
   },
@@ -335,7 +335,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['south-africa'],
     primaryType: 'CASE',
     status: 'LIVE',
-    axis: ['TACTIC', 'FACT-REBUTTAL'],
+    axis: ['TACTIC', 'FACT_REBUTTAL'],
     summary:
       'Institutional governance and boycott/IHRA-related resolutions at UCT.',
   },
@@ -355,7 +355,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['south-africa'],
     primaryType: 'CASE',
     status: 'LIVE',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     summary:
       'Case-study hub for the UCT Mendelsohn dispute, its pleadings, institutional context, and procedural history.',
   },
@@ -365,7 +365,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'FACT',
     status: 'CONTESTED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['context-stripping'],
     summary:
       'Separates historical administration, present control, sovereignty claims, and international legal status.',
@@ -387,7 +387,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'REFERENCE',
     status: 'CONTESTED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['context-stripping'],
     summary:
       'Tests map sequences against the legal and political category represented by each map.',
@@ -398,7 +398,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'FACT',
     status: 'ESTABLISHED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['context-stripping'],
     summary:
       'Separates Israeli citizenship and national elections from the status of residents of the West Bank and Gaza.',
@@ -409,7 +409,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'FACT',
     status: 'CONTESTED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['equivalence'],
     summary:
       'Compares Palestinian displacement in 1947–49 with Jewish displacement and migration from Arab and Muslim-majority countries.',
@@ -420,7 +420,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'REFERENCE',
     status: 'CONTESTED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['context-stripping'],
     summary:
       'A chronology of diplomatic and colonial documents surrounding the origins of the Mandate-era settlement.',
@@ -431,7 +431,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'REFERENCE',
     status: 'ESTABLISHED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     summary:
       'Distinguishes the Pan-Arab genealogy of the flag design from its later Palestinian national meaning.',
   },
@@ -441,7 +441,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'REFERENCE',
     status: 'ESTABLISHED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['context-stripping'],
     summary:
       'Places competing national movements and political developments on their respective timelines.',
@@ -452,7 +452,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'FACT',
     status: 'CONTESTED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     mechanisms: ['equivalence', 'context-stripping'],
     summary:
       "Separates the ANC's historical relationships and statements from later relationships between South African actors and Hamas.",
@@ -463,7 +463,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'FACT',
     status: 'ESTABLISHED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     summary:
       "Examines the change over time in Israel's relationship with apartheid South Africa, including the 1987 severance of remaining military ties.",
   },
@@ -484,7 +484,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'FACT',
     status: 'CONTESTED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     summary:
       'Separates documented medical-ethics issues, allegations of coercion, claims about state intent, and claims of a genocidal programme.',
   },
@@ -494,7 +494,7 @@ export const draftCards: DraftCardSeed[] = [
     collection: ['fact-rebuttal'],
     primaryType: 'REFERENCE',
     status: 'CONTESTED',
-    axis: ['FACT-REBUTTAL'],
+    axis: ['FACT_REBUTTAL'],
     summary:
       'A documented dispute over definitions, scope, examples, and institutional use of competing antisemitism frameworks.',
     editorialNotes: "Renamed from the draft's categorical 'IHRA Isn't Valid'.",

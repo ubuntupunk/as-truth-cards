@@ -3,6 +3,7 @@ import process from 'node:process'
 import { sql } from 'drizzle-orm'
 
 import { db, pool } from './client'
+import { cardCorpus } from './seed/corpus'
 import { seedTropeGraph } from './seed/index'
 import { assertLocalHostFromEnv } from './url'
 
@@ -24,6 +25,9 @@ const EXPECTED = {
   mechanisms: 14,
   concepts: 6,
   cards: 47,
+  // 47 cards, 56 authored axis values: 38 single-axis cards and 9 two-axis cards.
+  // Recomputed from the corpus rather than trusted, by the axis-preservation check below.
+  cardAxes: 56,
   claims: 19,
   relationships: 11,
   inferenceSteps: 4,
@@ -48,6 +52,7 @@ async function snapshot(): Promise<Record<keyof typeof EXPECTED, number>> {
       (SELECT count(*)::int FROM trope_graph.mechanisms)                      AS mechanisms,
       (SELECT count(*)::int FROM trope_graph.concepts)                        AS concepts,
       (SELECT count(*)::int FROM trope_graph.cards)                           AS cards,
+      (SELECT count(*)::int FROM trope_graph.card_axes)                       AS "cardAxes",
       (SELECT count(*)::int FROM trope_graph.claims)                          AS claims,
       (SELECT count(*)::int FROM trope_graph.relationships)                   AS relationships,
       (SELECT count(*)::int FROM trope_graph.inference_steps)                 AS "inferenceSteps",
@@ -72,6 +77,18 @@ async function integrityChecks(): Promise<{
 }> {
   const errors: string[] = []
   const warnings: string[] = []
+
+  // The expected count is a hand-maintained constant, so it can drift from the corpus it
+  // describes. Recomputing it here means a card gaining or losing an axis fails loudly
+  // instead of quietly invalidating the assertion further down.
+  const authoredAxisTotal = cardCorpus.reduce((n, c) => n + c.axis.length, 0)
+  if (authoredAxisTotal !== EXPECTED.cardAxes) {
+    errors.push(
+      `EXPECTED.cardAxes is ${EXPECTED.cardAxes} but the corpus authors ` +
+        `${authoredAxisTotal} axis values across ${cardCorpus.length} cards; ` +
+        'update EXPECTED when the corpus changes',
+    )
+  }
 
   // Redundant with the unique index, but asserted so that losing the index is caught here
   // with a clear message rather than by a growing row count.
@@ -116,6 +133,67 @@ async function integrityChecks(): Promise<{
   `)
   if (orphanCards && orphanCards.n > 0) {
     errors.push(`${orphanCards.n} card(s) belong to no collection`)
+  }
+
+  // A card with no axis has no rhetorical classification, which is the state all 47 cards
+  // were in before migration 0008: `axis` was authored on every card and read by nobody.
+  // An error rather than a warning, because an unclassified card is a defect, not a stage
+  // of the corpus.
+  const {
+    rows: [axislessCards],
+  } = await db.execute<{ n: number }>(sql`
+    SELECT count(*)::int AS n FROM trope_graph.cards c
+    WHERE NOT EXISTS (SELECT 1 FROM trope_graph.card_axes ca WHERE ca.card_id = c.id)
+  `)
+  if (axislessCards && axislessCards.n > 0) {
+    errors.push(`${axislessCards.n} card(s) carry no axis`)
+  }
+
+  // Counts cannot catch a per-card loss: dropping one axis from one card leaves the total
+  // short by exactly one, which is indistinguishable from an unrelated row going missing.
+  // So each card's persisted axes are compared against the authored list, in order, since
+  // order carries the primary axis.
+  const { rows: persistedAxes } = await db.execute<{
+    slug: string
+    axis: string
+    ordinal: number
+  }>(sql`
+    SELECT c.slug, ca.axis::text AS axis, ca.ordinal
+    FROM trope_graph.card_axes ca
+    JOIN trope_graph.cards c ON c.id = ca.card_id
+    ORDER BY c.slug, ca.ordinal
+  `)
+
+  const byCard = new Map<string, string[]>()
+  for (const row of persistedAxes) {
+    const list = byCard.get(row.slug)
+    if (list) list.push(row.axis)
+    else byCard.set(row.slug, [row.axis])
+  }
+
+  for (const card of cardCorpus) {
+    const authored = [...card.axis]
+    // Sort a copy: `.sort` mutates in place, so sorting the array from the map directly
+    // would also reorder the sequence the order check below is meant to inspect.
+    const stored = byCard.get(card.slug) ?? []
+    const sorted = [...stored].sort((a, b) => a.localeCompare(b))
+    const sameSet =
+      authored.length === sorted.length &&
+      authored.every((axis) => sorted.includes(axis))
+    if (!sameSet) {
+      errors.push(
+        `card "${card.slug}": authored axis [${authored.join(', ')}] but persisted ` +
+          `[${sorted.join(', ') || 'none'}]`,
+      )
+      continue
+    }
+    // Same set, wrong order: the primary axis has silently changed.
+    if (stored.join(',') !== authored.join(',')) {
+      errors.push(
+        `card "${card.slug}": axis order changed; authored (primary first) ` +
+          `[${authored.join(', ')}] but persisted [${stored.join(', ')}]`,
+      )
+    }
   }
 
   const {

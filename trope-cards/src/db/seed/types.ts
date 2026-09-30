@@ -14,6 +14,7 @@ import type {
   inferenceTypeEnum,
 } from '../schema/claimDecomposition'
 import type {
+  cardAxis,
   cardType,
   claimType,
   epistemicStatus,
@@ -41,6 +42,7 @@ type Member<T extends { readonly enumValues: readonly string[] }> =
   T['enumValues'][number]
 
 export type CardType = Member<typeof cardType>
+export type CardAxis = Member<typeof cardAxis>
 export type EpistemicStatus = Member<typeof epistemicStatus>
 export type ClaimType = Member<typeof claimType>
 export type RelationshipType = Member<typeof relationshipType>
@@ -111,14 +113,32 @@ export type StepRelationSeed = Omit<
   cardSlug: string
 }
 
-/** A card, with its collection and mechanism memberships as slugs. */
+/**
+ * A card, with its collection, axis, and mechanism memberships as slugs.
+ *
+ * `axis` is required and non-empty by construction of its type. It was `string[]` and
+ * ignored by the seeder until migration 0008, which is how 47 cards lost their
+ * rhetorical classification on every seed run. Typing it against the `card_axis` enum
+ * means an out-of-vocabulary value is now a compile error rather than a value that
+ * vanishes at insert time.
+ *
+ * Order is meaningful: the first entry is the card's primary axis and is persisted as
+ * `card_axes.ordinal = 0`.
+ */
 export type CardSeed = {
   slug: string
   title: string
+  /**
+   * LEGACY content-shape classification. Not rhetorical function, and not a projection of
+   * `axis`; the two vocabularies overlap only by accident. Nothing reads this column yet.
+   * Do not derive a primary axis from it.
+   */
   primaryType: CardType
   status: EpistemicStatus
+  /** Browse suits. See `collections` in schema/tropeGraph.ts. */
   collection: string[]
-  axis: string[]
+  /** Rhetorical axes, primary first. At least one is required. */
+  axis: [CardAxis, ...CardAxis[]]
   mechanisms?: string[]
   summary?: string
   editorialNotes?: string

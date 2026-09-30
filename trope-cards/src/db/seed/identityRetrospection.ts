@@ -23,6 +23,18 @@ import type { CardRelationshipSeed, CardSeed, ClaimSeed } from './types'
  *
  * 3. Relationship type strings were mapped onto the `relationship_type` enum. The
  *    archived file used free text such as 'similar mechanism'.
+ *
+ * 4. The `axis` field was authored here but read by nobody until migration 0008, so both
+ *    cards silently lost their classification on every seed run. Two normalisations were
+ *    applied when it became a real relation:
+ *      'FACT-REBUTTAL' -> FACT_REBUTTAL   (matches the `card_axis` enum, which uses
+ *                                         SCREAMING_SNAKE_CASE like every other enum
+ *                                         in this schema)
+ *      'HISTORICAL'    -> kept as-is      (see below)
+ *    `canaanite-card` is the corpus's only HISTORICAL-axis card. HISTORICAL is a fourth
+ *    `card_axis` value alongside the deck draft's original three, and it is what this
+ *    card is: an argument about population continuity. It was not folded into
+ *    FACT_REBUTTAL, which would have discarded the classification.
  */
 
 export const identityRetrospectionCards: CardSeed[] = [
@@ -32,7 +44,7 @@ export const identityRetrospectionCards: CardSeed[] = [
     primaryType: 'THEOLOGY',
     status: 'CONTESTED',
     collection: ['zionism-coded'],
-    axis: ['THEOLOGICAL', 'FACT-REBUTTAL'],
+    axis: ['THEOLOGICAL', 'FACT_REBUTTAL'],
     mechanisms: ['retrospective-identity', 'anachronism'],
     summary:
       'Tests the proposition that Jesus held the modern political ideology of Zionism, and separates first-century Jewish attachment to Israel and Jerusalem from that later political category.',
@@ -47,7 +59,7 @@ export const identityRetrospectionCards: CardSeed[] = [
     primaryType: 'REFERENCE',
     status: 'CONTESTED',
     collection: ['fact-rebuttal'],
-    axis: ['HISTORICAL', 'FACT-REBUTTAL'],
+    axis: ['HISTORICAL', 'FACT_REBUTTAL'],
     mechanisms: ['retrospective-identity', 'anachronism', 'essentialisation'],
     summary:
       'Reference card separating ancient Canaanite populations, Israelite ethnogenesis, and modern Palestinian identity, so that ancestry and continuity are not read as exclusive descent.',
