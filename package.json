@@ -102,6 +102,7 @@
     "@types/pg": "^8.23.1",
     "@vitejs/plugin-react-swc": "^3.5.0",
     "autoprefixer": "^10.4.27",
+    "concurrently": "^10.0.5",
     "drizzle-kit": "^0.31.11",
     "husky": "^9.1.7",
     "lovable-tagger": "^1.1.7",
