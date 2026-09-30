@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, notInArray, sql } from 'drizzle-orm'
 import type { PgTable } from 'drizzle-orm/pg-core'
 
 import { db, pool } from '../client'
@@ -13,6 +13,7 @@ import {
   inferenceSteps,
 } from '../schema/claimDecomposition'
 import {
+  cardAxes,
   cardCollections,
   cardMechanisms,
   cards,
@@ -25,21 +26,93 @@ import {
 import { assertLocalHostFromEnv } from '../url'
 import { argumentChainSeed } from './argumentChains'
 import { claimDecompositionSeed } from './claimDecomposition'
-import { draftCards } from './draftCards'
+import { cardCorpus } from './corpus'
 import {
-  identityRetrospectionCards,
   identityRetrospectionClaims,
   identityRetrospectionRelationships,
 } from './identityRetrospection'
 import { newIdentityClaims } from './newIdentityClaims'
 import { collectionsSeed, conceptsSeed, mechanismsSeed } from './taxonomy'
-import type { CardSeed } from './types'
+import type { CardAxis, CardSeed } from './types'
 
 /**
  * The full card corpus: the 45-card v0.5 draft plus the two Identity Retrospection
  * cards added in v0.6. Both are already typed as `CardSeed[]`, so no widening is needed.
  */
-const allCards: CardSeed[] = [...draftCards, ...identityRetrospectionCards]
+const allCards: CardSeed[] = [...cardCorpus]
+
+/**
+ * The transaction type `db.transaction` hands its callback, derived rather than restated so
+ * it tracks the client. `PgTransaction` would need three generic parameters spelled out by
+ * hand, and the schema is a set of individually imported tables rather than one object.
+ */
+type SeedTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+/**
+ * Makes `card_axes` for one card match its authored axis list exactly.
+ *
+ * Three phases, in this order, and the order is load-bearing. `card_axes_card_ordinal_unique_idx`
+ * allows only one axis per position, so a reorder cannot be applied by writing final
+ * ordinals directly — the intermediate state would briefly hold two rows at the same
+ * ordinal. Moving existing rows out of the non-negative range first, then back, sidesteps
+ * that: negatives are unique among themselves, and 0..n-1 are free by the time the final
+ * values are written.
+ *
+ * Row ids are preserved for axes the seed still claims, so anything that later references
+ * `card_axes.id` is not invalidated by a re-seed.
+ *
+ * @param tx Seed transaction.
+ * @param cardId Card whose axis rows are being reconciled.
+ * @param authoredAxes Authored axes, primary first. Ordinal 0 is the primary axis.
+ * @returns Counts of rows removed and added, for reporting.
+ * @throws {Error} If an authored axis is absent from the `card_axis` enum. Unreachable via
+ * the `CardSeed['axis']` type, which is derived from that enum; asserted because this is
+ * the same "throws rather than silently drops" rule the caller relies on.
+ */
+async function reconcileCardAxes(
+  tx: SeedTransaction,
+  cardId: string,
+  authoredAxes: readonly CardAxis[],
+): Promise<{ removed: number; added: number }> {
+  // Phase 1: vacate every non-negative ordinal this card holds.
+  await tx
+    .update(cardAxes)
+    .set({ ordinal: sql`${cardAxes.ordinal} - 1000` })
+    .where(eq(cardAxes.cardId, cardId))
+
+  // Phase 2: drop axes the seed no longer claims.
+  const stale = authoredAxes.length
+    ? await tx
+        .delete(cardAxes)
+        .where(
+          and(
+            eq(cardAxes.cardId, cardId),
+            notInArray(cardAxes.axis, [...authoredAxes]),
+          ),
+        )
+        .returning({ id: cardAxes.id })
+    : []
+
+  // Phase 3: insert what is missing, then put every row at its authored position.
+  const missing = authoredAxes.length
+    ? await tx
+        .insert(cardAxes)
+        .values(
+          authoredAxes.map((axis, ordinal) => ({ cardId, axis, ordinal })),
+        )
+        .onConflictDoNothing()
+        .returning({ id: cardAxes.id })
+    : []
+
+  for (const [ordinal, axis] of authoredAxes.entries()) {
+    await tx
+      .update(cardAxes)
+      .set({ ordinal })
+      .where(and(eq(cardAxes.cardId, cardId), eq(cardAxes.axis, axis)))
+  }
+
+  return { removed: stale.length, added: missing.length }
+}
 
 /**
  * Seed the Trope Graph from the consolidated v0.1-v0.9 seed corpus.
@@ -182,6 +255,13 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
           .values(mechanismLinks)
           .onConflictDoNothing()
       }
+
+      // Axes are reconciled rather than accumulated. `onConflictDoNothing`, as used for
+      // collections and mechanisms above, would leave a stale row behind whenever an editor
+      // removed or reordered an authored axis, so the database would keep asserting a
+      // classification the seed no longer claims — the same quiet divergence this field
+      // was recovered from. Existing rows keep their ids; only their ordinals move.
+      await reconcileCardAxes(tx, card.id, seed.axis)
     }
 
     // Referential integrity is checked strictly: a slug in a card's collection or mechanism
@@ -202,6 +282,20 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
             `Card "${seed.slug}" references mechanism "${slug}", which taxonomy.ts does not define.`,
           )
         }
+      }
+      // A card with no axis has no rhetorical classification at all, which is the state
+      // every card was in before migration 0008. It is rejected rather than tolerated.
+      if (seed.axis.length === 0) {
+        throw new Error(
+          `Card "${seed.slug}" has no axis. A card must be classified along at least one ` +
+            'axis; an unclassified card is the exact condition this guard exists to prevent.',
+        )
+      }
+      if (new Set(seed.axis).size !== seed.axis.length) {
+        throw new Error(
+          `Card "${seed.slug}" repeats an axis (${seed.axis.join(', ')}). ` +
+            'The card_axes unique index on (card_id, axis) would reject this on insert.',
+        )
       }
     }
 
@@ -534,6 +628,7 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
       mechanisms: await count(mechanisms),
       concepts: await count(concepts),
       cards: await count(cards),
+      cardAxes: await count(cardAxes),
       claims: await count(claims),
       relationships: await count(relationships),
       inferenceSteps: await count(inferenceSteps),

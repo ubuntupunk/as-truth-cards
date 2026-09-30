@@ -31,7 +31,7 @@ the repository `.env` points `DATABASE_URL` at a live Neon instance. See
 
 ```text
 trope-cards/
-  drizzle/                 canonical hand-written SQL, 0001-0007
+  drizzle/                 canonical hand-written SQL, 0001-0008
   drizzle.config.ts        Drizzle Kit config; generates into drizzle-kit/generated/
   drizzle-kit/generated/   Drizzle Kit output; derived, never canonical
   src/db/schema/           Drizzle schema modules (source of truth for types)
@@ -39,6 +39,7 @@ trope-cards/
   src/db/migrate.ts        migration runner with a checksum ledger
   src/db/verify-seed.ts    idempotency and integrity verifier
   scripts/                 dependency-free source validators
+  test/                    node:test suites, run via tsx
   data/                    claim and evidence reference data
   docs/                    model and per-version design notes
   versions/                preserved v0.1-v0.9 source trees
@@ -63,7 +64,7 @@ touches Neon.
 createdb trope_cards_dev
 export TROPE_GRAPH_DATABASE_URL=postgresql:///trope_cards_dev
 
-pnpm run trope-graph:migrate    # apply 0001-0007
+pnpm run trope-graph:migrate    # apply 0001-0008
 pnpm run trope-graph:seed       # load the current corpus
 pnpm run trope-graph:check      # everything below, in order
 ```
@@ -83,9 +84,10 @@ Run from the repository root. All graph commands honour
 | `trope-graph:migrate:reset` | `DROP SCHEMA trope_graph CASCADE`, then reapply. Destroys graph data |
 | `trope-graph:seed` | Load the corpus in one transaction |
 | `trope-graph:verify` | Seed twice, assert row counts are unchanged |
+| `trope-graph:test` | `node:test` suites over the schema, seed corpus, and (with a database) persisted state |
 | `trope-graph:validate` | Structural validation of the seed sources |
 | `trope-graph:check-drift` | Regenerate from the schema modules and compare to the database |
-| `trope-graph:check` | All of the above, plus `typecheck:graph` |
+| `trope-graph:check` | All of the above, plus `typecheck:graph` and `trope-graph:test` |
 | `typecheck:graph` | `tsc` over `trope-cards` |
 
 `--allow-remote` on the migration runner, or `TROPE_GRAPH_ALLOW_REMOTE=1` on

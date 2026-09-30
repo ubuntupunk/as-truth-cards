@@ -46,7 +46,12 @@ and, where applicable:
 - known epistemic status
 - known collection
 - known mechanism
-- valid type/axis combinations
+- known axis, from the `card_axis` enum, non-empty and not repeated on a card
+
+"valid type/axis combinations" is deliberately **not** a gate. `primaryType` is legacy
+content-shape metadata and axis is rhetorical function; the corpus contains cards whose
+`primaryType` and axis disagree, and constraining the pair would force one dimension to
+follow the other. See §3.2 and §3.4 of `TROPE_GRAPH_SCHEMA.md`.
 
 ### Gate 2 — Editorial
 

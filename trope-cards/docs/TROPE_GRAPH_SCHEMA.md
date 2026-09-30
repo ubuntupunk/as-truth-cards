@@ -31,7 +31,7 @@ Sources should normally support or challenge a specific claim rather than merely
 
 ### 2.3 Classification is not truth
 
-A card's `primary_type`, mechanism, collection, and epistemic status describe the editorial treatment of the material. They do not establish whether a proposition is true.
+A card's axis, mechanism, collection, and epistemic status describe the editorial treatment of the material. They do not establish whether a proposition is true. Classification and epistemic status are stored separately, and neither is derived from the other — see §3.2.
 
 ### 2.4 Evidence and epistemic status remain separate
 
@@ -47,14 +47,24 @@ Canonical content is reviewed and versioned. Community material enters through c
 
 ## 3. Mapping the current draft
 
-The current draft explicitly distinguishes four working collections:
+The current draft distinguishes four working collections. These are stored as `collections`
+rows, and the draft's slugs were renamed to match the graph:
 
-1. Classic Tropes
-2. Zionism-coded Tropes
-3. South Africa / Regional Cases
-4. Fact-Rebuttal Reference Cards
+| Draft collection | Graph collection slug | Cards |
+| --- | --- | --- |
+| Classic Tropes | `classic` | 12 |
+| Zionism-coded Tropes | `zionism-coded` | 15 |
+| South Africa / Regional Cases | `south-africa` | 4 |
+| Fact-Rebuttal Reference Cards | `fact-rebuttal` | 16 |
+| (none) | `foundational` | 0 |
 
-The current draft also uses three axes:
+A card may belong to more than one collection, so the mapping is many-to-many. The
+`foundational` collection is reserved for cards that carry no rhetorical classification of
+their own; no card is currently assigned to it.
+
+### 3.1 Axis
+
+The draft also uses three axes:
 
 - Tactic-Naming
 - Fact-Rebuttal
@@ -64,7 +74,55 @@ and a fourth editorial condition:
 
 - Contested / legitimate-debate
 
-The database models these independently. This prevents the existing draft's `Suit` and `Axis` fields from becoming a rigid ontology.
+Axis is stored as ordered rows in `card_axes` (`trope_graph.card_axis` enum plus an
+`ordinal`), not as a single column on `cards`. Three consequences follow from that choice,
+each of which the current corpus depends on:
+
+- **A card can carry more than one axis.** Nine of the 47 cards do. `elders-of-zion` is both
+  a factual rebuttal and a tactic; `talmud` and `chosen-people-master-race` are both a
+  tactic and a theological dispute.
+- **Order is meaningful.** The lowest ordinal is the card's designated primary axis. This is
+  how a dominant axis is expressed without inferring one from `primaryType`.
+- **The vocabulary is fixed and reviewable.** Four values are in use: `TACTIC` (18),
+  `FACT_REBUTTAL` (27), `THEOLOGICAL` (10), and `HISTORICAL` (1). `HISTORICAL` was added in
+  migration 0008 for the one card authored as a continuity argument
+  (`canaanite-card`), which folding into `FACT_REBUTTAL` to fit the original three would
+  have misrepresented.
+
+### 3.2 What is deliberately not an axis
+
+`CONTESTED` is **not** an axis value, and this is a distinction worth stating rather than
+leaving to convention. It is an epistemic status, and epistemic status already lives in
+`epistemic_status`. 21 of the 47 cards are `CONTESTED`, and they are spread across all four
+axes; if `CONTESTED` were an axis, axis would become a proxy for status and the two would
+have to be kept in agreement forever. Two independent `CONTESTED` cards disagreeing about
+whether a trope is rhetorical, factual, or historical is a real editorial state, not a
+data-integrity problem.
+
+### 3.3 Suit, axis, mechanism, and concept
+
+The draft's four axes, the four browse collections, the 14 graph mechanisms, and the 6 graph
+concepts are four independent dimensions. They are not a single faceted taxonomy and are not
+derived from one another:
+
+- **Suit** (`collections`) — where the card sits in the deck, for browsing.
+- **Axis** (`card_axes`) — how the card argues: rhetoric, factual correction, theology, or
+  history.
+- **Mechanism** (`card_mechanisms`) — the recurring argumentative structure it instantiates.
+- **Concept** (`card_concepts`) — the analytical or theological concept it turns on.
+
+A card's suit says nothing about its axis, and its axis says nothing about its epistemic
+status. The seed corpus is asserted to preserve this: no axis is confined to a single
+collection, and no axis is confined to a single epistemic status.
+
+### 3.4 `primaryType` is legacy
+
+`cards.primaryType` (`TACTIC`, `FACT`, `THEOLOGY`, `CASE`, `REFERENCE`) is legacy content-shape
+metadata. It is written by the seeder, read by nothing in the graph, and is **not** the
+source of axis. The two disagree on real cards — 18 cards carry the `TACTIC` axis while 13
+carry `primaryType = TACTIC` — which is the evidence that they are genuinely different
+dimensions rather than one field under two names. It is retained for continuity with the
+draft and is not to be used to derive, validate, or default axis.
 
 ## 4. Card ontology
 
@@ -76,7 +134,25 @@ The database models these independently. This prevents the existing draft's `Sui
 - `CASE` — a concrete historical, institutional, legal, or contemporary case study.
 - `REFERENCE` — foundational definitions, timelines, terminology, or other supporting material.
 
-A card may have one primary type but can link to objects of every other type.
+A card may have one primary type but can link to objects of every other type. This taxonomy is
+legacy content-shape classification, retained from the draft and described in §3.4. It is
+independent of `card_axes`.
+
+### Axis values
+
+The `trope_graph.card_axis` enum, with the counts in the current seed corpus:
+
+- `TACTIC` — identifies a rhetorical mechanism or recurring argumentative structure (18 cards).
+- `FACT_REBUTTAL` — factual material intended to correct a specific trope or factual claim (27 cards).
+- `THEOLOGICAL` — material substantially involving scripture, doctrine, covenant, religious terminology, or theological interpretation (10 cards).
+- `HISTORICAL` — material whose argument rests on historical continuity or origin (1 card, `canaanite-card`).
+
+Axis is many-to-many and ordered. `card_axes` holds one row per (card, axis) pair with an
+`ordinal`; the two unique indexes on `(card_id, axis)` and `(card_id, ordinal)` together
+guarantee that a card has no duplicated classification and no ambiguous primary axis. The
+schema does not require a card to have at least one axis — that is a content rule, enforced
+by the seeder and the validators, because the schema should not be the only thing preventing
+an unclassified card.
 
 ### Epistemic status
 

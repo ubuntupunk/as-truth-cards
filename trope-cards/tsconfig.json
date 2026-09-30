@@ -23,5 +23,5 @@
     "noUnusedParameters": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/db/**/*.ts"]
+  "include": ["src/db/**/*.ts", "test/**/*.ts"]
 }

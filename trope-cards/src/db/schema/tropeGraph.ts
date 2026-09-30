@@ -20,6 +20,37 @@ export const cardType = tropeGraph.enum('card_type', [
   'REFERENCE',
 ])
 
+/**
+ * The rhetorical/argumentative axis of a card: what work the card does in an argument.
+ *
+ * Deliberately NOT the same vocabulary as {@link cardType}. A card's axis answers "how
+ * is this card arguing?", while `cardType` answers "what shape is this content?". The
+ * two overlap by accident, not by construction: `holocaust-denial-distortion` is
+ * `cardType` FACT on axis FACT_REBUTTAL, `canaanite-card` is `cardType` REFERENCE on two
+ * axes, and 18 of 47 cards carry axis TACTIC against 13 of `cardType` TACTIC. Treating
+ * one as a projection of the other loses the distinction, so both are persisted.
+ *
+ * A fixed `pgEnum`, not a taxonomy table like `mechanisms` or `collections`. The axis
+ * drives fixed-vocabulary presentation (each value has one icon), so the set is closed;
+ * an open table would let the vocabulary drift without a migration and would create a
+ * second place to keep the labels in sync.
+ *
+ * HISTORICAL is a fourth axis alongside the deck's original three
+ * (Tactic-Naming / Fact-Rebuttal / Theological-Dispute). It is authored on
+ * `canaanite-card` in seed/identityRetrospection.ts and is what that card is: a
+ * continuity argument. Dropping it to fit the original three would discard an editorial
+ * classification. It is not a `claim_type` member despite sharing a name with one.
+ *
+ * Axis is never derived from, or allowed to imply, epistemic status or suit. 21 of the
+ * 47 seeded cards are `CONTESTED` across all four axes.
+ */
+export const cardAxis = tropeGraph.enum('card_axis', [
+  'TACTIC',
+  'FACT_REBUTTAL',
+  'THEOLOGICAL',
+  'HISTORICAL',
+])
+
 export const epistemicStatus = tropeGraph.enum('epistemic_status', [
   'ESTABLISHED',
   'CONTESTED',
@@ -119,6 +150,19 @@ export const relationshipStatus = tropeGraph.enum('relationship_status', [
   'SUPERSEDED',
 ])
 
+/**
+ * A research card: the editorial entry point into the graph.
+ *
+ * `primaryType` is LEGACY content-shape classification, not rhetorical function and not a
+ * projection of {@link cardAxes}. It predates the axis dimension, it overlaps it only by
+ * accident (see {@link cardAxis}), and as of this migration nothing reads it: the graph
+ * is not served by an API or the frontend bundle, so it is write-only. It is retained
+ * because dropping a populated authored column would be the same silent data loss this
+ * schema exists to prevent, and because `validate-draft.mjs` and the seeder still
+ * validate it. It is explicitly NOT the source for a primary axis — that is
+ * `card_axes.ordinal = 0`. Do not derive axis from this field, and do not expect the two
+ * to agree.
+ */
 export const cards = tropeGraph.table('cards', {
   id: uuid('id').defaultRandom().primaryKey(),
   slug: text('slug').notNull().unique(),
@@ -178,6 +222,46 @@ export const cardMechanisms = tropeGraph.table(
       .references(() => mechanisms.id, { onDelete: 'cascade' }),
   },
   (table) => [primaryKey({ columns: [table.cardId, table.mechanismId] })],
+)
+
+/**
+ * The rhetorical axes a card is argued along, in authored order.
+ *
+ * A card carries at least one axis and may carry several. Multi-axis is the point rather
+ * than a modelling inconvenience: a card can be both a rhetorical tactic and a
+ * theological dispute, and a single-valued column could not represent that.
+ *
+ * `ordinal` preserves the order the axes were authored in, and ordinal 0 is by
+ * construction the card's primary axis. This is the designated-primary mechanism the
+ * migration required, and it is independent of {@link cards.primaryType} — the unique
+ * index on (card_id, ordinal) is what makes "exactly one primary axis" a schema
+ * invariant rather than an editorial convention nobody checks. Note that it is a
+ * constraint on uniqueness, not completeness: the schema permits a card to have no
+ * `card_axes` row at all, which is why the seeder and the validators reject that case
+ * rather than relying on the database.
+ *
+ * `unique (card_id, axis)` and `unique (card_id, ordinal)` are both needed, and each covers
+ * a hole the other leaves. `unique (card_id, axis)` alone permits two different axes to sit
+ * at the same ordinal, so the primary axis would be ambiguous. `unique (card_id, ordinal)`
+ * alone permits the same axis twice on one card at different ordinals, so a duplicated
+ * classification would pass unnoticed.
+ */
+export const cardAxes = tropeGraph.table(
+  'card_axes',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    cardId: uuid('card_id')
+      .notNull()
+      .references(() => cards.id, { onDelete: 'cascade' }),
+    axis: cardAxis('axis').notNull(),
+    /** 0 is the primary axis. See the note on designated primary above. */
+    ordinal: integer('ordinal').notNull().default(0),
+  },
+  (table) => [
+    index('card_axes_card_idx').on(table.cardId),
+    unique('card_axes_card_axis_unique_idx').on(table.cardId, table.axis),
+    unique('card_axes_card_ordinal_unique_idx').on(table.cardId, table.ordinal),
+  ],
 )
 
 export const claims = tropeGraph.table(
