@@ -23,6 +23,29 @@ dev-web:
 dev-api:
     pnpm run server:dev
 
+# Kill the Express API on :3001, leaving any running Vite server alone
+kill-api:
+    @pids="$(lsof -ti tcp:3001 2>/dev/null)"; \
+    if [ -z "$pids" ]; then echo "nothing listening on :3001"; else \
+      echo "killing express on :3001 (pid $pids)"; kill -9 $pids; fi
+
+# Kill the whole dev stack: Express on :3001, Vite on :8080, and any orphaned processes
+#
+# Killing by port alone is not enough. A `concurrently` supervisor that was killed
+# directly leaves its children reparented to init; they release their listeners but stay
+# resident holding memory. So this also matches the dev process command lines.
+#
+# Every pattern is bracketed and `$$` is filtered, because this recipe's own command line is
+# itself a `pgrep -f` target for any name it contains. Without that it would kill itself.
+kill:
+    @pids="$(lsof -ti tcp:3001,tcp:8080 2>/dev/null)"; \
+    if [ -n "$pids" ]; then echo "freeing ports (pid $pids)"; kill -9 $pids 2>/dev/null; fi; \
+    orphans="$(pgrep -f "[v]ite/bin/vite.js|[t]sx watch server|[c]oncurrently" 2>/dev/null | grep -v "^$$\$" || true)"; \
+    if [ -n "$orphans" ]; then echo "killing dev processes (pid $(echo $orphans))"; kill -9 $orphans 2>/dev/null; fi; \
+    sleep 1; \
+    if lsof -ti tcp:3001,tcp:8080 >/dev/null 2>&1; then \
+      echo "warning: :3001 or :8080 still in use"; else echo "ports :3001 and :8080 are free"; fi
+
 # Build for production
 build:
     pnpm run build
