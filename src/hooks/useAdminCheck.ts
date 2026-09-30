@@ -1,81 +1,91 @@
 'use client'
 
-import { useUser } from '@stackframe/stack'
+import type { UserRole } from '@prisma/client'
+import { createAuthClient } from 'better-auth/react'
 import { useEffect, useState } from 'react'
 
+/** Minimal shape of the session this hook actually reads. */
+type SessionShape = {
+  user: {
+    id: string
+    email: string
+    name: string
+    image?: string | null
+    [key: string]: unknown
+  } | null
+  session?: Record<string, unknown>
+} | null
+
+/**
+ * Better Auth client.
+ *
+ * baseURL is deliberately left unset. In development the browser talks to Vite on
+ * :8080, which proxies /api through to the Express server on :3001, so same-origin
+ * relative requests already work and the session cookie stays first-party. Naming an
+ * absolute origin here would make that cookie cross-site and require CORS credentials.
+ */
+export const authClient = createAuthClient()
+
+/**
+ * The role ladder, typed from Prisma's generated `UserRole` enum so the client and
+ * database cannot drift apart. This is a type-only import, so it is erased at build
+ * time and pulls no Prisma runtime into the browser bundle.
+ *
+ * Better Auth's untyped client cannot know about `additionalFields`, hence the cast.
+ */
+const asRole = (value: unknown): UserRole | undefined =>
+  typeof value === 'string' ? (value as UserRole) : undefined
+
+/**
+ * Resolves the signed-in session and whether it carries the ADMIN role.
+ *
+ * This replaces an orphaned Stack Auth hook that called `useUser()` with no provider
+ * mounted anywhere, then fetched a `/api/auth/user-role` endpoint that never existed,
+ * and finally fell back to comparing the signed-in email against a hardcoded list of
+ * admin addresses shipped in the client bundle. That fallback was a real privilege
+ * escalation path: knowing an admin's email was enough to be treated as an admin.
+ *
+ * The role now arrives on the session, set only by the server. `input: false` on the
+ * field in server/auth.ts means Better Auth rejects a client-supplied role, so this
+ * value cannot be forged from the browser.
+ */
 export const useAdminCheck = () => {
-  const user = useUser()
-  const [isAdmin, setIsAdmin] = useState(false)
+  const [session, setSession] = useState<SessionShape | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const checkAdminStatus = async () => {
-      if (!user?.id) {
-        setIsAdmin(false)
-        setLoading(false)
-        return
-      }
+    let active = true
 
-      try {
-        // Primary Method: Check user role from database
-        // Note: You need to create an API endpoint at /api/auth/user-role
-        // that queries the user_profiles table
-        const response = await fetch('/api/auth/user-role', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
+    authClient
+      .getSession()
+      .then((result) => {
+        if (!active) return
+        // getSession() resolves to the session itself, or null when signed out.
+        setSession((result as SessionShape | null) ?? null)
+      })
+      .catch(() => {
+        if (active) setSession(null)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
 
-        if (response.ok) {
-          const userData = await response.json()
-          console.log('User role data:', userData)
-
-          // Check if user has ADMIN role (from user_profiles table)
-          if (userData.role === 'ADMIN') {
-            setIsAdmin(true)
-            setLoading(false)
-            return
-          }
-        } else if (response.status !== 404) {
-          // 404 means endpoint doesn't exist, fall back to email check
-          console.error(
-            'Failed to fetch user role:',
-            response.status,
-            response.statusText,
-          )
-        }
-
-        // Fallback Method: Check if user email is in admin list (for development)
-        const adminEmails = [
-          import.meta.env.VITE_ADMIN_EMAIL,
-          'admin@truthcards.com',
-          'admin@localhost',
-        ].filter(Boolean)
-
-        const userEmail = user.primaryEmail?.toLowerCase()
-        if (
-          userEmail &&
-          adminEmails.some((email) => email?.toLowerCase() === userEmail)
-        ) {
-          setIsAdmin(true)
-          setLoading(false)
-          return
-        }
-
-        setIsAdmin(false)
-      } catch (error) {
-        console.error('Error checking admin status:', error)
-        setIsAdmin(false)
-      } finally {
-        setLoading(false)
-      }
+    return () => {
+      active = false
     }
+  }, [])
 
-    checkAdminStatus()
-  }, [user?.id])
+  const user = session?.user ?? null
+  const role = asRole(user ? (user as { role?: unknown }).role : undefined)
 
-  return { isAdmin, loading, isSignedIn: !!user?.id }
+  return {
+    isAdmin: role === 'ADMIN',
+    loading,
+    isSignedIn: Boolean(user),
+    role,
+    user,
+    session,
+  }
 }
 
 export default useAdminCheck
