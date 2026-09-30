@@ -35,19 +35,23 @@ kill-api:
 # directly leaves its children reparented to init; they release their listeners but stay
 # resident holding memory. So this also matches the dev process command lines.
 #
-# Match on the resolved binary path, not the command you typed. `tsx watch server/index.ts`
-# runs as `node .../tsx/dist/cli.mjs watch server/index.ts`, so a pattern for the literal
-# substring "tsx watch server" matches nothing and the orphan survives.
+# Match on the resolved binary path and the script, not the command you typed.
+# `tsx watch server/index.ts` runs as `node .../tsx/dist/cli.mjs watch server/index.ts`,
+# but the process that actually holds the port is a further child still exec'd by tsx:
+# `node --require .../preflight.cjs --import .../loader.mjs server/index.ts`. Matching
+# only the tsx wrapper kills the supervisor and leaves the listener holding the port,
+# so the next `just dev` dies with EADDRINUSE. Matching `server/index.ts` catches the
+# listener at every level of that chain.
 #
 # Every pattern is bracketed and `$$` is filtered, because this recipe's own command line is
 # itself a `pgrep -f` target for any name it contains. Without that it would kill itself.
 kill:
     @pids="$(lsof -ti tcp:3001,tcp:8080 2>/dev/null)"; \
     if [ -n "$pids" ]; then echo "freeing ports (pid $pids)"; kill -9 $pids 2>/dev/null; fi; \
-    orphans="$(pgrep -f "[v]ite/bin/vite.js|[t]sx/dist/cli.mjs watch|[c]oncurrently" 2>/dev/null | grep -v "^$$\$" || true)"; \
+    orphans="$(pgrep -f "[v]ite/bin/vite.js|[t]sx/dist/cli.mjs watch|[s]erver/index.ts|[c]oncurrently" 2>/dev/null | grep -v "^$$\$" || true)"; \
     if [ -n "$orphans" ]; then echo "killing dev processes (pid $(echo $orphans))"; kill -9 $orphans 2>/dev/null; fi; \
     sleep 1; \
-    left="$(lsof -ti tcp:3001,tcp:8080 2>/dev/null; pgrep -f "[v]ite/bin/vite.js|[t]sx/dist/cli.mjs watch|[c]oncurrently" 2>/dev/null || true)"; \
+    left="$(lsof -ti tcp:3001,tcp:8080 2>/dev/null; pgrep -f "[v]ite/bin/vite.js|[t]sx/dist/cli.mjs watch|[s]erver/index.ts|[c]oncurrently" 2>/dev/null || true)"; \
     if [ -n "$left" ]; then echo "warning: processes still alive"; else echo "dev stack is fully stopped"; fi
 
 # Build for production
