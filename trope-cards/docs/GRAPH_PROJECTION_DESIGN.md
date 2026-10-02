@@ -1,6 +1,10 @@
-# Graph Projection Design (v1) — Design Only
+# Graph Projection Design (v1)
 
-**Status:** Design / discovery. No schema, dependency, API, or UI change is included.
+> **Status.** §§1–11 are the original design-only artifact, written before implementation and left
+> unedited so the reasoning can be audited. §§12–13 record the decisions taken afterwards and what
+> was then built. Where §11 lists an open question, §12 holds its answer.
+
+**Original scope:** Design / discovery. §§1–11 changed no schema, dependency, API, or UI; §13 implements the read-only projection and its endpoint, and still adds no dependency, schema change, or UI change.
 **Scope:** Define the first read-only domain graph projection over the canonical `trope_graph` ontology, ahead of any Graphology/Cytoscape work.
 **Authority:** `docs/ADR_GRAPH_LAYER.md` (layers & guardrail), `docs/TROPE_GRAPH_SCHEMA.md` (card ontology), Issue #2 (Suit/Axis), Issue #3 (projections).
 **Grounded in:** `trope_graph` Drizzle schema (5 modules), migrations `0001`–`0008`, the DB-independent seed corpus, the validators, `verify-seed.ts`, and a live read-only count of the local `trope_cards_dev` graph. Full graph gate passed at authoring time (36/36 tests, `drift:false` over 389 facts, exit 0).
@@ -269,12 +273,12 @@ All five share the §3 node model and §4 edge model; only the allowed `(node, e
 
 ## 10. Implementation sequence
 
-Mirrors ADR §9, grounded in the findings above. **Nothing in this document is implemented.**
+Mirrors ADR §9, grounded in the findings above. Status as of the implementation in §13.
 
-0. **Land this design** (docs only).
-1. **Decide the blocking issues (B1–B5) as scoped, separate issues** — especially B2 (populate vs retire `claim_relations`) and B1 (populate vs retire Concept). Do not fix them silently.
-2. **Build the read-only projection service** (Drizzle, in `trope-cards`) and the `GET /api/graph` endpoint for `view=card-argument-taxonomy` (focus + depth + filters). No Graphology, no UI change, no schema change.
-3. **Add projection tests** asserting the §6 invariants, including: endpoints-in-nodes, per-type status, multi-axis preserved with primary marker, `primaryType` never used for axis, and no second ontology.
+0. **Land this design** (docs only). — done
+1. **Decide the blocking issues (B1–B5) as scoped, separate issues** — especially B2 (populate vs retire `claim_relations`) and B1 (populate vs retire Concept). Do not fix them silently. — done; verdicts in §12, each carried by a follow-up issue
+2. **Build the read-only projection service** (Drizzle, in `trope-cards`) and the `GET /api/graph` endpoint for `view=card-argument-taxonomy` (focus + depth + filters). No Graphology, no UI change, no schema change. — done
+3. **Add projection tests** asserting the §6 invariants, including: endpoints-in-nodes, per-type status, multi-axis preserved with primary marker, `primaryType` never used for axis, and no second ontology. — done, plus a live-SQL suite
 4. **Build the Graphology adapter** over `{nodes, edges}`; add traversal/metrics (shortest path, connected components, centrality) behind the API, returning domain-level results.
 5. **Populate the claim/evidence/case corpus** — unblocks `argument` depth, the `evidence` view, and Source/Evidence nodes.
 6. **Add richer views** (`taxonomy`, `argument`, `evidence`, `identity-retrojection`) as their data lands.
@@ -295,3 +299,194 @@ Mirrors ADR §9, grounded in the findings above. **Nothing in this document is i
 8. **Card identity across the two card models.** How should the graph `card` relate to the separate Prisma `public.cards` deck model (different ids/fields, no shared key) without creating a second ontology? This design does not bridge them.
 9. **Depth semantics.** Is `depth` a hop count across all edge families combined, or tracked per family (e.g. taxonomy depth vs argument depth)?
 10. **Projection caching/materialisation.** Computed on demand per request for v1; should a cache or materialised projection (e.g. per corpus version) be introduced on demonstrated need?
+
+---
+
+## 12. Decisions on the open questions (Q1–Q10)
+
+Answered by the maintainer after §11 was written, and implemented. Each decision below closes the
+corresponding §11 question and states the consequence for v1. Where a decision defers work rather
+than settling an ontology question, it names the follow-up issue that carries it.
+
+### Q1 — `claim_relations`: read only what is authored; never infer
+
+**Decision.** The projection reads `claim_relations` exactly as authored. It does **not** derive a
+claim↔claim edge from inference structure, and it does not infer claim relations from card
+relationships or taxonomy.
+
+**Why.** Inference structure (`inference_premises`/`inference_conclusions`) encodes *how a
+conclusion was reached*, which is a different proposition from *one claim standing in relation to
+another*. Collapsing them would invent authorial intent. The 11-value `claim_relation_type`
+vocabulary exists and is authoritative when rows exist; today there are 0 rows, so v1 simply has
+no such edges.
+
+**Consequence.** Argument edges in v1 come only from `inference_*`. `claim_relations` becomes live
+the moment it is populated, with no projection change. Follow-up: B2.
+
+### Q2 — Concept: excluded from v1, not retired
+
+**Decision.** Concept stays first-class in the ontology and keeps its node type, but v1 emits **no
+Concept nodes**, because `card_concepts` has 0 rows and a Concept node with no card edge would be an
+island. The exclusion reason is reported in `meta.warnings[]`.
+
+**Why.** Inventing Concept nodes would require inventing the edges too, i.e. authoring ontology in
+a projection. The projection reports the gap instead of filling it.
+
+**Consequence.** `taxonomy` cannot render Concept until B1 lands. Follow-up: B1.
+
+### Q3 — Suit vocabulary: use the live collections verbatim
+
+**Decision.** Suit metadata comes from `collections` as they exist (`classic`, `zionism-coded`,
+`south-africa`, `fact-rebuttal`, `foundational`). The projection performs **no** vocabulary
+mapping and never places an epistemic value (`CONTESTED`) into a suit field.
+
+**Why.** Issue #2 owns Suit/Axis restoration. Until it decides, translating would create a second,
+conflicting vocabulary inside the projection — precisely the failure mode the ADR forbids.
+
+**Consequence.** Suit labels are whatever the corpus says. An integration test asserts `contested`
+never appears as a suit.
+
+### Q4 — Status: keep every lifecycle deliberately decoupled
+
+**Decision.** Each node type exposes only its own status field (`epistemicStatus`,
+`lifecycleStatus`, …). There is no graph-wide `status` rollup and no cross-entity status filter.
+
+**Why.** `EVIDENCE_LAYER.md`'s "never collapse these" is an explicit rule, and B4 shows the columns
+genuinely differ (enum vs text vs boolean).
+
+**Consequence.** Status is typed per node type; invariant 4 in the test suite enforces that a node
+never carries a status field belonging to another type.
+
+### Q5 — `relationships`: project defensively, warn, never trust
+
+**Decision.** A `relationships` row becomes an edge **only** when both discriminators are exactly
+`CARD` and both uuids resolve to cards. Any other row is dropped and recorded in `meta.warnings[]`.
+Edges are additionally re-checked against the emitted node set after traversal, so a relationship to
+a card beyond the traversal frontier cannot produce a dangling edge.
+
+**Why.** The table has no FKs and free-text discriminators (B3). All 11 live rows are CARD→CARD, so
+this is safe today and *safe-by-construction* if tomorrow's rows are not.
+
+**Consequence.** A malformed row is visible, not silent. Follow-up: B3.
+
+### Q6 — Argument chains are step metadata; chain-as-node is future work
+
+**Decision.** `argument_chain_id` rides on the inference step as metadata. v1 emits **no**
+`argument_chain` node. Chain membership is read through **both** attachment paths
+(`argument_chain_steps` and `inference_steps.argument_chain_id`) so a chain is not lost if one path
+is the only one populated.
+
+**Why.** A chain-as-node model changes traversal semantics and belongs with the `argument` view,
+which cannot ship until the claim corpus grows.
+
+**Consequence.** The `argument_chain` node type is reserved and unused in v1.
+
+### Q7 — Identity: uuid canonical, slug an accepted alias for cards
+
+**Decision.** Node ids are always uuids. Cards additionally resolve from their human slug; claims,
+steps, and chains have no slug and are reachable by uuid only. A uuid-shaped string is never
+retried as a slug.
+
+**Why.** Clients hold slugs; the database must key on uuid. Retrying a failed uuid lookup as a slug
+would turn a 404 into a wrong-but-valid answer.
+
+**Consequence.** `?focus=` accepts either for cards.
+
+### Q8 — No bridge to the Prisma deck
+
+**Decision.** The projection reads `trope_graph` only. It does not join, mirror, or reconcile
+`public.cards`.
+
+**Why.** The two card models share no key and have different fields. Bridging would fabricate an
+identity the ontology does not assert.
+
+**Consequence.** `legacyPrimaryType` is surfaced as metadata and is never used for axis derivation.
+
+### Q9 — Depth is a hop count under the active view
+
+**Decision.** `depth=N` returns nodes at most N hops from the focus, where a hop is an edge of a
+family the view allows. `depth=0` returns the focus alone.
+
+**Why.** Depth has to mean something checkable. Per-family counters were considered and rejected as
+more machinery than v1 can validate.
+
+**Consequence.** Relationship filters narrow traversal as well as output, which the API contract
+documents.
+
+### Q10 — Compute per request; no cache, no graph database, no materialisation
+
+**Decision.** Each request builds its projection from live relational queries. No cache, no
+materialised projection, no graph store.
+
+**Why.** The corpus is small (47 cards) and changes with editorial review; a cache would need
+invalidation the domain has no vocabulary for yet.
+
+**Consequence.** Response is deterministic for identical input (asserted by test), and the
+projection cost is bounded by `maxNodes`.
+
+### Decision → blocking-issue map
+
+| Question | Decision | Blocking issue | Disposition |
+|---|---|---|---|
+| Q1 | read authored only | B2 `claim_relations` | deferred, scoped issue |
+| Q2 | exclude Concept from v1 | B1 `card_concepts` | deferred, scoped issue |
+| Q3 | use live suits | Issue #2 owns Suit/Axis | not this issue's to settle |
+| Q4 | keep statuses decoupled | B4 inconsistent status modelling | deferred, documentation issue |
+| Q5 | defensive projection filter | B3 unconstrained `relationships` | deferred, hardening issue |
+| Q6 | chains as metadata | — | revisit with the `argument` view |
+| Q7 | uuid canonical, slug alias | — | settled |
+| Q8 | no Prisma bridge | — | settled |
+| Q9 | depth = hops | — | settled |
+| Q10 | on-demand only | — | settled until demonstrated need |
+
+---
+
+## 13. Implementation record
+
+Implemented after §11 was answered. Still no Graphology, no Cytoscape, no schema change, no UI
+change, no new dependency.
+
+### What exists
+
+| Piece | Location | Role |
+|---|---|---|
+| Node/edge contract | `trope-cards/src/graph/types.ts` | Node/Edge unions, per-type status, metadata shapes |
+| View rules | `trope-cards/src/graph/views.ts` | Five views, edge families, exclusions, caps |
+| Read port | `trope-cards/src/graph/reader.ts` | Database-independent interface the projection depends on |
+| Drizzle adapter | `trope-cards/src/graph/drizzle-reader.ts` | Breadth-first expansion, hydration, population counts |
+| Projection | `trope-cards/src/graph/projection.ts` | BFS, filtering, node/edge emission, warnings, truncation |
+| Request contract | `trope-cards/src/graph/query.ts` | Validation, filter normalisation, error taxonomy |
+| HTTP boundary | `server/api/graph.ts` | `GET /api/graph`, `GET /api/graph/views` |
+
+The projection depends only on the read port, which is why the invariant suite runs against an
+in-memory fake and the same suite can run against live SQL.
+
+### API boundary as built
+
+```
+GET /api/graph?focus=<uuid|slug>&view=card-argument-taxonomy&depth=1
+                 &include=<type,…>&relationship=<TYPE|FAMILY:TYPE,…>&maxNodes=200
+GET /api/graph/views
+```
+
+`focus` required; `view` defaults to `card-argument-taxonomy`; `depth` defaults to 1 and is capped
+at 3; `maxNodes` defaults to 200 and is hard-capped at 500. Filters narrow both emission and
+traversal and are matched case-insensitively against uppercase edge keys. Errors: `400` malformed,
+`404` unknown or view-incompatible focus, `413` cap exceeded. A **valid empty** projection is `200`
+with `meta.warnings[]`, never a 404 — a card with no claims is a fact, not a failure.
+
+### Verification
+
+| Suite | Count | Runs without a database |
+|---|---|---|
+| Unit (fake reader): projection, views, query | 136 | yes |
+| Integration (live SQL): projection over all 47 seeded cards | 18 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
+| Axis integration (pre-existing) | 7 | no — unchanged |
+
+The integration suite exists because a fake cannot catch a wrong column list or a missed join: it
+hands back exactly the shape the port declares. It projects **every** seeded card, not a sample,
+and separately re-checks each of the six §6 invariants against real rows.
+
+### Deliberately not built
+
+Graphology adapter, Cytoscape view, persisted metrics, write paths, auth. §10 steps 4–8 remain.

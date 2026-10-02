@@ -7,6 +7,7 @@ import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth.js';
 import cardsRouter from './api/cards.js';
 import interactionsRouter from './api/interactions.js';
+import graphRouter from './api/graph.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -43,6 +44,7 @@ app.use(express.json());
 
 app.use('/api/cards', cardsRouter);
 app.use('/api/interactions', interactionsRouter);
+app.use('/api/graph', graphRouter);
 
 if (isProduction) {
   app.use(express.static(path.join(projectRoot, 'dist')));

@@ -1,7 +1,7 @@
 import { and, eq, notInArray, sql } from 'drizzle-orm'
 import type { PgTable } from 'drizzle-orm/pg-core'
 
-import { db, pool } from '../client'
+import { getDb, getPool } from '../client'
 import {
   argumentChainSteps,
   argumentChains,
@@ -46,7 +46,9 @@ const allCards: CardSeed[] = [...cardCorpus]
  * it tracks the client. `PgTransaction` would need three generic parameters spelled out by
  * hand, and the schema is a set of individually imported tables rather than one object.
  */
-type SeedTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
+type SeedTransaction = Parameters<
+  Parameters<ReturnType<typeof getDb>['transaction']>[0]
+>[0]
 
 /**
  * Makes `card_axes` for one card match its authored axis list exactly.
@@ -149,6 +151,7 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
   // unset TROPE_GRAPH_DATABASE_URL would otherwise write 47 cards to production.
   assertLocalHostFromEnv()
 
+  const db = getDb()
   const counts = await db.transaction(async (tx) => {
     // -- Taxonomy ----------------------------------------------------------
     await tx
@@ -667,6 +670,6 @@ export async function main(): Promise<number> {
     console.error('Seed failed:', error)
     return 1
   } finally {
-    await pool.end()
+    await getPool().end()
   }
 }

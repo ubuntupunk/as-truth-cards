@@ -48,10 +48,11 @@ describe(
       // Imported here rather than at module scope: `client.ts` resolves a connection string
       // and constructs a pool as an import side effect, which would throw before the skip
       // above could be evaluated.
-      const { db, pool: graphPool } = await import('../src/db/client')
+      const { getDb, getPool } = await import('../src/db/client')
+      const db = getDb()
       const { assertLocalHostFromEnv } = await import('../src/db/url')
       assertLocalHostFromEnv()
-      pool = graphPool
+      pool = getPool()
 
       const { rows } = await db.execute<PersistedAxis>(sql`
         SELECT c.slug, ca.axis::text AS axis, ca.ordinal
@@ -127,7 +128,8 @@ describe(
     })
 
     it('persists only values the database enum admits', async () => {
-      const { db } = await import('../src/db/client')
+      const { getDb } = await import('../src/db/client')
+      const db = getDb()
       const { rows } = await db.execute<{ label: string }>(sql`
         SELECT enumlabel AS label
         FROM pg_enum

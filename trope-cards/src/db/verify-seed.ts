@@ -2,7 +2,7 @@ import process from 'node:process'
 
 import { sql } from 'drizzle-orm'
 
-import { db, pool } from './client'
+import { getDb, getPool } from './client'
 import { cardCorpus } from './seed/corpus'
 import { seedTropeGraph } from './seed/index'
 import { assertLocalHostFromEnv } from './url'
@@ -44,6 +44,8 @@ const EXPECTED = {
  * @returns {Promise<Record<keyof typeof EXPECTED, number>>}
  */
 async function snapshot(): Promise<Record<keyof typeof EXPECTED, number>> {
+  const db = getDb()
+
   const {
     rows: [row],
   } = await db.execute<Record<keyof typeof EXPECTED, number>>(sql`
@@ -75,6 +77,7 @@ async function integrityChecks(): Promise<{
   errors: string[]
   warnings: string[]
 }> {
+  const db = getDb()
   const errors: string[] = []
   const warnings: string[] = []
 
@@ -309,7 +312,7 @@ export async function main(): Promise<number> {
     )
     return 1
   } finally {
-    await pool.end()
+    await getPool().end()
   }
 }
 
