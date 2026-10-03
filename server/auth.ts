@@ -1,6 +1,17 @@
 import { betterAuth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { prisma } from './lib/db.js'
+import { assertAuthSecretConfigured } from './lib/auth-secret.js'
+
+/**
+ * Refuse to construct an auth instance that silently signs sessions with Better Auth's
+ * published fallback secret.
+ *
+ * This must happen here rather than in `server/index.ts`: ES module imports are hoisted and
+ * evaluated before the importing module's body runs, so `betterAuth()` below would already
+ * have been called by the time any statement in `index.ts` could check anything.
+ */
+assertAuthSecretConfigured()
 
 /**
  * Better Auth configuration.

@@ -104,16 +104,9 @@ Set the `sync: false` variables in the Render dashboard. They are deliberately n
 | `TROPE_GRAPH_DATABASE_URL` | no | Only if the graph lives in a *different* database from the host app. Takes precedence over `DATABASE_URL`. Do not set it to an empty string — that is not treated as unset |
 | `PORT` | set by Render | Injected automatically; `server/index.ts` falls back to `3001` |
 
-### Why `BETTER_AUTH_SECRET` is required even though nothing fails without it
+### Why `BETTER_AUTH_SECRET` is required and enforced at startup
 
-This is worth stating plainly, because the failure mode is invisible. If the variable is unset,
-the server still boots, `/health` still returns `200`, and `/api/auth/*` still answers. Better
-Auth quietly substitutes a hardcoded default secret that is published in its own source. Session
-cookies are signed with it, so anyone who knows the constant — which is everyone — can mint a
-valid session cookie, including one carrying an `ADMIN` role.
-
-So a deploy missing this variable is not a broken deploy; it is an authentication bypass wearing a
-green health check. Verify it is set before trusting a production URL.
+The build-time guarantee: in production, `server/auth.ts` calls `assertAuthSecretConfigured()` before `betterAuth()` runs, so the process exits immediately with a clear error if the secret is absent, is the published fallback, is too short, or has low entropy. `/health` will not be green and `/api/auth/*` will not answer. The server continues to run locally with a warning only.
 
 Generate one with `openssl rand -base64 32`.
 
