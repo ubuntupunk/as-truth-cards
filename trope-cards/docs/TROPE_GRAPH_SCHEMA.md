@@ -87,7 +87,9 @@ each of which the current corpus depends on:
   `FACT_REBUTTAL` (27), `THEOLOGICAL` (10), and `HISTORICAL` (1). `HISTORICAL` was added in
   migration 0008 for the one card authored as a continuity argument
   (`canaanite-card`), which folding into `FACT_REBUTTAL` to fit the original three would
-  have misrepresented.
+  have misrepresented. The old migration pipeline authored axis values on every card but
+  never created `card_axes`, so those authored classifications were discarded on every
+  seed run — the omission that 0008 and the seeder changes were created to remove.
 
 ### 3.2 What is deliberately not an axis
 
