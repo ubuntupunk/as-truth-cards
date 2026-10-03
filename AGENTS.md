@@ -1,4 +1,3 @@
-
 # Project Overview
 
 As Truth Cards is a research tool that displays "Truth Cards" — informational cards on antisemitic tropes. The application allows users to view cards with an admin interface for managing them. It uses a PostgreSQL database (via Neon) and Prisma as the ORM. User authentication and authorization are handled by Better Auth.
