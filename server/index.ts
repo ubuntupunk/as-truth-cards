@@ -46,16 +46,24 @@ app.use('/api/cards', cardsRouter);
 app.use('/api/interactions', interactionsRouter);
 app.use('/api/graph', graphRouter);
 
+/**
+ * Liveness probe, declared before the static handler and the SPA catch-all below.
+ *
+ * Order matters: `app.get('*')` answers every GET that reaches it, so a `/health` route
+ * registered after it is unreachable in production and returns `index.html` instead of JSON.
+ * Render's `healthCheckPath` accepts that 200, which makes the breakage invisible until
+ * someone reads the body.
+ */
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok' });
+});
+
 if (isProduction) {
   app.use(express.static(path.join(projectRoot, 'dist')));
   app.get('*', (_req, res) => {
     res.sendFile(path.join(projectRoot, 'dist/index.html'));
   });
 }
-
-app.get('/health', (_req, res) => {
-  res.json({ status: 'ok' });
-});
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

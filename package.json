@@ -3,12 +3,16 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.0.0 <25.0.0"
+  },
   "scripts": {
-    "build": "rm -rf .node_modules/.prisma node_modules/@prisma/client && prisma generate && vite build",
+    "build": "rm -rf node_modules/.prisma node_modules/@prisma/client && prisma generate && vite build",
     "build:all": "vite build && pnpm db:generate",
     "build:dev": "vite build --mode development",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:seed": "tsx server/seed.ts",
     "db:studio": "prisma studio",

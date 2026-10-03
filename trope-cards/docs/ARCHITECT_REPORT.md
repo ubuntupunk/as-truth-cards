@@ -519,6 +519,29 @@ Anyone onboarding, or any agent reading the README to learn how this ships, is a
 (`pnpm-lock.yaml`, `pnpm-workspace.yaml`, `pnpm exec`), so the deploy path is inconsistent with
 the documented toolchain.
 
+> **Resolved (GitHub Issue #4).** The README now documents Render as the sole production
+> target and states explicitly that Vercel is not one. `render.yaml` was reconciled with the
+> application: `pnpm install --frozen-lockfile` and `pnpm run build` replace the invalid
+> `npm build`; a `preDeployCommand` applies both Prisma and Drizzle migrations; the invalid
+> `hooks: [{type: post-deploy}]` block is replaced by correct blueprint keys; `healthCheckPath`
+> points at the existing `/health` route; `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` are
+> declared; and the unused `VITE_ADMIN_EMAIL` is removed. The findings above are left as
+> written because this document is a dated record of the tree at its commit base.
+
+Two further deployment defects were found while reconciling `render.yaml`, beyond what this
+report identified. Both are fixed.
+
+- **`GET /health` was unreachable in production.** The `app.get('*')` SPA catch-all was
+  registered before it and answers every GET, so `/health` returned `index.html` instead of
+  JSON. Render's `healthCheckPath` accepts that `200`, so the defect hid behind a passing
+  health check.
+- **`BETTER_AUTH_SECRET` was not declared, and its absence is silent.** The server boots and
+  `/api/auth/*` answers without it; Better Auth falls back to a hardcoded default secret
+  published in its own source, so session cookies can be forged, including sessions carrying a
+  privileged role. Verified by booting the production bundle with the variable unset and
+  confirming auth still answered. This is an authentication bypass rather than an outage, so it
+  will not surface through any health check.
+
 ### 9.7 Tooling footguns (resolved, recorded for awareness)
 
 The pre-commit hook was `bunx biome format --write --staged`, which **fails** whenever a
