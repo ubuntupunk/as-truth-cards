@@ -1,17 +1,71 @@
+# Canonical production deployment.
+#
+# Render hosts this repository in production. There is no Vercel configuration and no
+# `vercel.json`; the app is a long-running Express process serving both the API and the
+# built Vite bundle, which does not fit a static/edge deployment model.
+#
+# Deploy path, in order:
+#   build  pnpm install -> prisma generate (postinstall) -> vite build -> dist/
+#   pre-deploy  prisma migrate deploy, then the trope_graph Drizzle migrations
+#   start  tsx server/index.ts, which serves dist/ and /api/* on $PORT
+#
+# Both migration steps are required. Omitting them deploys a process that boots and then
+# fails on first request, because neither the Prisma `public` schema nor the Drizzle
+# `trope_graph` schema is created automatically.
+#
+# Secrets are entered in the Render dashboard and are not stored here.
+
 services:
   - type: web
     name: as-truth-cards
     runtime: node
     plan: starter
-    buildCommand: npm install && npm build && npx prisma generate --schema=prisma/schema.prisma
-    startCommand: npx tsx server/index.ts
+    region: oregon
+
+    # pnpm, because the repository is locked with pnpm-lock.yaml. `npm install` ignores
+    # that lockfile and resolves different versions from the registry.
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm run build
+
+    # Migrations run before the new version goes live, not at build time, so a failed
+    # migration aborts the deploy instead of shipping a process against a stale schema.
+    preDeployCommand: pnpm run db:migrate:deploy && pnpm run trope-graph:migrate -- --allow-remote
+
+    # `tsx` executes server/index.ts directly; there is no server-side compile step.
+    # It is a devDependency, so `pnpm install` must not be run with --prod. Render
+    # installs devDependencies by default and `NODE_ENV` alone does not omit them.
+    startCommand: pnpm run start
+
+    healthCheckPath: /health
+
+    autoDeployTrigger: commit
+
     envVars:
+      # Express takes the static-bundle path only when this is exactly "production".
       - key: NODE_ENV
         value: production
+
+      # Neon Postgres connection string. Serves the Prisma `public` schema *and* the
+      # Drizzle `trope_graph` schema, which is safe because they are separate schemas in
+      # one database and cannot collide. To host the graph in a separate database instead,
+      # add TROPE_GRAPH_DATABASE_URL below and give it a real value -- do not set it to an
+      # empty string, which is not treated as unset.
       - key: DATABASE_URL
         sync: false
-      - key: VITE_ADMIN_EMAIL
+
+      # Better Auth signs and encrypts session cookies with this.
+      #
+      # Required, and not self-evident from a failed deploy: if it is unset the process
+      # still boots and auth still answers, but Better Auth falls back to a hardcoded
+      # default secret that is published in its own source. Session cookies signed with a
+      # known key can be forged, including sessions carrying a privileged role.
+      #
+      # Render generates a 256-bit value once; later blueprint syncs leave it alone.
+      # Rotating it invalidates every existing session.
+      - key: BETTER_AUTH_SECRET
+        generateValue: true
+
+      # The public origin the browser uses, e.g. https://as-truth-cards.onrender.com.
+      # Better Auth validates the Origin header against it; production is same-origin, so
+      # this must be the deployed URL and not a localhost value.
+      - key: BETTER_AUTH_URL
         sync: false
-    hooks:
-      - type: post-deploy
-        command: npx prisma generate
