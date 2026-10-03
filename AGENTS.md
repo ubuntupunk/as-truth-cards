@@ -62,7 +62,6 @@ As Truth Cards is a research tool that displays "Truth Cards" — informational 
 ### Database Commands
 
 - **Migrate (deploy):** `pnpm run db:migrate:deploy`
-- **Reset:** `pnpm run db:reset`
 - **Seed:** `pnpm run db:seed`
 - **Graph migrate:** `pnpm run trope-graph:migrate -- --allow-remote`
 
