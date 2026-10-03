@@ -1,25 +1,28 @@
+
 # Project Overview
 
-This is a Next.js application that displays "Truth Cards," informational cards on various topics related to AntiSemitism. The application allows users to view cards, with an admin interface for creating, editing, and deleting them. It uses a PostgreSQL database (via Neon) and Prisma as the ORM. User authentication and authorization are handled by Stack.
+As Truth Cards is a research tool that displays "Truth Cards" — informational cards on antisemitic tropes. The application allows users to view cards with an admin interface for managing them. It uses a PostgreSQL database (via Neon) and Prisma as the ORM. User authentication and authorization are handled by Better Auth.
 
 ## Technologies Used
 
-- **Framework**: Next.js
+- **Framework**: Vite + Preact (frontend), Express (server)
 - **Language**: TypeScript (strict mode)
-- **Authentication**: Stack
-- **ORM**: Prisma
+- **Authentication**: Better Auth
+- **ORM**: Prisma (host schema) + Drizzle (graph subsystem in `trope-cards/`)
 - **Database**: PostgreSQL (Neon)
 - **Styling**: Tailwind CSS, shadcn-ui
 
 ## Code Standards
 
-- Follow the Airbnb Style Guide for JavaScript/React patterns
-- Prefer Server Components, use Client Components only when needed
+- Prefer Server Components where applicable; use client components only when needed
 - Destructure imports when possible (e.g., `import { foo } from 'bar'`)
 - Use ES modules (import/export) syntax, not CommonJS (require)
 - Avoid `any` type in TypeScript
-- No hardcoded values - use constants file (`src/lib/constants/`)
-- Code is formatted with Prettier and linted with ESLint (Next.js, Prettier, Unicorn rules)
+- Code is formatted with Prettier and linted with ESLint (Next.js/TypeScript rules as configured)
+- Named exports preferred over default exports
+- One export per file: Mandatory
+- Group imports: External libraries first, then internal imports
+- Use absolute imports with `@/` prefix for src directory
 
 ### Naming Conventions
 
@@ -28,19 +31,10 @@ This is a Next.js application that displays "Truth Cards," informational cards o
 - **Files**: kebab-case for utilities
 - **Constants**: SCREAMING_SNAKE_CASE
 
-### Imports & Structure
-
-- Use absolute imports with `@/` prefix for src directory
-- Named exports preferred over default exports
-- One export per file: Mandatory
-- Group imports: External libraries first, then internal imports
-- Path aliases: Use `@/` for src directory imports
-
 ### Documentation (MANDATORY)
 
 - JSDoc required for ALL public functions, components, classes
-- Complete coverage: @param, @returns, @throws, @example tags
-- Examples required for complex functions
+- Complete coverage: @param, @returns, @throws, @example tags where relevant
 - Components must document props and return type
 
 ### Error Handling
@@ -50,35 +44,46 @@ This is a Next.js application that displays "Truth Cards," informational cards o
 - Client-side validation with Zod, server-side for security
 - Comprehensive error logging with context
 
-### Testing Requirements
+### Testing
 
-- Minimum 70% coverage (statements, branches, functions, lines)
-- Test structure: Arrange-Act-Assert pattern
-- Comprehensive mocking for external dependencies
-- Unit, integration, and E2E tests required
+- Server tests run with Node's built-in test runner via `tsx`
+- Graph subsystem uses its own test suite (`pnpm run trope-graph:test`)
+- Test structure: Arrange-Act-Assert where appropriate
+- Mock external dependencies when testing
 
-### Best Practices
+### Security
 
-- Security: Input sanitization, authentication, authorization
-- Performance: Lazy loading, image optimization, query optimization
-- Accessibility: ARIA attributes, keyboard navigation, WCAG compliance
+- Production enforces `BETTER_AUTH_SECRET` at startup (`assertAuthSecretConfigured`); refuses missing, published fallback, too-short, or low-entropy secrets. Development warns but continues.
+- Do not hardcode secrets. Use environment variables.
+- Input sanitization and authorization checks on server routes.
+- No hardcoded sensitive values.
 
 ## Development Conventions
 
 ### Database Commands
 
-- **Deploy:** `npm run db:deploy`
-- **Reset:** `npm run db:reset`
-- **Seed:** `npm run db:seed`
+- **Migrate (deploy):** `pnpm run db:migrate:deploy`
+- **Reset:** `pnpm run db:reset`
+- **Seed:** `pnpm run db:seed`
+- **Graph migrate:** `pnpm run trope-graph:migrate -- --allow-remote`
 
 ### Build & Run Commands
 
-- **Development:** `npm run dev`
-- **Build:** `npm run build`
-- **Start:** `npm run start`
-- **Test:** `npm run test`
-- **Format:** `npm run format`
-- **Lint:** `npm run lint`
+- **Development:** `pnpm run dev`
+- **Build:** `pnpm run build`
+- **Start:** `pnpm run start` (Render: `pnpm run db:migrate:deploy && pnpm run trope-graph:migrate -- --allow-remote && pnpm run start`)
+- **Test (all):** `pnpm run test`
+- **Test (server):** `pnpm run test:server`
+- **Test (graph):** `pnpm run trope-graph:test`
+- **Format:** `pnpm run format`
+- **Lint:** `pnpm run lint`
+- **Typecheck:** `pnpm run typecheck`
+
+### Deployment
+
+- **Canonical host:** Render (Express server). Vercel is not a supported deployment target.
+- **Health check:** `/health` returns `{"status":"ok"}` and is registered before the SPA catch-all.
+- **Auth enforcement:** Production startup exits immediately if `BETTER_AUTH_SECRET` is unusable. See README for generation (`openssl rand -base64 32`).
 
 ## Agent Instructions
 
@@ -101,7 +106,7 @@ When ending a work session, you MUST complete ALL steps below. Work is NOT compl
 **MANDATORY WORKFLOW:**
 
 1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
+2. **Run quality gates** (if code changed) - Tests, linters, builds, typecheck
 3. **Update issue status** - Close finished work, update in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
@@ -113,10 +118,3 @@ When ending a work session, you MUST complete ALL steps below. Work is NOT compl
 5. **Clean up** - Clear stashes, prune remote branches
 6. **Verify** - All changes committed AND pushed
 7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
