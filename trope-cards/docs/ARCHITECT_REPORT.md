@@ -718,3 +718,6 @@ simply misdescribed the stack as Next.js. That was wrong: `AGENTS.md` accurately
 `dev`. The error came from describing the checked-out branch without checking for others. The
 correction is left in place deliberately — a briefing that hides its own corrections is less
 trustworthy than one that shows them.
+
+
+*Update (Issue #5):* As of Issue #5, Render is canonical and the production auth configuration is enforced at startup (no silent fallback).

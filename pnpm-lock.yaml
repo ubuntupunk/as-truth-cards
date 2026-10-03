@@ -210,9 +210,6 @@ importers:
       husky:
         specifier: ^9.1.7
         version: 9.1.7
-      lovable-tagger:
-        specifier: ^1.1.7
-        version: 1.1.13(vite@5.4.21(@types/node@22.19.15))
       postcss:
         specifier: ^8.5.6
         version: 8.5.8
@@ -3094,11 +3091,6 @@ packages:
   loose-envify@1.4.0:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
     hasBin: true
-
-  lovable-tagger@1.1.13:
-    resolution: {integrity: sha512-RBEYDxao7Xf8ya29L0cd+ocE7Gs80xPOIOwwck65Hoie8YDKViuXi3UYV14DoNWIvaJ7WVPf7SG3cc844nFqGA==}
-    peerDependencies:
-      vite: '>=5.0.0 <8.0.0'
 
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
@@ -6088,14 +6080,6 @@ snapshots:
   loose-envify@1.4.0:
     dependencies:
       js-tokens: 4.0.0
-
-  lovable-tagger@1.1.13(vite@5.4.21(@types/node@22.19.15)):
-    dependencies:
-      esbuild: 0.25.12
-      tailwindcss: 3.4.17
-      vite: 5.4.21(@types/node@22.19.15)
-    transitivePeerDependencies:
-      - ts-node
 
   lru-cache@5.1.1:
     dependencies:
