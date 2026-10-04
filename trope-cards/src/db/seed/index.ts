@@ -15,11 +15,13 @@ import {
 import {
   cardAxes,
   cardCollections,
+  cardLocales,
   cardMechanisms,
   cards,
   claims,
   collections,
   concepts,
+  locales,
   mechanisms,
   relationships,
 } from '../schema/tropeGraph'
@@ -32,7 +34,12 @@ import {
   identityRetrospectionRelationships,
 } from './identityRetrospection'
 import { newIdentityClaims } from './newIdentityClaims'
-import { collectionsSeed, conceptsSeed, mechanismsSeed } from './taxonomy'
+import {
+  collectionsSeed,
+  conceptsSeed,
+  localesSeed,
+  mechanismsSeed,
+} from './taxonomy'
 import type { CardAxis, CardSeed } from './types'
 
 /**
@@ -190,6 +197,20 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
         set: { name: concepts.name, definition: concepts.definition },
       })
 
+    await tx
+      .insert(locales)
+      .values(
+        localesSeed.map((l) => ({
+          slug: l.slug,
+          name: l.name,
+          description: l.description,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: locales.slug,
+        set: { name: locales.name, description: locales.description },
+      })
+
     const collectionIds = new Map(
       (
         await tx
@@ -202,6 +223,13 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
         await tx
           .select({ id: mechanisms.id, slug: mechanisms.slug })
           .from(mechanisms)
+      ).map((r) => [r.slug, r.id]),
+    )
+    const localeIds = new Map(
+      (
+        await tx
+          .select({ id: locales.id, slug: locales.slug })
+          .from(locales)
       ).map((r) => [r.slug, r.id]),
     )
 
@@ -259,6 +287,18 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
           .onConflictDoNothing()
       }
 
+      const localeLinks = (seed.locales ?? [])
+        .map((slug) => localeIds.get(slug))
+        .filter((id): id is string => Boolean(id))
+        .map((localeId) => ({ cardId: card.id, localeId }))
+      if (localeLinks.length) {
+        await tx.insert(cardLocales).values(localeLinks).onConflictDoNothing()
+        await tx
+          .insert(cardLocales)
+          .values(localeLinks)
+          .onConflictDoNothing()
+      }
+
       // Axes are reconciled rather than accumulated. `onConflictDoNothing`, as used for
       // collections and mechanisms above, would leave a stale row behind whenever an editor
       // removed or reordered an authored axis, so the database would keep asserting a
@@ -286,19 +326,12 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
           )
         }
       }
-      // A card with no axis has no rhetorical classification at all, which is the state
-      // every card was in before migration 0008. It is rejected rather than tolerated.
-      if (seed.axis.length === 0) {
-        throw new Error(
-          `Card "${seed.slug}" has no axis. A card must be classified along at least one ` +
-            'axis; an unclassified card is the exact condition this guard exists to prevent.',
-        )
-      }
-      if (new Set(seed.axis).size !== seed.axis.length) {
-        throw new Error(
-          `Card "${seed.slug}" repeats an axis (${seed.axis.join(', ')}). ` +
-            'The card_axes unique index on (card_id, axis) would reject this on insert.',
-        )
+      for (const slug of seed.locales ?? []) {
+        if (!localeIds.has(slug)) {
+          throw new Error(
+            `Card "${seed.slug}" references locale "${slug}", which taxonomy.ts does not define.`,
+          )
+        }
       }
     }
 

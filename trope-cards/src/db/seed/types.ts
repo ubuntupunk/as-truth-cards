@@ -140,6 +140,7 @@ export type CardSeed = {
   /** Rhetorical axes, primary first. At least one is required. */
   axis: [CardAxis, ...CardAxis[]]
   mechanisms?: string[]
+  locales?: string[]
   summary?: string
   editorialNotes?: string
   /** Added by the v0.6 addendum; see drizzle/0006_card_core_question.sql. */
