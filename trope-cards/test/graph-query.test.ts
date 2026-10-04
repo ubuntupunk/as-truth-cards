@@ -291,6 +291,8 @@ describe('describeViews', () => {
     mechanisms: 20,
     concepts: 6,
     cardConcepts: 0,
+    locales: 1,
+    cardLocales: 7,
     sources: 0,
     evidenceItems: 0,
     cases: 0,

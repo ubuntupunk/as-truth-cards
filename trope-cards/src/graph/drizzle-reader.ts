@@ -35,10 +35,12 @@ import {
 import {
   cardAxes,
   cardCollections,
+  cardLocales,
   cardMechanisms,
   cards,
   claims,
   collections,
+  locales,
   mechanisms,
   relationships,
 } from '../db/schema/tropeGraph'
@@ -47,6 +49,7 @@ import type {
   ArgumentChainRow,
   CardCollectionRow,
   CardExpansion,
+  CardLocaleRow,
   CardMechanismRow,
   CardRow,
   ClaimExpansion,
@@ -140,6 +143,15 @@ const cardMechanismColumns = {
   slug: mechanisms.slug,
   name: mechanisms.name,
   description: mechanisms.description,
+}
+
+/** The columns a `card_locales` -> `locales` join projects. */
+const cardLocaleColumns = {
+  cardId: cardLocales.cardId,
+  localeId: locales.id,
+  slug: locales.slug,
+  name: locales.name,
+  description: locales.description,
 }
 
 /** The columns an `argument_chain_steps` -> `argument_chains` join projects. */
@@ -251,6 +263,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
       relationshipRows,
       collectionRows,
       mechanismRows,
+      cardLocaleRows,
       chainRows,
     ] = await Promise.all([
       this.client
@@ -290,6 +303,11 @@ export class DrizzleGraphReader implements TropeGraphReader {
         .innerJoin(mechanisms, eq(cardMechanisms.mechanismId, mechanisms.id))
         .where(inArray(cardMechanisms.cardId, ids)),
       this.client
+        .select(cardLocaleColumns)
+        .from(cardLocales)
+        .innerJoin(locales, eq(cardLocales.localeId, locales.id))
+        .where(inArray(cardLocales.cardId, ids)),
+      this.client
         .select(chainColumns)
         .from(argumentChains)
         .where(inArray(argumentChains.cardId, ids)),
@@ -314,6 +332,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
       cardRelationships: relationshipRows,
       cardCollections: collectionRows,
       cardMechanisms: mechanismRows,
+      cardLocales: cardLocaleRows,
       argumentChains: chainRows,
       chainMemberships: membershipRows,
     }
@@ -416,36 +435,46 @@ export class DrizzleGraphReader implements TropeGraphReader {
     const claimIds = refs.claimIds
     const stepIds = refs.inferenceStepIds
 
-    const [cardRows, axisRows, claimRows, stepRows] = await Promise.all([
-      emptyIfNo(cardIds, () =>
-        this.client
-          .select(cardColumns)
-          .from(cards)
-          .where(inArray(cards.id, cardIds)),
-      ),
-      emptyIfNo(cardIds, () =>
-        this.client
-          .select({
-            cardId: cardAxes.cardId,
-            axis: cardAxes.axis,
-            ordinal: cardAxes.ordinal,
-          })
-          .from(cardAxes)
-          .where(inArray(cardAxes.cardId, cardIds)),
-      ),
-      emptyIfNo(claimIds, () =>
-        this.client
-          .select(claimColumns)
-          .from(claims)
-          .where(inArray(claims.id, claimIds)),
-      ),
-      emptyIfNo(stepIds, () =>
-        this.client
-          .select(stepColumns)
-          .from(inferenceSteps)
-          .where(inArray(inferenceSteps.id, stepIds)),
-      ),
-    ])
+    const [cardRows, axisRows, localeRows, claimRows, stepRows] =
+      await Promise.all([
+        emptyIfNo(cardIds, () =>
+          this.client
+            .select(cardColumns)
+            .from(cards)
+            .where(inArray(cards.id, cardIds)),
+        ),
+        emptyIfNo(cardIds, () =>
+          this.client
+            .select({
+              cardId: cardAxes.cardId,
+              axis: cardAxes.axis,
+              ordinal: cardAxes.ordinal,
+            })
+            .from(cardAxes)
+            .where(inArray(cardAxes.cardId, cardIds)),
+        ),
+        // Locale is a card dimension, not a discovered node, so it is reached through the cards
+        // the projection already asked about rather than through `NodeRefSet`.
+        emptyIfNo(cardIds, () =>
+          this.client
+            .select(cardLocaleColumns)
+            .from(cardLocales)
+            .innerJoin(locales, eq(cardLocales.localeId, locales.id))
+            .where(inArray(cardLocales.cardId, cardIds)),
+        ),
+        emptyIfNo(claimIds, () =>
+          this.client
+            .select(claimColumns)
+            .from(claims)
+            .where(inArray(claims.id, claimIds)),
+        ),
+        emptyIfNo(stepIds, () =>
+          this.client
+            .select(stepColumns)
+            .from(inferenceSteps)
+            .where(inArray(inferenceSteps.id, stepIds)),
+        ),
+      ])
 
     const [
       collectionRows,
@@ -514,6 +543,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
       cardAxes: axisRows,
       cardCollections: collectionRows,
       cardMechanisms: mechanismRows,
+      cardLocales: localeRows,
       claims: claimRows,
       inferenceSteps: stepRows,
       chains: chainRows,
@@ -547,7 +577,9 @@ export class DrizzleGraphReader implements TropeGraphReader {
         (SELECT count(*) FROM trope_graph.interpretations)::int AS interpretations,
         (SELECT count(*) FROM trope_graph.questions)::int       AS questions,
         (SELECT count(*) FROM trope_graph.argument_chains)::int AS argument_chains,
-        (SELECT count(*) FROM trope_graph.claim_relations)::int AS claim_relations
+        (SELECT count(*) FROM trope_graph.claim_relations)::int AS claim_relations,
+        (SELECT count(*) FROM trope_graph.locales)::int         AS locales,
+        (SELECT count(*) FROM trope_graph.card_locales)::int    AS card_locales
     `)
     const row = result.rows[0]
     return {
@@ -566,6 +598,8 @@ export class DrizzleGraphReader implements TropeGraphReader {
       questions: num(row?.questions),
       argumentChains: num(row?.argument_chains),
       claimRelations: num(row?.claim_relations),
+      locales: num(row?.locales),
+      cardLocales: num(row?.card_locales),
     }
   }
 }
@@ -590,6 +624,8 @@ type PopulationRow = {
   questions: number
   argument_chains: number
   claim_relations: number
+  locales: number
+  card_locales: number
 }
 
 /**
@@ -624,6 +660,7 @@ function emptyCardExpansion(): CardExpansion {
     cardRelationships: [],
     cardCollections: [],
     cardMechanisms: [],
+    cardLocales: [],
     argumentChains: [],
     chainMemberships: [],
   }
@@ -665,6 +702,16 @@ export type SelectedRowChecks = [
   Awaited<
     ReturnType<DrizzleGraphReader['expandCards']>
   >['cardMechanisms'][number] extends CardMechanismRow
+    ? true
+    : never,
+  Awaited<
+    ReturnType<DrizzleGraphReader['expandCards']>
+  >['cardLocales'][number] extends CardLocaleRow
+    ? true
+    : never,
+  Awaited<
+    ReturnType<DrizzleGraphReader['hydrate']>
+  >['cardLocales'][number] extends CardLocaleRow
     ? true
     : never,
   Awaited<

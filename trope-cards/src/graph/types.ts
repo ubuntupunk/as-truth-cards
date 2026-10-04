@@ -196,7 +196,7 @@ export type AxisAssignment = {
 /**
  * Classification attached to a card node.
  *
- * Suit/Collection, Axis, Mechanism and Concept are four independent dimensions
+ * Suit/Collection, Axis, Mechanism, Locale and Concept are five independent dimensions
  * (`ADR_GRAPH_LAYER.md` §7). This bag groups them for transport only; nothing in the
  * projection reads one to infer another.
  */
@@ -216,6 +216,16 @@ export type CardClassification = {
   readonly suits: readonly string[]
   readonly mechanismSlugs: readonly string[]
   readonly mechanismIds: readonly string[]
+  /**
+   * Slugs of the `locales` a card is set in, sorted.
+   *
+   * Read only from `card_locales`, never inferred from Suit: a card curated into the
+   * `south-africa` collection is not thereby a South Africa card. A card with no locale rows
+   * reports an empty list.
+   */
+  readonly localeSlugs: readonly string[]
+  /** `locales.id` for each entry of {@link localeSlugs}, in the same order. */
+  readonly localeIds: readonly string[]
 }
 
 /** Card-specific metadata. Every field here is card-owned; none is derived from another. */

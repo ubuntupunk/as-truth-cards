@@ -14,6 +14,7 @@ import {
 } from '../schema/claimDecomposition'
 import {
   cardAxes,
+  cardAxis,
   cardCollections,
   cardLocales,
   cardMechanisms,
@@ -56,6 +57,58 @@ const allCards: CardSeed[] = [...cardCorpus]
 type SeedTransaction = Parameters<
   Parameters<ReturnType<typeof getDb>['transaction']>[0]
 >[0]
+
+/**
+ * Reject an authored axis list the database cannot represent.
+ *
+ * `CardSeed['axis']` is a non-empty tuple of `CardAxis`, so the compiler already forbids all
+ * three of these at every TypeScript call site. This asserts them anyway, because the
+ * consequences are silent rather than loud and the seed is editorial data that a future
+ * non-TypeScript caller, a generated file, or a hand-edited JSON draft could still reach:
+ *
+ * - **Empty.** `reconcileCardAxes` would delete every axis row for the card and report
+ *   success, leaving a card that claims no axis at all. The projection warns about that state
+ *   rather than failing on it, so the mistake would surface as a warning in a graph view
+ *   instead of an error at the point of authoring.
+ * - **Duplicate.** `(card_id, axis)` is unique, so the second copy would hit
+ *   `onConflictDoNothing` and be dropped — the seed would claim two classifications and store
+ *   one, and the ordinal the author wrote for the second would overwrite the first's.
+ * - **Off-enum.** Postgres would reject the insert with an enum error that names a database
+ *   type rather than the card that is wrong.
+ *
+ * @param cardSlug Card's slug, for the message.
+ * @param authoredAxes The card's authored axes, primary first.
+ * @throws {Error} If the list is empty, repeats an axis, or names an axis outside the enum.
+ */
+function assertAuthoredAxesAreRepresentable(
+  cardSlug: string,
+  authoredAxes: readonly CardAxis[],
+): void {
+  if (authoredAxes.length === 0) {
+    throw new Error(
+      `Card "${cardSlug}" has no axis. Every card needs at least one axis, because ` +
+        'card_axes.ordinal = 0 is what the projection reports and it cannot be derived from ' +
+        'primary_type.',
+    )
+  }
+  const seen = new Set<CardAxis>()
+  for (const axis of authoredAxes) {
+    if (seen.has(axis)) {
+      throw new Error(
+        `Card "${cardSlug}" lists axis "${axis}" twice. ` +
+          'card_axes is unique on (card_id, axis), so the second copy would be silently ' +
+          'dropped and the card would carry one classification where the seed claims two.',
+      )
+    }
+    if (!cardAxis.enumValues.includes(axis)) {
+      throw new Error(
+        `Card "${cardSlug}" lists axis "${axis}", which is not in the card_axis enum ` +
+          `(${cardAxis.enumValues.join(', ')}).`,
+      )
+    }
+    seen.add(axis)
+  }
+}
 
 /**
  * Makes `card_axes` for one card match its authored axis list exactly.
@@ -205,11 +258,6 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
           name: l.name,
           description: l.description,
         })),
-        localesSeed.map((l) => ({
-          slug: l.slug,
-          name: l.name,
-          description: l.description,
-        })),
       )
       .onConflictDoUpdate({
         target: locales.slug,
@@ -235,6 +283,37 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
         await tx.select({ id: locales.id, slug: locales.slug }).from(locales)
       ).map((r) => [r.slug, r.id]),
     )
+
+    // Referential integrity is checked strictly, and *before* any link row is written: a slug
+    // in a card's collection, mechanism or locale list that does not exist in taxonomy.ts is an
+    // error, not a row to skip. The insert below maps each slug to an id and filters out the
+    // misses, so validating afterwards would still roll the transaction back — but it would
+    // mean the only thing standing between a typo and a silently dropped classification was
+    // the rollback. Checking first makes the failure independent of transaction semantics, and
+    // it covers locale alongside the dimensions it must not be inferred from.
+    for (const seed of allCards) {
+      for (const slug of seed.collection) {
+        if (!collectionIds.has(slug)) {
+          throw new Error(
+            `Card "${seed.slug}" references collection "${slug}", which taxonomy.ts does not define.`,
+          )
+        }
+      }
+      for (const slug of seed.mechanisms ?? []) {
+        if (!mechanismIds.has(slug)) {
+          throw new Error(
+            `Card "${seed.slug}" references mechanism "${slug}", which taxonomy.ts does not define.`,
+          )
+        }
+      }
+      for (const slug of seed.locales ?? []) {
+        if (!localeIds.has(slug)) {
+          throw new Error(
+            `Card "${seed.slug}" references locale "${slug}", which taxonomy.ts does not define.`,
+          )
+        }
+      }
+    }
 
     // -- Cards -------------------------------------------------------------
     const cardIds = new Map<string, string>()
@@ -296,7 +375,6 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
         .map((localeId) => ({ cardId: card.id, localeId }))
       if (localeLinks.length) {
         await tx.insert(cardLocales).values(localeLinks).onConflictDoNothing()
-        await tx.insert(cardLocales).values(localeLinks).onConflictDoNothing()
       }
 
       // Axes are reconciled rather than accumulated. `onConflictDoNothing`, as used for
@@ -304,35 +382,8 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
       // removed or reordered an authored axis, so the database would keep asserting a
       // classification the seed no longer claims — the same quiet divergence this field
       // was recovered from. Existing rows keep their ids; only their ordinals move.
+      assertAuthoredAxesAreRepresentable(seed.slug, seed.axis)
       await reconcileCardAxes(tx, card.id, seed.axis)
-    }
-
-    // Referential integrity is checked strictly: a slug in a card's collection or mechanism
-    // list that does not exist in taxonomy.ts is an error, not a row to skip. Skipping
-    // would leave a card that silently lost a classification, which is the kind of quiet
-    // data loss this graph is meant to make impossible.
-    for (const seed of allCards) {
-      for (const slug of seed.collection) {
-        if (!collectionIds.has(slug)) {
-          throw new Error(
-            `Card "${seed.slug}" references collection "${slug}", which taxonomy.ts does not define.`,
-          )
-        }
-      }
-      for (const slug of seed.mechanisms ?? []) {
-        if (!mechanismIds.has(slug)) {
-          throw new Error(
-            `Card "${seed.slug}" references mechanism "${slug}", which taxonomy.ts does not define.`,
-          )
-        }
-      }
-      for (const slug of seed.locales ?? []) {
-        if (!localeIds.has(slug)) {
-          throw new Error(
-            `Card "${seed.slug}" references locale "${slug}", which taxonomy.ts does not define.`,
-          )
-        }
-      }
     }
 
     const requireCard = (slug: string): string => {
