@@ -133,3 +133,11 @@ export const conceptsSeed = [
     'Using similarities between historical cases to illuminate or argue about a contemporary case.',
   ],
 ] as const
+
+export const localesSeed = [
+  {
+    slug: 'south-africa',
+    name: 'South Africa',
+    description: 'Regional cases and institutional disputes in South Africa.',
+  },
+] as const

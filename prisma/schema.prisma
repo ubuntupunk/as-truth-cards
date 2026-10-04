@@ -23,8 +23,30 @@ model Card {
   isFeatured               Boolean           @default(false) @map("is_featured")
   sources                  Json?
   interactions             UserInteraction[]
+  locales                  CardLocale[]
 
   @@map("cards")
+}
+
+model Locale {
+  id          Int          @id @default(autoincrement())
+  slug        String       @unique
+  name        String
+  description String?
+  cardLocales CardLocale[]
+
+  @@map("locales")
+}
+
+model CardLocale {
+  cardId   Int     @map("card_id")
+  localeId Int     @map("locale_id")
+  card     Card    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  locale   Locale  @relation(fields: [localeId], references: [id], onDelete: Cascade)
+
+  @@id([cardId, localeId])
+  @@index([localeId])
+  @@map("card_locales")
 }
 
 // Authorization ladder. Better Auth owns identity and sessions; this enum is
