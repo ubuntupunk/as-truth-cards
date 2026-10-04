@@ -205,7 +205,11 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
           name: l.name,
           description: l.description,
         })),
-        localesSeed.map((l) => ({ slug: l.slug, name: l.name, description: l.description })),
+        localesSeed.map((l) => ({
+          slug: l.slug,
+          name: l.name,
+          description: l.description,
+        })),
       )
       .onConflictDoUpdate({
         target: locales.slug,
@@ -228,9 +232,7 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
     )
     const localeIds = new Map(
       (
-        await tx
-          .select({ id: locales.id, slug: locales.slug })
-          .from(locales)
+        await tx.select({ id: locales.id, slug: locales.slug }).from(locales)
       ).map((r) => [r.slug, r.id]),
     )
 
@@ -294,10 +296,7 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
         .map((localeId) => ({ cardId: card.id, localeId }))
       if (localeLinks.length) {
         await tx.insert(cardLocales).values(localeLinks).onConflictDoNothing()
-        await tx
-          .insert(cardLocales)
-          .values(localeLinks)
-          .onConflictDoNothing()
+        await tx.insert(cardLocales).values(localeLinks).onConflictDoNothing()
       }
 
       // Axes are reconciled rather than accumulated. `onConflictDoNothing`, as used for
