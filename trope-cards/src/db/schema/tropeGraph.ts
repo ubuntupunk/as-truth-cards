@@ -224,6 +224,26 @@ export const cardMechanisms = tropeGraph.table(
   (table) => [primaryKey({ columns: [table.cardId, table.mechanismId] })],
 )
 
+export const locales = tropeGraph.table('locales', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: text('slug').notNull().unique(),
+  name: text('name').notNull(),
+  description: text('description'),
+})
+
+export const cardLocales = tropeGraph.table(
+  'card_locales',
+  {
+    cardId: uuid('card_id')
+      .notNull()
+      .references(() => cards.id, { onDelete: 'cascade' }),
+    localeId: uuid('locale_id')
+      .notNull()
+      .references(() => locales.id, { onDelete: 'cascade' }),
+  },
+  (table) => [primaryKey({ columns: [table.cardId, table.localeId] })],
+)
+
 /**
  * The rhetorical axes a card is argued along, in authored order.
  *
