@@ -228,7 +228,7 @@ The graph API should therefore support a projection/focus/depth vocabulary rathe
 
 ## 7. Classification remains ontology-level
 
-Suit/Collection, Axis, Mechanism, and Concept remain separate classification dimensions.
+Suit/Collection, Axis, Mechanism, Locale, and Concept remain separate classification dimensions.
 
 In particular:
 
@@ -236,6 +236,8 @@ In particular:
 - Multi-valued Axis assignments must be preserved.
 - Suits are browse/collection dimensions.
 - Mechanisms and Concepts are analytical dimensions.
+- Locale is intrinsic geographic/social context and is many-to-many (a card may be set in more than one locale).
+- **Locale must not be inferred from Suit or Collection.** A Suit is a mutable curation bucket; membership in a `south-africa` collection does not make a card a South Africa card. Locale is read from `card_locales` alone, and a card with no locale rows reports none.
 - Graph libraries may use these values for filtering or styling, but must not redefine them.
 
 This remains governed by the separate Suit/Axis ontology work.

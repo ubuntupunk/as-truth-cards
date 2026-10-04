@@ -26,6 +26,7 @@ import {
   claim,
   emptyCorpus,
   link,
+  localeLink,
   membership,
   relationship,
   richCorpus,
@@ -355,6 +356,88 @@ describe('invariant 5: classification is multi-axis, ordered, and has no primary
     assert.ok(
       !cardNode.classification.suits.includes('tactic'),
       'primary_type must not become a Suit',
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Invariant 5b: Locale is its own dimension, read only from card_locales
+// ---------------------------------------------------------------------------
+
+describe('invariant 5b: locale is a dimension of its own', () => {
+  it('reports every locale a card is set in, with ids alongside slugs', async () => {
+    const corpus = richCorpus()
+    const { result } = await project(corpus, { depth: 1 })
+    const cardNode = nodesOfType(result.nodes, 'card')[0] as CardNode
+    assert.deepEqual(
+      [...cardNode.classification.localeSlugs],
+      ['israel', 'south-africa'],
+      'locale slugs arrive sorted, like suits and mechanisms',
+    )
+    assert.deepEqual(
+      [...cardNode.classification.localeIds],
+      corpus.cardLocales
+        .filter((l) => l.cardId === 'card-1')
+        .map((l) => l.localeId)
+        .sort(),
+      'ids are parallel to slugs, not a separate or renumbered space',
+    )
+  })
+
+  it('never infers a locale from the suit, in either direction', async () => {
+    const corpus = richCorpus()
+    corpus.cardCollections = [
+      link({ cardId: 'card-1', slug: 'south-africa', name: 'South Africa' }),
+    ]
+    corpus.cardLocales = []
+    const { result } = await project(corpus, { depth: 1 })
+    const cardNode = nodesOfType(result.nodes, 'card')[0] as CardNode
+    assert.deepEqual(
+      cardNode.classification.suits,
+      ['south-africa'],
+      'the fixture puts the card in the south-africa suit',
+    )
+    assert.deepEqual(
+      cardNode.classification.localeSlugs,
+      [],
+      'a card in the south-africa *collection* is not thereby a South Africa card',
+    )
+  })
+
+  it('keeps locale independent of axis, mechanism, epistemic status and legacy primaryType', async () => {
+    const corpus = richCorpus()
+    corpus.cards[0] = card({
+      id: 'card-1',
+      slug: 'x',
+      primaryType: 'THEOLOGY',
+      epistemicStatus: 'CONTESTED',
+    })
+    corpus.cardLocales = [localeLink({ cardId: 'card-1', slug: 'south-africa' })]
+    const { result } = await project(corpus, { depth: 1 })
+    const cardNode = nodesOfType(result.nodes, 'card')[0] as CardNode
+    assert.deepEqual(cardNode.classification.localeSlugs, ['south-africa'])
+    assert.deepEqual(
+      cardNode.classification.mechanismSlugs,
+      ['name-slur'],
+      'a locale must not displace or merge with a mechanism',
+    )
+    assert.equal(cardNode.status.value, 'CONTESTED')
+  })
+
+  it('reports empty lists for every dimension it has no rows for, rather than guessing', async () => {
+    const corpus = richCorpus()
+    const { result } = await project(corpus, { focus: 'card-3', depth: 1 })
+    const cardNode = nodesOfType(result.nodes, 'card')[0] as CardNode
+    assert.deepEqual(cardNode.classification.localeSlugs, ['south-africa'])
+    assert.deepEqual(
+      cardNode.classification.suits,
+      [],
+      'card-3 has a locale and no collection, so the dimensions are provably independent',
+    )
+    assert.deepEqual(
+      cardNode.classification.mechanismSlugs,
+      [],
+      'and no mechanism: one dimension is never filled in from another',
     )
   })
 })

@@ -143,6 +143,15 @@ export type CardMechanismRow = {
   readonly description: string | null
 }
 
+/** One `card_locales` row joined to its `locales` row. */
+export type CardLocaleRow = {
+  readonly cardId: string
+  readonly localeId: string
+  readonly slug: string
+  readonly name: string
+  readonly description: string | null
+}
+
 /** One `argument_chains` row. */
 export type ArgumentChainRow = {
   readonly id: string
@@ -173,6 +182,7 @@ export type CardExpansion = {
   readonly cardRelationships: readonly RelationshipRow[]
   readonly cardCollections: readonly CardCollectionRow[]
   readonly cardMechanisms: readonly CardMechanismRow[]
+  readonly cardLocales: readonly CardLocaleRow[]
   readonly argumentChains: readonly ArgumentChainRow[]
   /** Chain membership rows, joined, for the steps on these cards. */
   readonly chainMemberships: readonly ArgumentChainMembershipRow[]
@@ -208,6 +218,7 @@ export type NodeHydration = {
   readonly cardAxes: readonly CardAxisRow[]
   readonly cardCollections: readonly CardCollectionRow[]
   readonly cardMechanisms: readonly CardMechanismRow[]
+  readonly cardLocales: readonly CardLocaleRow[]
   readonly claims: readonly ClaimRow[]
   readonly inferenceSteps: readonly InferenceStepRow[]
   readonly chains: readonly ArgumentChainRow[]
@@ -226,6 +237,8 @@ export type ViewPopulation = {
   readonly mechanisms: number
   readonly concepts: number
   readonly cardConcepts: number
+  readonly locales: number
+  readonly cardLocales: number
   readonly sources: number
   readonly evidenceItems: number
   readonly cases: number

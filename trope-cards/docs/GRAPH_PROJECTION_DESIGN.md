@@ -13,7 +13,8 @@
 
 - **Canonical:** PostgreSQL + Drizzle + the existing `trope_graph` schema. It is the only knowledge model.
 - **Forbidden (this document does not):** add a `Trope`/`TruthCard`/`trope_edge` ontology; use a graph database; reintroduce Prisma for the graph; treat a card as the atomic unit of truth; implement the API, Graphology, Cytoscape, or any UI.
-- **Suit/Axis (Issue #2) is authoritative.** Axis is never derived from legacy `primaryType`; multi-valued axis is preserved; Suit/Collection, Axis, Mechanism and Concept stay distinct dimensions.
+- **Suit/Axis (Issue #2) is authoritative.** Axis is never derived from legacy `primaryType`; multi-valued axis is preserved; Suit/Collection, Axis, Mechanism, Locale and Concept stay distinct dimensions.
+- **Locale is authored, never inferred (Issue #6).** A card's geographic/social setting comes from `card_locales` only. Locale is many-to-many and is *not* derivable from Suit: a card curated into the `south-africa` collection is not thereby a South Africa card. Neither `collections` nor `primaryType` may fill in a missing locale, and a card with no locale rows reports an empty list rather than a default.
 
 ---
 
@@ -33,7 +34,7 @@
 
 Live counts (local DB): **37 domain tables + `schema_migrations`**, **18 enums**, **46 foreign keys**. The 37 tables group into:
 
-- **Classification:** `collections`, `card_collections`, `card_axes`, `mechanisms`, `card_mechanisms`, `concepts`, `card_concepts`.
+- **Classification:** `collections`, `card_collections`, `card_axes`, `mechanisms`, `card_mechanisms`, `concepts`, `card_concepts`, `locales`, `card_locales`.
 - **Assertion:** `cards`, `claims`, `sources`, `claim_sources`, `interpretations`, `claim_interpretations`, `interpretation_sources`.
 - **Argument:** `inference_steps`, `inference_premises`, `inference_conclusions`, `claim_relations`, `argument_chains`, `argument_chain_steps`, `inference_step_relations`.
 - **Evidence/provenance:** `evidence_items`, `evidence_sources`, `evidence_claims`, `evidence_interpretations`, `evidence_inferences`.
@@ -45,7 +46,7 @@ Live counts (local DB): **37 domain tables + `schema_migrations`**, **18 enums**
 |---|---|---|
 | `cards` | 47 | every card has an axis, ≥1 suit, ≥1 mechanism |
 | `card_axes` | 56 | 9 multi-axis cards; `ordinal=0` is primary; TACTIC 18 / FACT_REBUTTAL 27 / THEOLOGICAL 10 / HISTORICAL 1 |
-| `card_collections` / `card_mechanisms` | 47 / 58 | classification links |
+| `card_collections` / `card_mechanisms` / `card_locales` | 47 / 58 / 7 | classification links |
 | `claims` | 19 | only **6 of 47** cards carry claims (the identity-retrojection cluster) |
 | `inference_steps` (+premises/conclusions) | 4 (9/4) | only **2** cards carry argument structure |
 | `argument_chains` (+membership) | 2 (4) | 1 PRIMARY_ARGUMENT, 1 COUNTERARGUMENT |
@@ -103,7 +104,7 @@ Every node: `{ id, type, label, ...typed metadata, epistemicStatus?, provenance?
 
 | Node `type` | `id` | `label` | Key metadata | Epistemic status | Provenance | Classification |
 |---|---|---|---|---|---|---|
-| `card` | `cards.id` | `title` | `slug`, `summary`, `coreQuestion`, `primaryType` *(flagged legacy)* | `cards.epistemic_status` (enum) | — (entry point) | `suits[]`, `axes[{axis, ordinal, primary?}]`, `mechanisms[]` |
+| `card` | `cards.id` | `title` | `slug`, `summary`, `coreQuestion`, `primaryType` *(flagged legacy)* | `cards.epistemic_status` (enum) | — (entry point) | `suits[]`, `axes[{axis, ordinal, primary?}]`, `mechanisms[]`, `locales[]` |
 | `claim` | `claims.id` | `statement` | `claimType`, `description`, `cardId` | `claims.epistemic_status` (enum) | reserved (empty today) | — |
 | `inference_step` | `inference_steps.id` | `label` | `inferenceType`, `description`, `notes`, `isCanonical`, `chain{membership}`, `premises[{claimId, role, ordinal}]`, `conclusions[{claimId, ordinal}]` | `inference_steps.epistemic_status` (**text** — §8 B4) | reserved (evidence_inferences empty) | — |
 | `collection` (Suit) | `collections.id` | `name` | `slug`, `description` | — (browse taxonomy) | — | — |
@@ -129,11 +130,22 @@ The words SUPPORTS/CHALLENGES/QUALIFIES/CONTEXTUALISES appear in **five** differ
 | `PRIMARY, CONTEXT, BRIDGE, COUNTERPREMISE` | `inference_premises.role` | claim → inference | **inference** (premise role) | Yes (9 rows) |
 | `SUPPORTS, CHALLENGES, QUALIFIES, CONTEXTUALISES, ILLUSTRATES, REPORTS, ATTRIBUTES` + `strength` | `evidence_claims.relation` | evidence ↔ claim | **evidence** | No — evidence empty |
 | `DERIVED_FROM` / `USED_BY` (defaults) | `evidence_sources` / `evidence_inferences` | evidence ↔ source / inference | **evidence** | No |
-| classification (suite/membership) | `card_collections`, `card_mechanisms`, `card_axes` | card ↔ taxonomy | **presentation** | Yes |
+| classification (suite/membership) | `card_collections`, `card_mechanisms`, `card_axes`, `card_locales` | card ↔ taxonomy | **presentation** | Yes |
 
 **Consequence for the argument view:** the claim↔claim argument edges in v1 come from `inference_premises` / `inference_conclusions` (premise role + step type) and `inference_step_relations` — **not** from `claim_relations`. `ANACHRONISTICALLY_MAPS` and `RETROSPECTIVELY_IDENTIFIES` are currently represented only as `inference_type` values on steps, not as `claim_relations` rows. The projection preserves whatever the schema holds; it does not synthesize the missing claim-relations.
 
 `EXEMPLIFIES` (claim) and `EXAMPLE_OF` (relationship) are distinct values; the projection does not unify them. `IN_SUIT`/`HAS_MECHANISM` are presentation-class edges (browse facets), semantically distinct from argument edges.
+
+**The shared `south-africa` slug.** Locale is authored with slug `south-africa`, which is also
+a `collections` slug. Four cards satisfy both at once, and three more are South Africa cards
+curated under `zionism-coded` or `fact-rebuttal`, which is what proves the dimensions are not
+the same list. The collision is safe only because the two are separate tables with separate
+ids and independently unique slugs, and because the projection reports suits as slugs while
+locales carry both slugs and ids. A client that resolves `south-africa` without knowing which
+taxonomy it was given would still get this wrong, so any future locale filter must take the
+parameter under its own name rather than reusing a suit parameter.
+
+**Locale has no edge in v1.** `card_locales` rides on card metadata (`classification.locales[]`) like `card_axes` does, and is deliberately *not* projected as a `collection`-shaped node or an `IN_SUIT` edge: locale is intrinsic context rather than a curation bucket, so modelling it as membership would invite exactly the suit→locale inference Issue #6 forbids. It becomes a node type only if a future view needs to traverse locale→cards as edges rather than filter on them.
 
 ---
 
@@ -479,9 +491,11 @@ with `meta.warnings[]`, never a 404 — a card with no claims is a fact, not a f
 
 | Suite | Count | Runs without a database |
 |---|---|---|
-| Unit (fake reader): projection, views, query | 136 | yes |
+| Unit (fake reader): projection, views, query | 140 | yes |
+| Locale unit: schema shape, seed corpus | 23 | yes |
 | Integration (live SQL): projection over all 47 seeded cards | 18 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
 | Axis integration (pre-existing) | 7 | no — unchanged |
+| Locale integration (Issue #6) | 0 | no — **gap: `card_locales` has no live integration test** |
 
 The integration suite exists because a fake cannot catch a wrong column list or a missed join: it
 hands back exactly the shape the port declares. It projects **every** seeded card, not a sample,

@@ -3,6 +3,7 @@ import type {
   ArgumentChainRow,
   CardCollectionRow,
   CardExpansion,
+  CardLocaleRow,
   CardMechanismRow,
   CardRow,
   ClaimExpansion,
@@ -87,6 +88,25 @@ export function link(
   }
 }
 
+/**
+ * A `card_locales` link row.
+ *
+ * Locale is a separate taxonomy from collections and mechanisms, so it gets its own helper
+ * rather than reusing {@link link}: the link row spells its taxonomy id `localeId`, and a card
+ * may carry several locales while the other dimensions are single-valued.
+ */
+export function localeLink(
+  over: { cardId: string; slug: string; name?: string; description?: string | null },
+): CardLocaleRow {
+  return {
+    cardId: over.cardId,
+    localeId: over.slug,
+    slug: over.slug,
+    name: over.name ?? over.slug,
+    description: over.description ?? null,
+  }
+}
+
 /** An argument chain row. */
 export function chain(
   over: Partial<ArgumentChainRow> & { id: string },
@@ -153,6 +173,7 @@ export type FakeCorpus = {
   cardRelationships: RelationshipRow[]
   cardCollections: CardCollectionRow[]
   cardMechanisms: CardMechanismRow[]
+  cardLocales: CardLocaleRow[]
   argumentChains: ArgumentChainRow[]
   chainMemberships: ArgumentChainMembershipRow[]
   claimRelations: ClaimRelationRow[]
@@ -171,6 +192,7 @@ export function emptyCorpus(): FakeCorpus {
     cardRelationships: [],
     cardCollections: [],
     cardMechanisms: [],
+    cardLocales: [],
     argumentChains: [],
     chainMemberships: [],
     claimRelations: [],
@@ -213,6 +235,13 @@ export function richCorpus(): FakeCorpus {
     ],
     cardCollections: [link({ cardId: 'card-1', slug: 'zionism', name: 'Zionism' })],
     cardMechanisms: [link({ cardId: 'card-1', slug: 'name-slur', name: 'Name slur' })],
+    // Two locales on one card, and a third card with a locale but no collection. Locale must
+    // survive independently of the other dimensions in both directions.
+    cardLocales: [
+      localeLink({ cardId: 'card-1', slug: 'south-africa', name: 'South Africa' }),
+      localeLink({ cardId: 'card-1', slug: 'israel', name: 'Israel' }),
+      localeLink({ cardId: 'card-3', slug: 'south-africa', name: 'South Africa' }),
+    ],
     argumentChains: [chain({ id: 'chain-1', label: 'Primary case' })],
     chainMemberships: [
       membership({ inferenceStepId: 'step-1', ordinal: 0, role: 'MAIN' }),
@@ -263,6 +292,7 @@ export class FakeGraphReader implements TropeGraphReader {
       ),
       cardCollections: this.corpus.cardCollections.filter((c) => ids.has(c.cardId)),
       cardMechanisms: this.corpus.cardMechanisms.filter((c) => ids.has(c.cardId)),
+      cardLocales: this.corpus.cardLocales.filter((l) => ids.has(l.cardId)),
       argumentChains: this.corpus.argumentChains.filter((c) => ids.has(c.cardId)),
       chainMemberships: this.corpus.chainMemberships.filter((m) =>
         stepIds.has(m.inferenceStepId),
@@ -328,6 +358,7 @@ export class FakeGraphReader implements TropeGraphReader {
       cardMechanisms: this.corpus.cardMechanisms.filter((m) =>
         mechanismIds.has(m.mechanismId),
       ),
+      cardLocales: this.corpus.cardLocales.filter((l) => cardIds.has(l.cardId)),
       claims: this.corpus.claims.filter((c) => claimIds.has(c.id)),
       inferenceSteps: this.corpus.inferenceSteps.filter((s) => stepIds.has(s.id)),
       chains: this.corpus.argumentChains.filter((c) => chainIds.has(c.id)),
@@ -352,6 +383,8 @@ export class FakeGraphReader implements TropeGraphReader {
         this.corpus.cardCollections.map((c) => c.collectionId),
       ).size,
       mechanisms: new Set(this.corpus.cardMechanisms.map((m) => m.mechanismId)).size,
+      locales: new Set(this.corpus.cardLocales.map((l) => l.localeId)).size,
+      cardLocales: this.corpus.cardLocales.length,
       concepts: 0,
       cardConcepts: 0,
       sources: 0,

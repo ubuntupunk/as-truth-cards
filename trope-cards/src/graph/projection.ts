@@ -840,6 +840,9 @@ function buildNodes(
       axes,
       suitsByCard.get(row.id) ?? [],
       mechanismsByCard.get(row.id) ?? [],
+      groupCardClassifications(hydration.cardLocales, (l) => l.localeId).get(
+        row.id,
+      ) ?? [],
     )
     const metadata: CardNodeMetadata = {
       slug: row.slug,
@@ -1076,18 +1079,26 @@ function groupCardClassifications<T extends ClassificationSource>(
  * Suits are reported by slug because a Suit is a human-facing browse dimension, and Q3 defers
  * any reconciliation with Issue #2's proposed vocabulary — so nothing here maps, renames, or
  * infers a Suit, and in particular epistemic `CONTESTED` is never surfaced as a Suit called
- * `contested`. Axis, Suit, Mechanism and Concept stay four separate dimensions.
+ * `contested`. Axis, Suit, Mechanism, Locale and Concept stay five separate dimensions.
+ *
+ * Locale is reported only from `card_locales`. It is not derived from Suit: a Suit is a
+ * mutable curation bucket, so a card in the `south-africa` suit is not thereby about South
+ * Africa. There is deliberately no default and no fallback here — a card with no locale rows
+ * reports an empty list rather than a guess.
  */
 function buildCardClassification(
   axes: readonly AxisAssignment[],
   suits: readonly ClassificationLink[],
   mechanisms: readonly ClassificationLink[],
+  locales: readonly ClassificationLink[],
 ): CardClassification {
   return {
     axes,
     suits: suits.map((suit) => suit.slug),
     mechanismSlugs: mechanisms.map((mechanism) => mechanism.slug),
     mechanismIds: mechanisms.map((mechanism) => mechanism.linkId),
+    localeSlugs: locales.map((locale) => locale.slug),
+    localeIds: locales.map((locale) => locale.linkId),
   }
 }
 
