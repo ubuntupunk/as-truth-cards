@@ -217,6 +217,7 @@ export const draftCards: DraftCardSeed[] = [
     status: 'CONTESTED',
     axis: ['FACT_REBUTTAL'],
     mechanisms: ['equivalence', 'context-stripping'],
+    locales: ['south-africa'],
     summary:
       "A comparative history question concerning Israel's relationship with apartheid South Africa and claims of unique responsibility.",
   },
@@ -326,6 +327,7 @@ export const draftCards: DraftCardSeed[] = [
     primaryType: 'CASE',
     status: 'LIVE',
     axis: ['FACT_REBUTTAL'],
+    locales: ['south-africa'],
     summary:
       'South African legal case concerning protest claims and alleged association with Israel, genocide, or military conflict.',
   },
@@ -336,6 +338,7 @@ export const draftCards: DraftCardSeed[] = [
     primaryType: 'CASE',
     status: 'LIVE',
     axis: ['TACTIC', 'FACT_REBUTTAL'],
+    locales: ['south-africa'],
     summary:
       'Institutional governance and boycott/IHRA-related resolutions at UCT.',
   },
@@ -346,6 +349,7 @@ export const draftCards: DraftCardSeed[] = [
     primaryType: 'CASE',
     status: 'CONTESTED',
     axis: ['TACTIC'],
+    locales: ['south-africa'],
     summary:
       'A regional case concerning arguments from Jewish identity and disagreement over political positions.',
   },
@@ -356,6 +360,7 @@ export const draftCards: DraftCardSeed[] = [
     primaryType: 'CASE',
     status: 'LIVE',
     axis: ['FACT_REBUTTAL'],
+    locales: ['south-africa'],
     summary:
       'Case-study hub for the UCT Mendelsohn dispute, its pleadings, institutional context, and procedural history.',
   },
@@ -454,6 +459,7 @@ export const draftCards: DraftCardSeed[] = [
     status: 'CONTESTED',
     axis: ['FACT_REBUTTAL'],
     mechanisms: ['equivalence', 'context-stripping'],
+    locales: ['south-africa'],
     summary:
       "Separates the ANC's historical relationships and statements from later relationships between South African actors and Hamas.",
   },
@@ -464,6 +470,7 @@ export const draftCards: DraftCardSeed[] = [
     primaryType: 'FACT',
     status: 'ESTABLISHED',
     axis: ['FACT_REBUTTAL'],
+    locales: ['south-africa'],
     summary:
       "Examines the change over time in Israel's relationship with apartheid South Africa, including the 1987 severance of remaining military ties.",
   },
