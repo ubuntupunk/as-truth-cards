@@ -205,6 +205,7 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
           name: l.name,
           description: l.description,
         })),
+        localesSeed.map((l) => ({ slug: l.slug, name: l.name, description: l.description })),
       )
       .onConflictDoUpdate({
         target: locales.slug,
