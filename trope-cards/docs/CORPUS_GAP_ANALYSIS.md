@@ -166,3 +166,83 @@ Cards without claims: 34. Two groups, both deliberate. The 152-claim v0.4 corpus
 pending source verification. The tactic cards describe an operation rather than assert a
 proposition, so a claim on them would assert the trope — a different editorial act than
 decomposing a reference card, and not covered by §3's reasoning.
+
+---
+
+## 8. Architect decisions D1/D2, and the Q2 Concept task
+
+Issue #3 answered the three questions in §6. Both recommendations were accepted, with two rules
+added that change what the data must prove.
+
+### D1 — a Summary may contain claims; it is not one
+
+> A Card Summary is authored card-level prose. A Summary may contain one or more claim-level
+> propositions. A proposition may be decomposed into a first-class Claim when it is explicitly
+> asserted by the authored Summary/editorial material and passes the entailment test already
+> documented. Descriptive/framing prose is not a Claim. Do not manufacture a proposition simply to
+> populate the Claims table. **A Claim derived from Summary text does not inherit the Card's
+> epistemic status automatically.**
+
+The 14 claims stay. What needed fixing was that the *rule* was unenforced — the runner reads
+`seed.status` and never reads the card's status, so the behaviour was correct by construction and
+invisible to any test. All 14 sit on `ESTABLISHED` cards at `ESTABLISHED`, so the data cannot
+distinguish an independent judgement from a copied value.
+
+`seed-corpus.test.ts` now asserts the distinction in the direction that can actually fail. A
+blanket rule ("a claim's status must differ from its card's") would be wrong — it would force a
+false status onto any claim genuinely as well-established as its card. So the test asserts the
+corpus *can* express a divergence (it does: 9 claims on `CONTESTED` cards are `ESTABLISHED`), and
+names the two `voting-rights` claims individually. Those are the ones where the card's
+`ESTABLISHED` status could most easily have been copied onto a claim that is actually contestable;
+they are graded `ESTABLISHED` because each states a documented fact about who may vote, not an
+interpretive position.
+
+**D1 also terminates the decomposition work rather than extending it.** Applying "descriptive and
+framing prose is not a Claim" to the 34 remaining claimless cards leaves nothing to add:
+
+| Group | Cards | Why no claim follows |
+|---|---|---|
+| `chronology` | 1 | Summary is "Places competing national movements … on their respective timelines" — describes the card's operation. |
+| CONTESTED | 18 | Summaries open "Separates…", "Examines…", "Compares…". `depo-provera` goes further, distinguishing *allegations* and *claims about state intent*, so asserting any would assert the allegation. |
+| CONTEXT_DEPENDENT | 15 | Tactic descriptions; a claim would assert the trope. |
+| LIVE | 3 | Institutional disputes with no dockets, dates, or procedural posture to assert. |
+
+One case is genuinely borderline and is **not** written: `chosen-people-master-race`, whose summary
+is "Examines the translation of the Jewish theological concept of chosenness into a
+racial-supremacy category." Whether "Examines X" asserts X is an editorial judgement about the
+Summary/Claim boundary, which is D1's to make, not this increment's. Flagged rather than decided.
+
+So the remaining corpus gap is not unfinished decomposition. It is **absent authored prose**: new
+claims need new card text, not new analysis of existing text.
+
+### D2 — `claim_sources` stays
+
+Accepted as a bibliographic attribution layer distinct from located evidence. Nothing changes; the
+6 rows keep `ATTRIBUTED_TO` with null quote and locator. B5 stays open, with its trigger recorded
+as "when the evidence corpus is sufficiently populated".
+
+### Q2 — Concept task
+
+**Slug collision: there were two, and they were duplicates.** `collectivisation` and
+`racial-essentialism` existed in both tables with near-identical definitions — the concept
+"attributing the conduct of an individual to a wider collective" against the mechanism "moves
+from an individual, institution, or government to a whole group".
+
+Resolved by **removing the two concepts, not renaming them**. A renamed duplicate would keep the
+mechanism's canonical slug and differ only in wording, so a reader handed `collectivisation` still
+could not tell which table it named — the ambiguity would survive, just harder to see. A concept
+that restates a mechanism also has no independent job: it is one editorial fact in two places,
+which is the duplication Q1 forbids between `claim_relations` and `inference_*`. Concepts 6→4:
+`antisemitism`, `anti-zionism`, `zionism`, `historical-analogy`.
+
+**`card_concepts`: 0 → 12 across 8 cards**, each link carrying the card sentence that justifies
+it. Q2 forbids inventing associations for coverage, so 15 CONTEXT_DEPENDENT cards that could all
+be argued into `antisemitism` are absent — none of them say so.
+
+**`anti-zionism` is a deliberate orphan.** No card in the corpus discusses opposition to Zionism
+as a subject. The verifier names it as a recorded gap and still fails on any *new* orphan, so the
+check stays strict without inventing a link.
+
+**Concept is still excluded from both views**, but no longer on corpus grounds. `card_concepts` is
+populated; the blocker is that no reader path loads it, so the projection cannot emit a Concept
+node. That is projection work, not corpus work, and B1 now says so.

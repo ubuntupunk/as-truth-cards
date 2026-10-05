@@ -28,7 +28,9 @@ import { assertLocalHostFromEnv } from './url'
 const EXPECTED = {
   collections: 5,
   mechanisms: 14,
-  concepts: 6,
+  // Q2 resolved the mechanism/concept slug collision by removing the two concepts that restated
+  // an existing mechanism, leaving 3 subjects and 1 analytical frame.
+  concepts: 4,
   cards: 47,
   // 47 cards, 56 authored axis values: 38 single-axis cards and 9 two-axis cards.
   // Recomputed from the corpus rather than trusted, by the axis-preservation check below.
@@ -38,6 +40,8 @@ const EXPECTED = {
   // same way `cardAxes` did.
   locales: 1,
   cardLocales: 7,
+  // Recomputed from cardConceptLinksSeed by the concept-preservation check below.
+  cardConcepts: 12,
   // Recomputed from the three claim seed files by the claim-preservation check below.
   claims: 33,
   // The v0.11 increment: 5 direct claim relations, 3 bibliographic sources, 6 attributions.
@@ -68,6 +72,7 @@ async function snapshot(): Promise<Record<keyof typeof EXPECTED, number>> {
       (SELECT count(*)::int FROM trope_graph.collections)                      AS collections,
       (SELECT count(*)::int FROM trope_graph.mechanisms)                      AS mechanisms,
       (SELECT count(*)::int FROM trope_graph.concepts)                        AS concepts,
+      (SELECT count(*)::int FROM trope_graph.card_concepts)                  AS "cardConcepts",
       (SELECT count(*)::int FROM trope_graph.cards)                           AS cards,
       (SELECT count(*)::int FROM trope_graph.card_axes)                       AS "cardAxes",
       (SELECT count(*)::int FROM trope_graph.locales)                         AS locales,
@@ -385,6 +390,52 @@ async function integrityChecks(): Promise<{
     errors.push(
       `${sourceDupes.n} duplicate source title(s); the runner deduplicates on title, so a ` +
         'repeated title silently merges two source records',
+    )
+  }
+
+  // Issue #3 Q2 required resolving the mechanism/concept slug collision. Both tables have
+  // independent `slug` columns with no cross-table constraint, so a shared slug is invisible
+  // to the schema and to the seed: a reader given "collectivisation" cannot tell whether it
+  // names a move the text performs or a subject it is about. That is not a hypothetical — the
+  // vocabulary shipped two such collisions until this increment removed them.
+  const {
+    rows: [slugCollision],
+  } = await db.execute<{ slugs: string[] }>(sql`
+    SELECT coalesce(array_agg(m.slug), '{}') AS slugs FROM (
+      SELECT slug FROM trope_graph.mechanisms
+      INTERSECT
+      SELECT slug FROM trope_graph.concepts
+    ) m
+  `)
+  if (slugCollision && slugCollision.slugs.length > 0) {
+    errors.push(
+      `mechanism/concept slug collision on ${slugCollision.slugs.join(', ')}; a bare slug ` +
+        'would be ambiguous across the two tables, so these names must not be reused',
+    )
+  }
+
+  // Every concept must be reachable, and every card_concepts row must name a real card and a
+  // real concept. The second half is FK-guaranteed; the first is not, and an orphaned concept
+  // is a subject the project has vocabulary for but no card discusses.
+  const {
+    rows: [orphanConcepts],
+  } = await db.execute<{ slugs: string[] }>(sql`
+    SELECT coalesce(array_agg(c.slug), '{}') AS slugs
+    FROM trope_graph.concepts c
+    WHERE NOT EXISTS (SELECT 1 FROM trope_graph.card_concepts cc WHERE cc.concept_id = c.id)
+  `)
+  // `anti-zionism` is a known orphan and that is the honest state of the corpus: no card
+  // discusses opposition to Zionism as a subject, and inventing a link to make the table look
+  // complete is exactly what Q2 forbids. It is named here so the check stays strict — a new
+  // orphan fails, and this one is a recorded gap rather than a tolerated silence.
+  const KNOWN_ORPHAN_CONCEPTS: ReadonlySet<string> = new Set(['anti-zionism'])
+  const unexpectedOrphans = (orphanConcepts?.slugs ?? []).filter(
+    (slug) => !KNOWN_ORPHAN_CONCEPTS.has(slug),
+  )
+  if (unexpectedOrphans.length > 0) {
+    errors.push(
+      `orphaned concept(s) with no card link: ${unexpectedOrphans.join(', ')}; either link ` +
+        'a card whose text supports it, or record it as a known corpus gap',
     )
   }
 

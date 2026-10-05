@@ -14,6 +14,11 @@ import { identityRetrospectionClaims } from '../src/db/seed/identityRetrospectio
 import { newIdentityClaims } from '../src/db/seed/newIdentityClaims'
 import { referenceClaims } from '../src/db/seed/referenceClaims'
 import { corpusClaimSources, corpusSources } from '../src/db/seed/sourceLayer'
+import {
+  cardConceptLinksSeed,
+  conceptsSeed,
+  mechanismsSeed,
+} from '../src/db/seed/taxonomy'
 import type { ClaimSeed } from '../src/db/seed/types'
 
 /**
@@ -115,6 +120,46 @@ describe('seed claims', () => {
       .filter((c) => cardBySlug.get(c.cardSlug)?.status !== 'ESTABLISHED')
       .map((c) => `${c.slug} (${c.cardSlug} is ${cardBySlug.get(c.cardSlug)?.status})`)
     assert.deepEqual(wrongStatus, [])
+  })
+
+  it('does not inherit a claim status from the card that holds it', () => {
+    // Issue #3 D1: a claim decomposed from summary/editorialNotes does not inherit the card's
+    // epistemic status. The runner reads `seed.status` and never reads the card's status, so
+    // nothing enforces the rule here — which is why it is asserted directly.
+    //
+    // A blanket rule ("a claim's status must differ from its card's") would be wrong: it would
+    // force a false status on any claim that genuinely is as well-established as its card. So
+    // the check is the inverse. The corpus must be capable of expressing a status that differs
+    // from the card's, and it does so today (9 claims on CONTESTED cards are ESTABLISHED). If a
+    // future change collapsed claim status onto card status everywhere, this fails.
+    const divergent = allClaims.filter(
+      (c) => cardBySlug.get(c.cardSlug)?.status !== c.status,
+    )
+    assert.ok(
+      divergent.length > 0,
+      'no claim anywhere holds a status different from its card, so claim status is ' +
+        'indistinguishable from card status and D1 cannot be observed',
+    )
+
+    // And the 14 reference claims specifically: all sit on ESTABLISHED cards, so the data alone
+    // cannot distinguish an independent judgement from inheritance. Each is asserted ESTABLISHED
+    // deliberately because its statement is a documented historical or legal fact rather than an
+    // interpretive position. These two are the ones where the card's ESTABLISHED status could
+    // most easily have been copied onto a claim that is actually contestable, so they are named
+    // individually rather than left to a bulk assertion.
+    const contestable = [
+      'west-bank-and-gaza-residents-cannot-vote-in-them',
+      'israeli-national-elections-are-citizen-elections',
+    ]
+    for (const slug of contestable) {
+      const claim = referenceClaims.find((c) => c.slug === slug)
+      assert.ok(claim, `expected a reference claim named ${slug}`)
+      assert.equal(
+        claim.status,
+        'ESTABLISHED',
+        `${slug} is graded from the card's status, not its own warrant`,
+      )
+    }
   })
 
   it('gives every reference claim a stable slug', () => {
@@ -287,5 +332,61 @@ describe('seed sources', () => {
     // `evidence_items` is seeded by no file. It requires a located passage with verifiable
     // wording, so its emptiness is a decision, and this asserts the decision still holds.
     assert.equal(corpusSources.length > 0, true, 'sanity: the source layer is populated')
+  })
+})
+
+describe('seed concept links', () => {
+  it('does not reuse a mechanism slug as a concept slug', () => {
+    // Issue #3 Q2 required resolving this collision. Both columns are independent and
+    // unconstrained, so nothing but this check prevents the vocabulary from drifting back.
+    const mechanismSlugs: ReadonlySet<string> = new Set(mechanismsSeed.map((m) => m[0]))
+    const collisions = conceptsSeed
+      .map((c) => c[0])
+      .filter((slug) => mechanismSlugs.has(slug))
+    assert.deepEqual(
+      collisions,
+      [],
+      'a concept slug that is also a mechanism slug is ambiguous to any reader given the slug',
+    )
+  })
+
+  it('links only concepts and cards that exist', () => {
+    const conceptSlugs: ReadonlySet<string> = new Set(conceptsSeed.map((c) => c[0]))
+    const dangling = cardConceptLinksSeed
+      .filter(
+        (link) =>
+          !conceptSlugs.has(link.conceptSlug) ||
+          !cardBySlug.has(link.cardSlug),
+      )
+      .map((link) => `${link.cardSlug} -> ${link.conceptSlug}`)
+    assert.deepEqual(dangling, [], 'card_concepts would reference a row that does not exist')
+  })
+
+  it('cites the card text that justifies every link', () => {
+    // Q2 forbids inventing associations for coverage. Every link therefore carries the
+    // sentence it rests on, so a reviewer can check the link without re-reading the corpus.
+    const uncited = cardConceptLinksSeed
+      .filter((link) => !link.relationship || link.relationship.trim().length === 0)
+      .map((link) => `${link.cardSlug} -> ${link.conceptSlug}`)
+    assert.deepEqual(
+      uncited,
+      [],
+      'a concept link with no stated basis is an association invented for coverage',
+    )
+  })
+
+  it('does not duplicate a card/concept pair', () => {
+    const seen = new Set<string>()
+    const dupes: string[] = []
+    for (const link of cardConceptLinksSeed) {
+      const key = `${link.cardSlug}->${link.conceptSlug}`
+      if (seen.has(key)) dupes.push(key)
+      seen.add(key)
+    }
+    assert.deepEqual(
+      dupes,
+      [],
+      'the pair is the primary key, so a duplicate is silently dropped on insert',
+    )
   })
 })
