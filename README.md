@@ -75,20 +75,62 @@ from `dist/`, which does not fit a static or edge deployment model.
 
 ### What happens on deploy
 
-| Stage | Command | Purpose |
-|---|---|---|
-| Build | `corepack enable && pnpm install --frozen-lockfile && pnpm run build` | Installs dependencies, runs `prisma generate`, builds `dist/` via Vite |
-| Pre-deploy | `pnpm run db:migrate:deploy` | Applies pending Prisma migrations to the `public` schema |
-| Pre-deploy | `pnpm run trope-graph:migrate -- --allow-remote` | Applies pending Drizzle migrations to the `trope_graph` schema |
-| Start | `pnpm run start` | Runs `server/index.ts` via `tsx`; serves `dist/` and `/api/*` on `$PORT` |
-| Health | `GET /health` | Liveness probe wired to `healthCheckPath` |
+**The service currently runs on Render's `free` plan, which does not execute pre-deploy
+commands.** The pre-deploy rows below are configured but inert. See
+[Free-tier deploys](#free-tier-deploys-migrations-are-manual).
 
-**Both migration steps are required.** Nothing creates either schema automatically. A deploy
-that skips them produces a process that starts and then fails on first request.
+| Stage | Command | Runs on `free`? | Purpose |
+|---|---|---|---|
+| Build | `corepack enable && pnpm install --frozen-lockfile && pnpm run build` | yes | Installs dependencies, runs `prisma generate`, builds `dist/` via Vite |
+| Pre-deploy | `pnpm run db:migrate:deploy` | **no** | Applies pending Prisma migrations to the `public` schema |
+| Pre-deploy | `pnpm run trope-graph:migrate -- --allow-remote` | **no** | Applies pending Drizzle migrations to the `trope_graph` schema |
+| Pre-deploy | `pnpm run trope-graph:seed` | **no** | Loads the authored corpus into `trope_graph` |
+| Start | `pnpm run start` | yes | Runs `server/index.ts` via `tsx`; serves `dist/` and `/api/*` on `$PORT` |
+| Health | `GET /health` | n/a | Liveness endpoint; Render free tier port-scans instead of using `healthCheckPath` |
 
-The trope_graph step needs `--allow-remote` because it refuses a non-loopback host by
-default. Do not add `--reset` to it: `--reset` drops the whole `trope_graph` schema and
-rebuilds it, which is a destructive local-development tool, not a deploy step.
+**All three migration steps are required, and none runs automatically today.** Nothing
+creates either schema, and migrate alone creates `trope_graph` without populating it.
+
+### Free-tier deploys: migrations are manual
+
+Render logs `Predeploy command not run. Commands can only run on paid instance types` and
+then promotes the build anyway, reporting success. **A green deploy on the free tier proves
+only that the build succeeded and the process started.** It says nothing about the schema.
+
+When migrating by hand is required — after any commit touching `prisma/migrations/`,
+`trope-cards/src/db/migrations/`, or anything the seeder reads under `trope-cards/src/db/seed/`
+— run all three, in order:
+
+```sh
+pnpm run db:migrate:deploy
+pnpm run trope-graph:migrate -- --allow-remote
+TROPE_GRAPH_ALLOW_REMOTE=1 pnpm run trope-graph:seed
+```
+
+`TROPE_GRAPH_ALLOW_REMOTE=1` is required on the third command. The seeder reads that
+variable and has no `--allow-remote` flag of its own; without it it exits with
+`Refusing to touch non-local database host`, after the first two commands have already run.
+
+Symptoms of skipping this, and what they mean:
+
+| Symptom | Cause |
+|---|---|
+| `/api/graph/views` → 500, `relation "trope_graph.cards" does not exist` | `trope_graph` was never created; run the graph migrate |
+| Graph endpoints answer 200 but every view is empty or `data_blocked` | schema exists, seed never ran |
+| Graph shows stale claims or a missing Concept | seed is behind the corpus; re-run it — it is idempotent |
+| Deploy fails at start with `BETTER_AUTH_SECRET is not set` | secret missing from the service env; unrelated to migrations |
+
+All three commands are safe to re-run. The seeder upserts by slug and id and
+`trope-graph:verify` asserts `"idempotent": true`, so re-seeding is the normal way to push a
+corpus change to production.
+
+Upgrading to the `starter` plan re-enables the pre-deploy chain automatically; `plan` in
+`render.yaml` is the single line that changes. Note that Render's free tier spins down after
+inactivity, so the first request to a cold instance can take tens of seconds.
+
+The graph migrate needs `--allow-remote` because it refuses a non-loopback host by default.
+Do not add `--reset` to it: `--reset` drops the whole `trope_graph` schema and rebuilds it,
+which is a destructive local-development tool, not a deploy step.
 
 ### Environment variables
 
@@ -102,6 +144,7 @@ Set the `sync: false` variables in the Render dashboard. They are deliberately n
 | `BETTER_AUTH_URL` | yes | Public origin, e.g. `https://as-truth-cards.onrender.com`. Better Auth validates the `Origin` header against it |
 | `NODE_ENV` | set by blueprint | `production`, which is what enables serving `dist/` |
 | `TROPE_GRAPH_DATABASE_URL` | no | Only if the graph lives in a *different* database from the host app. Takes precedence over `DATABASE_URL`. Do not set it to an empty string — that is not treated as unset |
+| `TROPE_GRAPH_ALLOW_REMOTE` | set by blueprint | `1`. Required for the manual seed step above; the seeder and verifier read this and have no CLI flag |
 | `PORT` | set by Render | Injected automatically; `server/index.ts` falls back to `3001` |
 
 ### Why `BETTER_AUTH_SECRET` is required and enforced at startup
@@ -114,16 +157,12 @@ Local development uses a different set — see `.env.example`.
 
 ### Deploying by hand
 
-For an out-of-band deploy (for example, a one-off migration against a hosted database):
+For an out-of-band deploy, or for any migration on the free tier, run the three commands in
+[Free-tier deploys](#free-tier-deploys-migrations-are-manual).
 
-```sh
-pnpm run db:migrate:deploy
-pnpm run trope-graph:migrate -- --allow-remote
-```
-
-Migrations are the only database-writing step in the deploy path. The application itself is
-read-only with respect to `trope_graph`: the graph API projects from live queries on each
-request and never migrates or seeds as a side effect of serving traffic.
+Migrations and seeding are the only database-writing steps in the deploy path. The
+application itself is read-only with respect to `trope_graph`: the graph API projects from
+live queries on each request and never migrates or seeds as a side effect of serving traffic.
 
 ### What is still transitional
 

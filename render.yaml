@@ -41,15 +41,22 @@ services:
   - type: web
     name: as-truth-cards
     runtime: node
-    plan: starter
-    region: oregon
+    # `free` is deliberate and current, not an oversight. It is what the live service
+    # (srv-d7372tfkijhs73dbihjg) actually runs on, and this file is kept in agreement with
+    # reality so that applying it never silently changes billing. Its cost is that Render
+    # will not run `preDeployCommand` -- see the long note on that line below.
+    #
+    # Upgrading to `starter` is the one-line change that re-enables automatic migrations.
+    plan: free
+    region: ohio
 
     # pnpm, because the repository is locked with pnpm-lock.yaml. `npm install` ignores
     # that lockfile and resolves different versions from the registry.
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm run build
 
-    # Migrations run before the new version goes live, not at build time, so a failed
-    # migration aborts the deploy instead of shipping a process against a stale schema.
+    # This is where migrations belong: before the new version goes live, not at build time,
+    # so a failed migration aborts the deploy instead of shipping a process against a stale
+    # schema. Read the free-plan note below before trusting any of it.
     #
     # `trope-graph:seed` is not optional. Migrate creates the 39 `trope_graph` tables and stops;
     # without a seed the schema is empty and every graph endpoint reports itself data_blocked.
@@ -62,13 +69,21 @@ services:
     # The seeder has no flag of its own -- it reads TROPE_GRAPH_ALLOW_REMOTE from the
     # environment -- so that variable below is what lets this step reach production.
     #
-    # REQUIRES A PAID PLAN. Render skips pre-deploy commands on free instances and logs
-    # `Predeploy command not run. Commands can only run on paid instance types`, then
-    # promotes the build anyway. On free that is silent and dangerous: the deploy reports
-    # success while the schema is stale, the graph schema may not exist at all, and
-    # /api/graph/views answers 500 on `relation "trope_graph.cards" does not exist`. The
-    # service must stay on `starter` (below). If it is ever downgraded, run the three
-    # commands above by hand before trusting a green deploy.
+    # INERT ON THE `free` PLAN. Render does not run pre-deploy commands on free instances. It
+    # logs `Predeploy command not run. Commands can only run on paid instance types` and then
+    # promotes the build anyway, reporting success. A green deploy on `free` therefore proves
+    # only that the build and the process start worked -- it says nothing about the schema.
+    #
+    # Until the plan is upgraded, run this by hand before trusting a deploy. See
+    # README.md ("Deploying") for the full runbook:
+    #
+    #   pnpm run db:migrate:deploy
+    #   pnpm run trope-graph:migrate -- --allow-remote
+    #   TROPE_GRAPH_ALLOW_REMOTE=1 pnpm run trope-graph:seed
+    #
+    # Run it whenever a commit touches `prisma/migrations/`, `trope-cards/src/db/migrations/`
+    # or anything the seeder reads (`trope-cards/src/db/seed/`). Seeding is idempotent, so
+    # re-running all three is always safe and is how corpus changes reach production.
     preDeployCommand: pnpm run db:migrate:deploy && pnpm run trope-graph:migrate -- --allow-remote && pnpm run trope-graph:seed
 
     # `tsx` executes server/index.ts directly; there is no server-side compile step.
