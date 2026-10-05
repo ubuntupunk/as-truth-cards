@@ -76,12 +76,12 @@ export function step(over: Partial<InferenceStepRow> & { id: string }): Inferenc
 
 /** A classification link row, for either collections or mechanisms. */
 export function link(
-  over: { cardId: string; slug: string; name?: string },
+  over: { cardId: string; slug: string; name?: string; id?: string },
 ): CardCollectionRow & CardMechanismRow {
   return {
     cardId: over.cardId,
-    collectionId: over.slug,
-    mechanismId: over.slug,
+    collectionId: over.id ?? over.slug,
+    mechanismId: over.id ?? over.slug,
     slug: over.slug,
     name: over.name ?? over.slug,
     description: null,
@@ -96,11 +96,22 @@ export function link(
  * may carry several locales while the other dimensions are single-valued.
  */
 export function localeLink(
-  over: { cardId: string; slug: string; name?: string; description?: string | null },
+  over: {
+    cardId: string
+    slug: string
+    name?: string
+    description?: string | null
+    /**
+     * Taxonomy id, defaulting to the slug. Passed explicitly when a test needs the same slug
+     * to resolve to different ids in different taxonomies, which is what the real seeded
+     * corpus does for `south-africa`.
+     */
+    id?: string
+  },
 ): CardLocaleRow {
   return {
     cardId: over.cardId,
-    localeId: over.slug,
+    localeId: over.id ?? over.slug,
     slug: over.slug,
     name: over.name ?? over.slug,
     description: over.description ?? null,

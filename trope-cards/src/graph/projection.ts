@@ -1085,6 +1085,11 @@ function groupCardClassifications<T extends ClassificationSource>(
  * mutable curation bucket, so a card in the `south-africa` suit is not thereby about South
  * Africa. There is deliberately no default and no fallback here — a card with no locale rows
  * reports an empty list rather than a guess.
+ *
+ * Suits report ids alongside slugs for the same reason locales do: `collections` and
+ * `locales` share the slug `south-africa`, and four cards are in both. A consumer comparing
+ * the two lists needs the ids to tell the taxonomies apart, so slug equality between
+ * `suits` and `localeSlugs` carries no meaning on its own.
  */
 function buildCardClassification(
   axes: readonly AxisAssignment[],
@@ -1095,6 +1100,7 @@ function buildCardClassification(
   return {
     axes,
     suits: suits.map((suit) => suit.slug),
+    suitIds: suits.map((suit) => suit.linkId),
     mechanismSlugs: mechanisms.map((mechanism) => mechanism.slug),
     mechanismIds: mechanisms.map((mechanism) => mechanism.linkId),
     localeSlugs: locales.map((locale) => locale.slug),

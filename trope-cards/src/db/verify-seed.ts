@@ -28,6 +28,11 @@ const EXPECTED = {
   // 47 cards, 56 authored axis values: 38 single-axis cards and 9 two-axis cards.
   // Recomputed from the corpus rather than trusted, by the axis-preservation check below.
   cardAxes: 56,
+  // The regional taxonomy and its links. The link total is recomputed from the corpus by the
+  // locale-preservation check below, since a hand-maintained constant here would drift the
+  // same way `cardAxes` did.
+  locales: 1,
+  cardLocales: 7,
   claims: 19,
   relationships: 11,
   inferenceSteps: 4,
@@ -55,6 +60,8 @@ async function snapshot(): Promise<Record<keyof typeof EXPECTED, number>> {
       (SELECT count(*)::int FROM trope_graph.concepts)                        AS concepts,
       (SELECT count(*)::int FROM trope_graph.cards)                           AS cards,
       (SELECT count(*)::int FROM trope_graph.card_axes)                       AS "cardAxes",
+      (SELECT count(*)::int FROM trope_graph.locales)                         AS locales,
+      (SELECT count(*)::int FROM trope_graph.card_locales)                    AS "cardLocales",
       (SELECT count(*)::int FROM trope_graph.claims)                          AS claims,
       (SELECT count(*)::int FROM trope_graph.relationships)                   AS relationships,
       (SELECT count(*)::int FROM trope_graph.inference_steps)                 AS "inferenceSteps",
@@ -197,6 +204,63 @@ async function integrityChecks(): Promise<{
           `[${authored.join(', ')}] but persisted [${stored.join(', ')}]`,
       )
     }
+  }
+
+  // Locale has the same per-card-loss blind spot as axis, and one more hazard: a locale is a
+  // statement about the card's setting, so an untagged card that acquires one is as wrong as
+  // a tagged card that loses it. Both directions are checked against the corpus.
+  const authoredLocaleTotal = cardCorpus.reduce(
+    (n, c) => n + (c.locales?.length ?? 0),
+    0,
+  )
+  if (authoredLocaleTotal !== EXPECTED.cardLocales) {
+    errors.push(
+      `EXPECTED.cardLocales is ${EXPECTED.cardLocales} but the corpus authors ` +
+        `${authoredLocaleTotal} locale links across ${cardCorpus.length} cards; ` +
+        'update EXPECTED when the corpus changes',
+    )
+  }
+
+  const { rows: persistedLocales } = await db.execute<{
+    slug: string
+    locale_slug: string
+  }>(sql`
+    SELECT c.slug, l.slug AS locale_slug
+    FROM trope_graph.card_locales cl
+    JOIN trope_graph.cards c ON c.id = cl.card_id
+    JOIN trope_graph.locales l ON l.id = cl.locale_id
+    ORDER BY c.slug, l.slug
+  `)
+  const persistedByCard = new Map<string, string[]>()
+  for (const row of persistedLocales) {
+    const list = persistedByCard.get(row.slug)
+    if (list) list.push(row.locale_slug)
+    else persistedByCard.set(row.slug, [row.locale_slug])
+  }
+  for (const card of cardCorpus) {
+    const authored = [...(card.locales ?? [])].sort()
+    const stored = (persistedByCard.get(card.slug) ?? []).slice().sort()
+    if (stored.join(',') !== authored.join(',')) {
+      errors.push(
+        `card "${card.slug}": authored locale [${authored.join(', ') || 'none'}] but ` +
+          `persisted [${stored.join(', ') || 'none'}]`,
+      )
+    }
+  }
+
+  // A locale nobody uses is dead weight in the taxonomy, and a locale used by nobody means a
+  // curator selecting it gets an empty suite.
+  const {
+    rows: [deadLocale],
+  } = await db.execute<{ n: number }>(sql`
+    SELECT count(*)::int AS n FROM trope_graph.locales l
+    WHERE NOT EXISTS (SELECT 1 FROM trope_graph.card_locales cl WHERE cl.locale_id = l.id)
+  `)
+  if (!deadLocale) throw new Error('Dead-locale query returned no row.')
+  if (deadLocale.n > 0) {
+    errors.push(
+      `${deadLocale.n} locale(s) have no cards, so selecting one yields an empty suite`,
+    )
   }
 
   const {
