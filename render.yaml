@@ -6,12 +6,34 @@
 #
 # Deploy path, in order:
 #   build  pnpm install -> prisma generate (postinstall) -> vite build -> dist/
-#   pre-deploy  prisma migrate deploy, then the trope_graph Drizzle migrations
+#   pre-deploy  prisma migrate deploy, then the trope_graph Drizzle migrations, then the
+#               trope_graph seed
 #   start  tsx server/index.ts, which serves dist/ and /api/* on $PORT
 #
-# Both migration steps are required. Omitting them deploys a process that boots and then
-# fails on first request, because neither the Prisma `public` schema nor the Drizzle
-# `trope_graph` schema is created automatically.
+# All three pre-deploy steps are required. Omitting the migrations deploys a process that boots
+# and then fails on first request, because neither the Prisma `public` schema nor the Drizzle
+# `trope_graph` schema is created automatically. Omitting the seed deploys a healthy process
+# whose graph tables exist but are empty.
+#
+# ONE-TIME PRODUCTION ADOPTION REQUIRED. The `public` schema on Neon was created before the
+# Prisma migration ledger existed: `cards`, `user_profiles` and `user_interactions` are present
+# with data, the three enums exist, and `public._prisma_migrations` does not. `prisma migrate
+# deploy` therefore replays `20251021000000_baseline_existing_schema`, whose bare `CREATE TYPE` /
+# `CREATE TABLE` statements collide with what is already there, and fails with P3018 /
+# SQLSTATE 42710 `type "UserRole" already exists`. That aborts pre-deploy before the graph
+# migrations run, which is why `trope_graph` has never existed in production.
+#
+# Resolve it once, by hand, before the next deploy:
+#
+#   pnpm exec prisma migrate resolve --applied 20251021000000_baseline_existing_schema
+#   pnpm run db:migrate:deploy
+#   pnpm run trope-graph:migrate -- --allow-remote
+#   pnpm run trope-graph:seed
+#
+# `resolve --applied` records the baseline without executing it, which is accurate here: the
+# existing `cards` table matches the baseline column for column. The subsequent deploy then
+# applies only `20260930210000_better_auth_users`, whose leading `DROP TABLE "user_profiles"`
+# discards 0 rows. After that every deploy is a no-op until the corpus changes.
 #
 # Secrets are entered in the Render dashboard and are not stored here.
 
@@ -28,7 +50,17 @@ services:
 
     # Migrations run before the new version goes live, not at build time, so a failed
     # migration aborts the deploy instead of shipping a process against a stale schema.
-    preDeployCommand: pnpm run db:migrate:deploy && pnpm run trope-graph:migrate -- --allow-remote
+    #
+    # `trope-graph:seed` is not optional. Migrate creates the 39 `trope_graph` tables and stops;
+    # without a seed the schema is empty and every graph endpoint reports itself data_blocked.
+    # The corpus is authored in this repository and reaches production only through this step, so
+    # a deploy that omits it ships the previous corpus no matter what the commit contains. The
+    # seeder is idempotent (it upserts by slug/id and `trope-graph:verify` asserts
+    # `"idempotent": true`), so re-running it on every deploy is what keeps production current.
+    #
+    # `--allow-remote` is required because DATABASE_URL is a Neon endpoint, not loopback.
+    # `trope-graph:seed` needs no such flag; only migrate and verify check the host.
+    preDeployCommand: pnpm run db:migrate:deploy && pnpm run trope-graph:migrate -- --allow-remote && pnpm run trope-graph:seed
 
     # `tsx` executes server/index.ts directly; there is no server-side compile step.
     # It is a devDependency, so `pnpm install` must not be run with --prod. Render
