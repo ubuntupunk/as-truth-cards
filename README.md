@@ -81,7 +81,7 @@ commands.** The pre-deploy rows below are configured but inert. See
 
 | Stage | Command | Runs on `free`? | Purpose |
 |---|---|---|---|
-| Build | `corepack enable && pnpm install --frozen-lockfile && pnpm run build` | yes | Installs dependencies, runs `prisma generate`, builds `dist/` via Vite |
+| Build | `pnpm install --frozen-lockfile && pnpm run build` | yes | Installs dependencies, runs `prisma generate`, builds `dist/` via Vite |
 | Pre-deploy | `pnpm run db:migrate:deploy` | **no** | Applies pending Prisma migrations to the `public` schema |
 | Pre-deploy | `pnpm run trope-graph:migrate -- --allow-remote` | **no** | Applies pending Drizzle migrations to the `trope_graph` schema |
 | Pre-deploy | `pnpm run trope-graph:seed` | **no** | Loads the authored corpus into `trope_graph` |
@@ -123,6 +123,16 @@ Symptoms of skipping this, and what they mean:
 All three commands are safe to re-run. The seeder upserts by slug and id and
 `trope-graph:verify` asserts `"idempotent": true`, so re-seeding is the normal way to push a
 corpus change to production.
+
+### Build notes
+
+Do not add `corepack enable` to the build command. Render's image already puts pnpm on
+`PATH`, and corepack tries to unlink `/usr/bin/pnpm` to install its own shim, which fails with
+`EROFS: read-only file system` and fails the build before anything else runs.
+
+Use `&&`, not `;`, between install and build. With `;` the build runs even when the install
+fails, producing a bundle assembled from a half-installed `node_modules` rather than a clean
+failure.
 
 Upgrading to the `starter` plan re-enables the pre-deploy chain automatically; `plan` in
 `render.yaml` is the single line that changes. Note that Render's free tier spins down after
