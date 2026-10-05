@@ -384,6 +384,54 @@ describe('invariant 5b: locale is a dimension of its own', () => {
     )
   })
 
+  it('reports suit ids alongside suit slugs, so a client can resolve a shared slug', async () => {
+    // `collections` and `locales` both contain the slug `south-africa`. That is deliberate: a
+    // suite curated from a locale should carry the locale's name. It also means a slug is not
+    // a key a client may act on, so suits must report ids the way locales and mechanisms do.
+    const corpus = richCorpus()
+    corpus.cardCollections = [
+      link({ cardId: 'card-1', slug: 'south-africa', name: 'South Africa', id: 'col-1' }),
+    ]
+    corpus.cardLocales = [
+      localeLink({
+        cardId: 'card-1',
+        slug: 'south-africa',
+        name: 'South Africa',
+        id: 'loc-1',
+      }),
+    ]
+    const { result } = await project(corpus, { depth: 1 })
+    const cardNode = nodesOfType(result.nodes, 'card')[0] as CardNode
+    const { suits, suitIds, localeSlugs, localeIds } = cardNode.classification
+
+    assert.deepEqual([...suits], ['south-africa'])
+    assert.deepEqual([...localeSlugs], ['south-africa'])
+    assert.deepEqual([...suitIds], ['col-1'])
+    assert.deepEqual([...localeIds], ['loc-1'])
+    assert.equal(suitIds.length, suits.length, 'suit ids must stay parallel to suit slugs')
+    assert.equal(localeIds.length, localeSlugs.length)
+    assert.notDeepEqual(
+      [...suitIds],
+      [...localeIds],
+      'the shared slug must resolve to two different ids, or the taxonomies are one table',
+    )
+  })
+
+  it('leaves suit ids empty for a card that has a locale but no collection', async () => {
+    // Guards the ids against a default: a seeder or reader that filled a missing suit would
+    // turn "uncurated" into a claim, and the ids would hide it behind a plausible value.
+    const corpus = richCorpus()
+    corpus.cardCollections = []
+    corpus.cardLocales = [
+      localeLink({ cardId: 'card-1', slug: 'south-africa', name: 'South Africa' }),
+    ]
+    const { result } = await project(corpus, { depth: 1 })
+    const cardNode = nodesOfType(result.nodes, 'card')[0] as CardNode
+    assert.deepEqual([...cardNode.classification.suits], [])
+    assert.deepEqual([...cardNode.classification.suitIds], [])
+    assert.deepEqual([...cardNode.classification.localeSlugs], ['south-africa'])
+  })
+
   it('never infers a locale from the suit, in either direction', async () => {
     const corpus = richCorpus()
     corpus.cardCollections = [

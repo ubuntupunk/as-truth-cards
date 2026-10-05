@@ -212,8 +212,21 @@ export type CardClassification = {
    * vocabulary against Issue #2's proposed five values; the projection reports what the
    * database holds and invents no mapping. In particular it never maps epistemic
    * `CONTESTED` onto a Suit called `contested`.
+   *
+   * Display-only. Consumers that need to act on a Suit — resolving it, comparing it, or
+   * curating with it — must use {@link suitIds}, because `locales` legitimately contains a
+   * slug of the same name.
    */
   readonly suits: readonly string[]
+  /**
+   * `collections.id` for each entry of {@link suits}, in the same order.
+   *
+   * Present because `locales` and `collections` are separate taxonomies that share at least
+   * one slug (`south-africa` names both, and four cards are in both). Slug equality across
+   * those two lists therefore means nothing on its own, so a client that cannot ask the
+   * database which `south-africa` was meant has no way to tell a Suit from a Locale.
+   */
+  readonly suitIds: readonly string[]
   readonly mechanismSlugs: readonly string[]
   readonly mechanismIds: readonly string[]
   /**

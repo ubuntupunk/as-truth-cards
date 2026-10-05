@@ -238,6 +238,7 @@ In particular:
 - Mechanisms and Concepts are analytical dimensions.
 - Locale is intrinsic geographic/social context and is many-to-many (a card may be set in more than one locale).
 - **Locale must not be inferred from Suit or Collection.** A Suit is a mutable curation bucket; membership in a `south-africa` collection does not make a card a South Africa card. Locale is read from `card_locales` alone, and a card with no locale rows reports none.
+- **`collections` and `locales` may share a slug, and that is intentional.** `south-africa` names both, because a suite curated from a locale should carry the locale's name. Disambiguation is therefore at the boundary, not in the slug: every classification dimension reports slugs *and* ids as parallel pairs, so consumers resolve by id; and any future filter must take a dimension-qualified parameter name (`locale=` never reuses a suit parameter). A slug is for display, not for action.
 - Graph libraries may use these values for filtering or styling, but must not redefine them.
 
 This remains governed by the separate Suit/Axis ontology work.

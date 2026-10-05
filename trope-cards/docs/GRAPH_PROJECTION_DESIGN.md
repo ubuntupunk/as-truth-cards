@@ -139,13 +139,29 @@ The words SUPPORTS/CHALLENGES/QUALIFIES/CONTEXTUALISES appear in **five** differ
 **The shared `south-africa` slug.** Locale is authored with slug `south-africa`, which is also
 a `collections` slug. Four cards satisfy both at once, and three more are South Africa cards
 curated under `zionism-coded` or `fact-rebuttal`, which is what proves the dimensions are not
-the same list. The collision is safe only because the two are separate tables with separate
-ids and independently unique slugs, and because the projection reports suits as slugs while
-locales carry both slugs and ids. A client that resolves `south-africa` without knowing which
-taxonomy it was given would still get this wrong, so any future locale filter must take the
-parameter under its own name rather than reusing a suit parameter.
+the same list. The collision is deliberate rather than accidental: a suite curated from a locale
+should carry the locale's name.
 
-**Locale has no edge in v1.** `card_locales` rides on card metadata (`classification.locales[]`) like `card_axes` does, and is deliberately *not* projected as a `collection`-shaped node or an `IN_SUIT` edge: locale is intrinsic context rather than a curation bucket, so modelling it as membership would invite exactly the suit→locale inference Issue #6 forbids. It becomes a node type only if a future view needs to traverse locale→cards as edges rather than filter on them.
+The disambiguation happens **at the boundary, not in the slug**. Two rules carry it:
+
+1. **Slugs are display-only; act on ids.** `CardClassification` reports `suits`/`suitIds`,
+   `mechanismSlugs`/`mechanismIds` and `localeSlugs`/`localeIds` as parallel pairs. So a client
+   never has to ask "which `south-africa` was meant?" — it resolves by id. `suitIds` was added for
+   exactly this reason: locales and mechanisms already reported ids, suits were the odd one out,
+   and the asymmetry left a consumer with no way to tell the two lists apart.
+2. **Parameters are dimension-qualified.** A future locale filter takes `locale=`, never a
+   reused suit parameter, and no bare `slug=` may resolve across taxonomies.
+
+`graph-locale.integration.test.ts` asserts rule 1 against a real database: the shared slug
+resolves to two different rows. A client that ignored ids and matched on slug alone would still
+get this wrong, which is why the pairing is enforced rather than documented.
+
+Curating a suite *from* a locale — listing a locale's cards so a curator can pick candidates —
+needs a listing path this design does not have: every view here is focus-anchored on one card.
+Tracked as `as-truth-cards-572`, deliberately outside `/api/graph` so the read-only guarantee
+above stays true.
+
+**Locale has no edge in v1.** `card_locales` rides on card metadata (`classification.localeSlugs[]`) like `card_axes` does, and is deliberately *not* projected as a `collection`-shaped node or an `IN_SUIT` edge: locale is intrinsic context rather than a curation bucket, so modelling it as membership would invite exactly the suit→locale inference Issue #6 forbids. It becomes a node type only if a future view needs to traverse locale→cards as edges rather than filter on them.
 
 ---
 
@@ -491,11 +507,17 @@ with `meta.warnings[]`, never a 404 — a card with no claims is a fact, not a f
 
 | Suite | Count | Runs without a database |
 |---|---|---|
-| Unit (fake reader): projection, views, query | 140 | yes |
+| Unit (fake reader): projection, views, query | 142 | yes |
 | Locale unit: schema shape, seed corpus | 23 | yes |
 | Integration (live SQL): projection over all 47 seeded cards | 18 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
 | Axis integration (pre-existing) | 7 | no — unchanged |
-| Locale integration (Issue #6) | 0 | no — **gap: `card_locales` has no live integration test** |
+| Locale integration (Issue #6) | 8 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
+
+165 unit tests pass with no database configured; 196 pass with one. The locale integration suite
+closes the gap flagged when Issue #6 was written: it asserts each card kept the locale it was
+authored with, that an untagged card stays untagged, that no locale is dead, that the shared
+`south-africa` slug resolves to two different rows, and that a card survives a projection through
+the **real** Drizzle reader rather than the fake.
 
 The integration suite exists because a fake cannot catch a wrong column list or a missed join: it
 hands back exactly the shape the port declares. It projects **every** seeded card, not a sample,

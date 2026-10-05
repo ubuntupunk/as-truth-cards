@@ -716,6 +716,8 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
       concepts: await count(concepts),
       cards: await count(cards),
       cardAxes: await count(cardAxes),
+      locales: await count(locales),
+      cardLocales: await count(cardLocales),
       claims: await count(claims),
       relationships: await count(relationships),
       inferenceSteps: await count(inferenceSteps),
