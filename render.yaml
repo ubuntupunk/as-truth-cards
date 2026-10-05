@@ -52,7 +52,16 @@ services:
 
     # pnpm, because the repository is locked with pnpm-lock.yaml. `npm install` ignores
     # that lockfile and resolves different versions from the registry.
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm run build
+    #
+    # `&&`, not `;`. With `;` the build runs even when the install fails, so a broken
+    # lockfile produces a bundle assembled from a half-installed node_modules instead of a
+    # clean failure.
+    #
+    # No `corepack enable`. Render's image already provides pnpm on PATH, and corepack tries
+    # to unlink `/usr/bin/pnpm` to install its own shim, which fails with
+    # `EROFS: read-only file system` and breaks the build outright. Verified on the live
+    # service: adding corepack failed every deploy; removing it built cleanly.
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
 
     # This is where migrations belong: before the new version goes live, not at build time,
     # so a failed migration aborts the deploy instead of shipping a process against a stale
