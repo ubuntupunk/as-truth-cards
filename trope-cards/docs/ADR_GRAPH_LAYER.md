@@ -93,6 +93,11 @@ Computed metrics are derived data unless a later decision explicitly promotes a 
 
 Graphology objects must not be persisted as the domain model.
 
+Graphology is the **only** place traversal, reachability, components, centrality and other graph
+algorithms are implemented. A presentation library must not reimplement them for rendering; it may
+consume Graphology-derived values, but only as explicitly derived metadata, never as canonical
+facts.
+
 ### 3.3 Presentation layer — UI
 
 Cytoscape.js is the initial candidate for interactive graph presentation.
@@ -109,6 +114,25 @@ It may provide:
 - interaction between graph nodes and Card/Claim/Source views
 
 Cytoscape element shapes and styling are presentation concerns and must not become ontology semantics.
+
+The boundary, now that both adapters exist, is that each downstream layer consumes exactly one
+thing — the domain projection `{nodes, edges, meta}` from `types.ts` — and reads no database:
+
+```
+Postgres / Drizzle
+   → projection (which nodes and edges a view + focus + depth may see)   ← the only authority
+   → Graphology (analysis, optional, ephemeral)
+   → Cytoscape (presentation, ephemeral)
+```
+
+Neither downstream layer may widen what the projection emitted, infer a relation that was not
+authored, collapse two edge vocabularies into one relation word, or persist anything.
+
+**Mutations made in a Cytoscape view are not persisted.** There is no write-back path, by design.
+A view renders a depth-bounded, filtered slice, so an edit made there is an edit asserted *in a
+projection*, not a statement about the ontology; promoting one would require deciding which view
+made the claim and with what authority. Layout, styling and interaction are the presentation
+layer's business; persistence is not.
 
 ## 4. API boundary
 
@@ -251,7 +275,7 @@ This remains governed by the separate Suit/Axis ontology work.
 - Drizzle
 - Existing `trope_graph` migrations and schema
 - Graphology `0.26.0` for server-side/in-memory graph computation (pinned; added with the §9 step 4 adapter)
-- Cytoscape.js for the initial interactive graph UI
+- Cytoscape.js `^3.34.3` for the initial interactive graph UI (added with the §9 step 6 adapter; a **devDependency** while the adapter imports only its types — promote it when UI code imports the runtime)
 - Existing Vite + Express host during integration
 
 ### Do not introduce
@@ -277,7 +301,14 @@ A future change of visualization library should not require an ontology or API r
 5. Add graph algorithms behind the API. **Partially done:** bounded traversal/reachability, degree
    and connected components. Centrality, shortest path and clustering are deliberately held back —
    on the seeded ontology they would measure the projection's depth cap rather than the corpus.
-6. Add Cytoscape as a lazy-loaded graph view.
+6. ~~Add Cytoscape as a lazy-loaded graph view.~~ **Adapter done.** `src/graph/cytoscape-adapter.ts`
+   converts a projection to `ElementDefinition[]` plus a `context` bag, deterministically, with no
+   database access and no `cytoscape.Core` instantiated. It copies ids, direction, `family`,
+   `relation`, `sourceTable`, `traversal` and per-node `status`/`classification`/`metadata`
+   unchanged, and derives only stylesheet `classes`. It deliberately does **not** resolve the
+   open type-qualified `GraphNode` id question; it refuses id collisions instead, because
+   Cytoscape silently merges duplicate ids and silently discards an edge whose id matches a node
+   id. The UI itself (layout, stylesheet, lazy-loading) remains.
 7. Connect Card, Claim, Source, Evidence, and Argument views to graph selections.
 8. Add richer graph projections as the corpus becomes populated.
 9. Consider persisted derived metrics only when there is a demonstrated product need.
