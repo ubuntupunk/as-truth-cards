@@ -86,13 +86,15 @@ const CARD_ARGUMENT_TAXONOMY: GraphViewRule = {
     {
       type: 'concept',
       reason:
-        'The corpus task Q2 assigned is done — card_concepts has 12 rows and the ' +
-        'mechanism/concept slug collision is resolved (concepts 6 -> 4; the two concepts ' +
-        'that restated an existing mechanism were removed rather than renamed). Concept is ' +
-        'still excluded here for a different reason: no reader path loads card_concepts, so ' +
-        'the projection has no way to emit a Concept node or its card edges. Admitting the ' +
-        'node type is a projection change, not a corpus change, and the view does not ' +
-        'pretend otherwise.',
+        'A scope decision, not a data gap: card_concepts has 12 authored rows and the reader ' +
+        'now projects them. This view is scoped by its own nodeTypes and description to Suit, ' +
+        'Mechanism, Axis, Claim, step and card-to-card links, and it was chosen because it is ' +
+        'the projection fully populated for all 47 cards — Concept reaches 8 of them, so ' +
+        'admitting it here would make this view report an association for a minority of ' +
+        'cards and silence for the rest, which is the asymmetry the view choice exists to ' +
+        'avoid. The taxonomy view is the declared home for browse-and-classify structure and ' +
+        'does emit Concept. Admitting Concept to this view later is a one-line nodeTypes ' +
+        'change with no reader or ontology work outstanding.',
     },
     {
       type: 'argument_chain',
@@ -154,14 +156,12 @@ const TAXONOMY: GraphViewRule = {
   focusTypes: ['card', 'mechanism', 'collection'],
   nodeTypes: ['card', 'collection', 'mechanism', 'concept'],
   edgeFamilies: ['classification'],
-  excludedNodeTypes: [
-    {
-      type: 'concept',
-      reason:
-        'card_concepts is populated and Q2 is resolved, but no reader path loads it. ' +
-        'Admitting Concept needs a projection change; see the v1 exclusion for detail.',
-    },
-  ],
+  // Nothing excluded. Concept was the last holdout and it is now emitted: this view's own
+  // description named "Mechanism / Concept / Suit structure" and its nodeTypes already listed
+  // `concept`, so the contract said yes before the reader existed. No new view was invented and
+  // no edge vocabulary was reused — Card -> Concept is `HAS_CONCEPT`, distinct from
+  // `HAS_MECHANISM`, because the two tables have no cross-mapping.
+  excludedNodeTypes: [],
   nonNodeStructures: [],
   maxDepth: 3,
 }

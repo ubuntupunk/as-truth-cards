@@ -143,6 +143,24 @@ export type CardMechanismRow = {
   readonly description: string | null
 }
 
+/**
+ * One `card_concepts` row joined to its `concepts` row.
+ *
+ * `relationship` is free authored text on the join table, nullable, and no vocabulary constrains
+ * it. It is returned verbatim: it is the only place the editorial reason for a Card -> Concept
+ * association is recorded, so normalising or dropping it would destroy the only authored
+ * justification. Contrast `card_mechanisms`, which has no such column.
+ */
+export type CardConceptRow = {
+  readonly cardId: string
+  readonly conceptId: string
+  readonly slug: string
+  readonly name: string
+  /** `concepts.definition`. Mechanism and Collection store `description` instead. */
+  readonly definition: string | null
+  readonly relationship: string | null
+}
+
 /** One `card_locales` row joined to its `locales` row. */
 export type CardLocaleRow = {
   readonly cardId: string
@@ -182,6 +200,7 @@ export type CardExpansion = {
   readonly cardRelationships: readonly RelationshipRow[]
   readonly cardCollections: readonly CardCollectionRow[]
   readonly cardMechanisms: readonly CardMechanismRow[]
+  readonly cardConcepts: readonly CardConceptRow[]
   readonly cardLocales: readonly CardLocaleRow[]
   readonly argumentChains: readonly ArgumentChainRow[]
   /** Chain membership rows, joined, for the steps on these cards. */
@@ -210,6 +229,7 @@ export type NodeRefSet = {
   readonly inferenceStepIds: readonly string[]
   readonly collectionIds: readonly string[]
   readonly mechanismIds: readonly string[]
+  readonly conceptIds: readonly string[]
 }
 
 /** Hydrated rows for a set of node references. Absent ids simply have no row. */
@@ -218,6 +238,7 @@ export type NodeHydration = {
   readonly cardAxes: readonly CardAxisRow[]
   readonly cardCollections: readonly CardCollectionRow[]
   readonly cardMechanisms: readonly CardMechanismRow[]
+  readonly cardConcepts: readonly CardConceptRow[]
   readonly cardLocales: readonly CardLocaleRow[]
   readonly claims: readonly ClaimRow[]
   readonly inferenceSteps: readonly InferenceStepRow[]
