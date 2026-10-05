@@ -86,12 +86,13 @@ const CARD_ARGUMENT_TAXONOMY: GraphViewRule = {
     {
       type: 'concept',
       reason:
-        'card_concepts has 0 rows: all 6 concepts are orphaned. Issue #3 Q2 keeps Concept ' +
-        'first-class and makes populating card_concepts a separate corpus task; the view ' +
-        'does not force Concept in merely because the table exists. That task must also ' +
-        'settle the mechanism/concept slug collision — both tables have independent slug ' +
-        'columns, so a name appearing in one does not imply a concept — and until it does, ' +
-        'a Concept node would risk being derived from a Mechanism name.',
+        'The corpus task Q2 assigned is done — card_concepts has 12 rows and the ' +
+        'mechanism/concept slug collision is resolved (concepts 6 -> 4; the two concepts ' +
+        'that restated an existing mechanism were removed rather than renamed). Concept is ' +
+        'still excluded here for a different reason: no reader path loads card_concepts, so ' +
+        'the projection has no way to emit a Concept node or its card edges. Admitting the ' +
+        'node type is a projection change, not a corpus change, and the view does not ' +
+        'pretend otherwise.',
     },
     {
       type: 'argument_chain',
@@ -157,7 +158,8 @@ const TAXONOMY: GraphViewRule = {
     {
       type: 'concept',
       reason:
-        'Blocked on the same card_concepts corpus task as v1; see issue #3 Q2.',
+        'card_concepts is populated and Q2 is resolved, but no reader path loads it. ' +
+        'Admitting Concept needs a projection change; see the v1 exclusion for detail.',
     },
   ],
   nonNodeStructures: [],

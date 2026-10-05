@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict'
 import { and, eq, notInArray, sql } from 'drizzle-orm'
 import type { PgTable } from 'drizzle-orm/pg-core'
 
@@ -17,6 +18,7 @@ import {
   cardAxes,
   cardAxis,
   cardCollections,
+  cardConcepts,
   cardLocales,
   cardMechanisms,
   cards,
@@ -42,6 +44,7 @@ import { newIdentityClaims } from './newIdentityClaims'
 import { referenceClaims } from './referenceClaims'
 import { corpusClaimSources, corpusSources } from './sourceLayer'
 import {
+  cardConceptLinksSeed,
   collectionsSeed,
   conceptsSeed,
   localesSeed,
@@ -289,6 +292,11 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
         await tx.select({ id: locales.id, slug: locales.slug }).from(locales)
       ).map((r) => [r.slug, r.id]),
     )
+    const conceptIds = new Map(
+      (
+        await tx.select({ id: concepts.id, slug: concepts.slug }).from(concepts)
+      ).map((r) => [r.slug, r.id]),
+    )
 
     // Referential integrity is checked strictly, and *before* any link row is written: a slug
     // in a card's collection, mechanism or locale list that does not exist in taxonomy.ts is an
@@ -381,6 +389,45 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
         .map((localeId) => ({ cardId: card.id, localeId }))
       if (localeLinks.length) {
         await tx.insert(cardLocales).values(localeLinks).onConflictDoNothing()
+      }
+
+      // Concept links are authored centrally in `cardConceptLinksSeed` rather than on each
+      // CardSeed, because each one has to cite the card sentence that supports it. Card-by-card
+      // `conceptSlugs` would read more naturally but would scatter that citation across 47
+      // entries with nothing to compare them against.
+      const conceptLinks = cardConceptLinksSeed
+        .filter((link) => link.cardSlug === seed.slug)
+        .map((link) => ({
+          cardId: card.id,
+          conceptId: conceptIds.get(link.conceptSlug),
+          relationship: link.relationship,
+        }))
+      const missingConceptSlugs = cardConceptLinksSeed
+        .filter((link) => link.cardSlug === seed.slug)
+        .filter((link) => !conceptIds.has(link.conceptSlug))
+        .map((link) => link.conceptSlug)
+      assert.deepEqual(
+        missingConceptSlugs,
+        [],
+        `card "${seed.slug}" links a concept slug that does not exist: ${missingConceptSlugs.join(', ')}`,
+      )
+      const resolvedConceptLinks = conceptLinks.filter(
+        (
+          link,
+        ): link is {
+          cardId: string
+          conceptId: string
+          relationship: string
+        } => Boolean(link.conceptId),
+      )
+      if (resolvedConceptLinks.length) {
+        await tx
+          .insert(cardConcepts)
+          .values(resolvedConceptLinks)
+          .onConflictDoUpdate({
+            target: [cardConcepts.cardId, cardConcepts.conceptId],
+            set: { relationship: sql`excluded.relationship` },
+          })
       }
 
       // Axes are reconciled rather than accumulated. `onConflictDoNothing`, as used for

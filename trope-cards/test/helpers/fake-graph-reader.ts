@@ -27,7 +27,7 @@ import type {
  * The projection is where the six normalisation invariants live, and those invariants are
  * properties of the *shape* of a projection, not of any particular corpus. Asserting them
  * against seeded data would let them pass by luck: the corpus has only 5 `claim_relations`
- * rows and 6 concepts, so a rule about authored claim relations or Concept edges would only
+ * rows and 12 card_concepts links, so a rule about authored claim relations or Concept edges would only
  * ever be exercised on a handful of cases and never on the cases that must be *rejected*.
  *
  * This fake holds a hand-built corpus that contains every case the invariants exist for —

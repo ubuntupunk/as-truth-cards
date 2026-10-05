@@ -98,7 +98,9 @@ describe(
 
     it('reads the counts the design doc was written against', () => {
       assert.equal(population.cards, cardCorpus.length)
-      assert.equal(population.concepts, 6, 'concepts exist but are orphaned (Q2)')
+      // Q2 resolved the collision by removing the two concepts that restated a mechanism,
+      // leaving 3 subjects and 1 analytical frame.
+      assert.equal(population.concepts, 4, 'concept vocabulary is 3 subjects + 1 frame')
       assert.equal(population.argumentChains, 2)
       assert.ok(population.claims > 0)
       assert.ok(population.inferenceSteps > 0)
@@ -112,10 +114,16 @@ describe(
       // becomes non-zero, the corpus task that filled it should also revisit the decision —
       // so the assertion states the current state rather than merely passing.
       //
-      // Two of the three were filled by the v0.11 corpus increment. Each now records the
+      // All three have since been filled. Each now records the
       // decision that made it non-zero, so the tripwire still fires on the next change rather
       // than being quietly relaxed.
-      assert.equal(population.cardConcepts, 0, 'Q2 assumed card_concepts is unpopulated')
+      // Filled by the Q2 corpus task. Every link cites the card sentence supporting it, and
+      // `anti-zionism` stays a deliberate orphan because no card discusses it.
+      assert.equal(
+        population.cardConcepts,
+        12,
+        'card_concepts is populated; the next change must revisit why no reader loads it',
+      )
 
       // Filled by v0.11. Q1 anticipated exactly this: "claim_relations becomes live the moment
       // it is populated, with no projection change". The projection already projects authored

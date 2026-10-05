@@ -196,12 +196,12 @@ describe('invariant 3: no excluded edge is emitted', () => {
     }
   })
 
-  it('never emits a Concept node, because view v1 excludes it pending Q2 population', async () => {
+  it('never emits a Concept node, because no reader path loads card_concepts', async () => {
     const { result } = await project(richCorpus(), { depth: 3 })
     assert.deepEqual(
       nodesOfType(result.nodes, 'concept').map((n) => n.id),
       [],
-      'card_concepts has 0 rows, so a Concept node here would be invented',
+      'the projection has no reader for card_concepts, so a Concept node here would be invented',
     )
     assert.ok(
       view.excludedNodeTypes.some((e) => e.type === 'concept'),
