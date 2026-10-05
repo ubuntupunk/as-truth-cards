@@ -4,6 +4,7 @@ import type {
   CardCollectionRow,
   CardExpansion,
   CardLocaleRow,
+  CardConceptRow,
   CardMechanismRow,
   CardRow,
   ClaimExpansion,
@@ -186,6 +187,7 @@ export type FakeCorpus = {
   cardRelationships: RelationshipRow[]
   cardCollections: CardCollectionRow[]
   cardMechanisms: CardMechanismRow[]
+  cardConcepts: CardConceptRow[]
   cardLocales: CardLocaleRow[]
   argumentChains: ArgumentChainRow[]
   chainMemberships: ArgumentChainMembershipRow[]
@@ -194,6 +196,32 @@ export type FakeCorpus = {
   conclusions: InferenceConclusionRow[]
   stepRelations: InferenceStepRelationRow[]
   population?: Partial<ViewPopulation>
+}
+
+/**
+ * A `card_concepts` link row.
+ *
+ * Distinct from `link()` because `CardConceptRow` carries `definition` and the authored
+ * `relationship` text that `card_mechanisms` has no column for.
+ */
+export function conceptLink(
+  over: {
+    cardId: string
+    slug: string
+    name?: string
+    definition?: string | null
+    relationship?: string | null
+    id?: string
+  },
+): CardConceptRow {
+  return {
+    cardId: over.cardId,
+    conceptId: over.id ?? over.slug,
+    slug: over.slug,
+    name: over.name ?? over.slug,
+    definition: over.definition ?? null,
+    relationship: over.relationship === undefined ? null : over.relationship,
+  }
 }
 
 /** A corpus with nothing in it, so each test states only the rows it cares about. */
@@ -205,6 +233,7 @@ export function emptyCorpus(): FakeCorpus {
     cardRelationships: [],
     cardCollections: [],
     cardMechanisms: [],
+    cardConcepts: [],
     cardLocales: [],
     argumentChains: [],
     chainMemberships: [],
@@ -247,7 +276,38 @@ export function richCorpus(): FakeCorpus {
       relationship({ id: 'rel-2', status: 'PROPOSED', description: 'unconfirmed' }),
     ],
     cardCollections: [link({ cardId: 'card-1', slug: 'zionism', name: 'Zionism' })],
-    cardMechanisms: [link({ cardId: 'card-1', slug: 'name-slur', name: 'Name slur' })],
+    cardMechanisms: [
+      link({ cardId: 'card-1', slug: 'name-slur', name: 'Name slur' }),
+      // Same slug *and* same name as the `zionism` Concept below, in a different table with its
+      // own id. The sharpest form of the inference decoy: if Concept membership were ever derived
+      // from a Mechanism's subject, card-2 would gain a Concept node it has no authored row for.
+      link({ cardId: 'card-2', id: 'mechanism-zionism', slug: 'zionism', name: 'Zionism' }),
+    ],
+    // Concept decoys, all deliberate:
+    //  - `zionism` here is a CONCEPT row sharing a slug with the SUIT in cardCollections. Real
+    //    taxonomies are separate tables with independently generated uuids, so the concept gets
+    //    its own `id`. Same slug, different node: the point is that the Concept edge comes from
+    //    the `card_concepts` row and never from the Suit, and that identical slugs across two
+    //    taxonomies stay distinct nodes.
+    //  - `anti-zionism` is linked to card-3, whose only claim-free distinction is that no other
+    //    card references it, so it must still be reachable while never appearing as a node for a
+    //    card with no authored row.
+    cardConcepts: [
+      conceptLink({
+        cardId: 'card-1',
+        id: 'concept-zionism',
+        slug: 'zionism',
+        name: 'Zionism',
+        definition: 'The Jewish settlement movement in Palestine.',
+        relationship: 'The card is about the movement itself.',
+      }),
+      conceptLink({
+        cardId: 'card-3',
+        id: 'concept-anti-zionism',
+        slug: 'anti-zionism',
+        name: 'Anti-Zionism',
+      }),
+    ],
     // Two locales on one card, and a third card with a locale but no collection. Locale must
     // survive independently of the other dimensions in both directions.
     cardLocales: [
@@ -305,6 +365,7 @@ export class FakeGraphReader implements TropeGraphReader {
       ),
       cardCollections: this.corpus.cardCollections.filter((c) => ids.has(c.cardId)),
       cardMechanisms: this.corpus.cardMechanisms.filter((c) => ids.has(c.cardId)),
+      cardConcepts: this.corpus.cardConcepts.filter((c) => ids.has(c.cardId)),
       cardLocales: this.corpus.cardLocales.filter((l) => ids.has(l.cardId)),
       argumentChains: this.corpus.argumentChains.filter((c) => ids.has(c.cardId)),
       chainMemberships: this.corpus.chainMemberships.filter((m) =>
@@ -351,6 +412,7 @@ export class FakeGraphReader implements TropeGraphReader {
     const stepIds = new Set(refs.inferenceStepIds)
     const collectionIds = new Set(refs.collectionIds)
     const mechanismIds = new Set(refs.mechanismIds)
+    const conceptIds = new Set(refs.conceptIds)
     // Chains are reached through membership on a discovered step, or through a step's own
     // `argument_chain_id`. `NodeRefSet` carries no chain ids, so the fake resolves them here
     // the same way the Drizzle reader does.
@@ -370,6 +432,9 @@ export class FakeGraphReader implements TropeGraphReader {
       ),
       cardMechanisms: this.corpus.cardMechanisms.filter((m) =>
         mechanismIds.has(m.mechanismId),
+      ),
+      cardConcepts: this.corpus.cardConcepts.filter((c) =>
+        conceptIds.has(c.conceptId),
       ),
       cardLocales: this.corpus.cardLocales.filter((l) => cardIds.has(l.cardId)),
       claims: this.corpus.claims.filter((c) => claimIds.has(c.id)),

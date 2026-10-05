@@ -12,6 +12,7 @@ import {
   getGraphView,
 } from '../src/graph/views'
 import type { GraphEdge, GraphNode } from '../src/graph/types'
+import type { GraphViewRule } from '../src/graph/views'
 import type { TropeGraphReader, ViewPopulation } from '../src/graph/reader'
 
 /**
@@ -35,10 +36,18 @@ const view = getGraphView('card-argument-taxonomy')!
 /** Every seeded slug, so the suite can prove coverage rather than sampling one card. */
 const seededSlugs = cardCorpus.map((c) => c.slug)
 
-/** Assert the six normalisation invariants hold for one projection. */
+/**
+ * Assert the six normalisation invariants hold for one projection.
+ *
+ * @param nodes Emitted nodes.
+ * @param edges Emitted edges.
+ * @param rule The view projected, so `nodeTypes` is checked against the right contract rather
+ * than the suite's default v1. Concept is legal in `taxonomy` and illegal in v1.
+ */
 function assertInvariants(
   nodes: readonly GraphNode[],
   edges: readonly GraphEdge[],
+  rule: GraphViewRule = view,
 ): void {
   const ids = new Set(nodes.map((n) => n.id))
   assert.equal(ids.size, nodes.length, 'duplicate node id')
@@ -57,8 +66,8 @@ function assertInvariants(
 
   for (const node of nodes) {
     assert.ok(
-      view.nodeTypes.includes(node.type),
-      `node type ${node.type} is not in view ${view.name}`,
+      rule.nodeTypes.includes(node.type),
+      `node type ${node.type} is not in view ${rule.name}`,
     )
     assert.ok('status' in node, `${node.type} ${node.id} has no status field`)
     assert.ok(node.depth >= 0 && node.depth <= HARD_MAX_NODES, 'depth out of range')
@@ -373,6 +382,163 @@ describe(
       })
       assert.equal(projection.nodes.length, 1)
       assert.equal(projection.edges.length, 0)
+    })
+
+    // ---------------------------------------------------------------------
+    // Q2: Concept over real SQL
+    // ---------------------------------------------------------------------
+
+    it('projects every authored card_concepts row, deterministically', async () => {
+      // The fake suite proves the logic; this proves the join. A `card_concepts -> concepts`
+      // query that dropped `relationship`, or selected `concepts.description` where the column is
+      // `definition`, would pass against the fake and fail here.
+      const taxonomy = getGraphView('taxonomy')!
+      const slugsWithConcepts = [
+        'apartheid-collaborators',
+        'apartheid-map',
+        'elders-of-zion',
+        'holocaust-denial-distortion',
+        'israel-apartheid-severance',
+        'jesus-was-a-zionist',
+        'jews-are-not-semites',
+        'muhammad-was-a-zionist',
+        'shylock',
+        'weaponizing-antisemitism',
+        'zionist-as-slur',
+      ]
+
+      const seen = new Map<string, string>()
+      for (const slug of slugsWithConcepts) {
+        const projection = await projectGraph(reader, {
+          focus: slug,
+          view: taxonomy,
+          depth: 2,
+          maxNodes: DEFAULT_MAX_NODES,
+        })
+        const edges = projection.edges.filter((e) => e.type.value === 'HAS_CONCEPT')
+        for (const edge of edges) {
+          assert.equal(edge.sourceTable, 'card_concepts')
+          assert.equal(edge.from, projection.nodes.find((n) => n.isFocus)!.id)
+          assert.ok(
+            typeof edge.attributes.relationship === 'string',
+            `${slug} lost its authored relationship text`,
+          )
+          assert.ok(
+            (edge.attributes.relationship as string).length > 0,
+            `${slug} has an empty relationship, which would justify dropping the column`,
+          )
+          seen.set(`${slug}|${edge.attributes.slug as string}`, edge.id)
+
+          // Determinism: the same request twice must produce the same ids, so a client can diff
+          // two projections.
+          const again = await projectGraph(reader, {
+            focus: slug,
+            view: taxonomy,
+            depth: 2,
+            maxNodes: DEFAULT_MAX_NODES,
+          })
+          assert.deepEqual(
+            again.edges.filter((e) => e.type.value === 'HAS_CONCEPT').map((e) => e.id),
+            edges.map((e) => e.id),
+            `${slug} produced unstable edge ids`,
+          )
+        }
+        assert.ok(edges.length > 0, `${slug} was expected to have an authored Concept link`)
+      }
+
+      assert.equal(
+        seen.size,
+        12,
+        `expected all 12 authored links, saw ${seen.size}: ${[...seen.keys()].join(', ')}`,
+      )
+    })
+
+    it('keeps the anti-zionism orphan out of every projection', async () => {
+      // 4 concepts exist but only 3 are linked by any card. The fourth has no `card_concepts`
+      // row, so it must never be emitted — reporting it would require inventing a card link.
+      const taxonomy = getGraphView('taxonomy')!
+      const slugs = ['antisemitism', 'anti-zionism', 'zionism', 'historical-analogy']
+      assert.ok(slugs.includes('anti-zionism'), 'the fixture vocabulary must still name it')
+      assert.equal(population.concepts, 4)
+      assert.equal(population.cardConcepts, 12)
+
+      const reachable = new Set<string>()
+      let cardsWithoutConcepts = 0
+      for (const slug of seededSlugs) {
+        const projection = await projectGraph(reader, {
+          focus: slug,
+          view: taxonomy,
+          depth: 2,
+          maxNodes: DEFAULT_MAX_NODES,
+        })
+        // Every seeded card must project cleanly here, so the 36 cards with no authored Concept
+        // row are themselves the proof that a missing association is valid rather than an error.
+        assertInvariants(projection.nodes, projection.edges, taxonomy)
+        assert.ok(projection.nodes.length > 0, `${slug} produced an empty projection`)
+        const conceptCount = projection.nodes.filter((n) => n.type === 'concept').length
+        if (conceptCount === 0) cardsWithoutConcepts += 1
+        for (const node of projection.nodes) {
+          if (node.type === 'concept') reachable.add(node.metadata.slug)
+        }
+      }
+      assert.equal(
+        cardsWithoutConcepts,
+        seededSlugs.length - 11,
+        'the corpus links 11 cards to a concept; the other 36 must project with none',
+      )
+      assert.equal(
+        reachable.has('anti-zionism'),
+        false,
+        'anti-zionism is referenced by no card and must not appear as a node',
+      )
+      assert.deepEqual(
+        [...reachable].sort(),
+        ['antisemitism', 'historical-analogy', 'zionism'],
+        'exactly the three concepts that have authored rows are reachable',
+      )
+    })
+
+    it('puts the concept definition in metadata.definition, not description', async () => {
+      const taxonomy = getGraphView('taxonomy')!
+      const projection = await projectGraph(reader, {
+        focus: 'jesus-was-a-zionist',
+        view: taxonomy,
+        depth: 2,
+        maxNodes: DEFAULT_MAX_NODES,
+      })
+      const concept = projection.nodes.find((n) => n.type === 'concept')
+      assert.ok(concept, 'jesus-was-a-zionist is linked to the zionism concept')
+      assert.equal(concept.type, 'concept')
+      if (concept.type !== 'concept') return
+      assert.equal(concept.metadata.slug, 'zionism')
+      assert.equal(concept.metadata.description, null)
+      assert.ok(
+        concept.metadata.definition && concept.metadata.definition.length > 0,
+        'concepts.definition must reach metadata.definition',
+      )
+      assert.equal(concept.status.source, 'none', 'a Concept is not a truth claim (Q3)')
+    })
+
+    it('emits no Concept node in v1 even though the rows exist', async () => {
+      const projection = await projectGraph(reader, {
+        focus: 'jesus-was-a-zionist',
+        view,
+        depth: 3,
+        maxNodes: DEFAULT_MAX_NODES,
+      })
+      assert.ok(
+        population.cardConcepts > 0,
+        'this test is only meaningful while authored rows exist',
+      )
+      assert.equal(
+        projection.nodes.filter((n) => n.type === 'concept').length,
+        0,
+        'v1 excludes Concept by scope',
+      )
+      assert.equal(
+        projection.edges.filter((e) => e.type.value === 'HAS_CONCEPT').length,
+        0,
+      )
     })
 
     it('uses DEFAULT_DEPTH of 1 for an unstated depth', async () => {

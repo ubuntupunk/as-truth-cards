@@ -120,8 +120,9 @@ export type InferenceStepRoleValue =
  * reports a node type as `reserved` rather than forgetting it exists, so an empty
  * `evidence_items` table produces an empty graph with a warning rather than an ontology that
  * quietly forgets the evidence layer. Issue #3 Q2 is the precedent — Concept stays a
- * first-class member of this union (kept + populated) even though `card-argument-taxonomy`
- * emits no concept nodes yet (0 `card_concepts` rows).
+ * first-class member of this union and is now projected from 12 authored `card_concepts` rows
+ * in the `taxonomy` view, while `card-argument-taxonomy` still excludes it by scope. Being
+ * first-class is not the same as being in every view.
  */
 export type GraphNodeType =
   | 'card'
@@ -540,6 +541,15 @@ export type GraphEdgeType =
   | { readonly family: 'classification'; readonly value: 'IN_SUIT' }
   /** A card uses a Mechanism: `card_mechanisms`. */
   | { readonly family: 'classification'; readonly value: 'HAS_MECHANISM' }
+  /**
+   * A card is associated with a Concept: `card_concepts`.
+   *
+   * A third `classification` value rather than a reuse of `HAS_MECHANISM`, because Concept and
+   * Mechanism are separate tables with no cross-mapping and a shared value would make the two
+   * indistinguishable to a consumer. The authored justification rides on
+   * `GraphEdge.attributes.relationship`.
+   */
+  | { readonly family: 'classification'; readonly value: 'HAS_CONCEPT' }
 
 /**
  * A resolved edge.

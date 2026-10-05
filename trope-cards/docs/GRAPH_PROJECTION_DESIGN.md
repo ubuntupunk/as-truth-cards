@@ -52,11 +52,12 @@ Live counts (local DB): **37 domain tables + `schema_migrations`**, **18 enums**
 | `argument_chains` (+membership) | 2 (4) | 1 PRIMARY_ARGUMENT, 1 COUNTERARGUMENT |
 | `inference_step_relations` | 2 | step↔step CHALLENGES/QUALIFIES |
 | `relationships` | 11 | all `CARD→CARD`; RELATED 3, CONTEXTUALISES 4, SIMILAR_MECHANISM 3, CHALLENGES 1 |
-| `concepts` | 6 | **0 `card_concepts` links — fully orphaned** |
+| `concepts` | 4 | **12 `card_concepts` links across 11 cards**; `anti-zionism` is a recorded orphan |
+| `card_concepts` | 12 | every row carries the card sentence that justifies it |
 
 ### 1.3 What is empty (live)
 
-`sources`, all five `evidence_*` tables, `claims`→`sources`, `cases`/`case_legal_metadata`/`card_cases`, `interpretations`/`claim_interpretations`/`interpretation_sources`, `questions` (+3 link tables), `claim_relations`, `claim_sources`, `contributions`, `research_events`, `card_versions`, `card_concepts`. The evidence and case layers are **schema-only**.
+`sources`, all five `evidence_*` tables, `claims`→`sources`, `cases`/`case_legal_metadata`/`card_cases`, `interpretations`/`claim_interpretations`/`interpretation_sources`, `questions` (+3 link tables), `claim_relations`, `claim_sources`, `contributions`, `research_events`, `card_versions`. The evidence and case layers are **schema-only**.
 
 ### 1.4 Structural facts that shape any projection
 
@@ -80,7 +81,7 @@ Focus on a `card`; emit the card, its Suit(s), its Mechanism(s), its axis as an 
 - It is the smallest thing that already renders as a genuine graph today.
 
 **Node types in v1:** `card`, `collection` (Suit), `mechanism`, `claim`, `inference_step`.
-**Excluded from v1 nodes:** `concept` (orphaned — §8 B1), `source`/`evidence_item` (empty), `case`, `interpretation`, `question`, `argument_chain` (carried as step metadata, see §11 Q6), `relationship` (an edge, not a node).
+**Excluded from v1 nodes:** `concept` (12 authored rows exist, but v1 excludes the type by scope — §12 Q2), `source`/`evidence_item` (empty), `case`, `interpretation`, `question`, `argument_chain` (carried as step metadata, see §11 Q6), `relationship` (an edge, not a node).
 
 **Edge families in v1:**
 
@@ -94,7 +95,7 @@ Focus on a `card`; emit the card, its Suit(s), its Mechanism(s), its axis as an 
 | card → collection (`IN_SUIT`) | `card_collections` | classification/presentation |
 | card → mechanism (`HAS_MECHANISM`) | `card_mechanisms` | classification/presentation |
 
-**Axis is deliberately NOT an edge and NOT a node.** It is an ordered attribute on the card node (badge), matching Issue #2. **Concept is reserved but excluded** until `card_concepts` is populated.
+**Axis is deliberately NOT an edge and NOT a node.** It is an ordered attribute on the card node (badge), matching Issue #2. **Concept is a node in `taxonomy` only**, projected from 12 authored `card_concepts` rows; v1 excludes it by scope (§12 Q2).
 
 ---
 
@@ -110,7 +111,7 @@ Every node: `{ id, type, label, ...typed metadata, epistemicStatus?, provenance?
 | `collection` (Suit) | `collections.id` | `name` | `slug`, `description` | — (browse taxonomy) | — | — |
 | `mechanism` | `mechanisms.id` | `name` | `slug`, `description` | — (analytical taxonomy) | — | — |
 
-Invariants: `concept`/`source`/`evidence_item`/`case`/`interpretation`/`question` node types are **defined in the model but produce no nodes in v1** (empty/orphaned sources). Epistemic status is **per-node-type** and never merged into a single graph-wide field.
+Invariants: `concept`/`source`/`evidence_item`/`case`/`interpretation`/`question` node types are **defined in the model but produce no nodes in v1** — for `concept`, by scope rather than for want of data. Epistemic status is **per-node-type** and never merged into a single graph-wide field.
 
 ---
 
@@ -254,7 +255,7 @@ Each view is a different **adjacency rule set** over the same canonical tables �
 | View | Focus | Node types | Edge families | Source tables | Status |
 |---|---|---|---|---|---|
 | `card-argument-taxonomy` | card | card, collection, mechanism, claim, inference_step | classification, ASSERTS, PREMISE_OF, CONCLUDES, step-relations, card↔card | `cards`, `card_*`, `claims`, `inference_*`, `relationships` | **v1 — populated now** |
-| `taxonomy` | card / mechanism / collection | card, mechanism, collection | HAS_MECHANISM, IN_SUIT, (+Concept when B1 resolved) | `card_*`, `mechanisms`, `collections`, `concepts` | v2; concept blocked by B1 |
+| `taxonomy` | card / mechanism / collection / concept | card, mechanism, collection, **concept** | HAS_MECHANISM, HAS_CONCEPT, IN_SUIT | `card_*`, `mechanisms`, `collections`, `concepts` | v2; Concept now projected |
 | `argument` | card / claim | card, claim, inference_step | PREMISE_OF, CONCLUDES, step-relations, ASSERTS | `claims`, `inference_*` | v2; rich on 2 cards today, scales with claim corpus |
 | `evidence` | claim / source | claim, evidence_item, source, inference_step | evidence_claims, evidence_sources, evidence_inferences | `evidence_*`, `sources` | **designed, data-blocked** (0 rows) |
 | `identity-retrojection` | claim / card | claim, inference_step (+source/evidence later) | premise→step→conclusion with `RETROSPECTIVE_IDENTITY`/`ANACHRONISTIC_MAPPING` | `inference_steps`, `claims` | v3; 2 cards carry `RETROSPECTIVE_IDENTITY`/`ANACHRONISTIC_MAPPING` today |
@@ -267,7 +268,7 @@ All five share the §3 node model and §4 edge model; only the allowed `(node, e
 
 **Definition:** a blocking issue is one that prevents a **clean** projection of a view the design wants to ship. Each is a decision for the maintainers, not a silent fix here.
 
-- **B1 — RESOLVED for the corpus; projection work remains.** Was: `card_concepts` never populated, all 6 concepts orphaned, no `cardConcepts` insert anywhere. *Now:* Q2's corpus task is done. `card_concepts` has 12 rows across 8 cards, each link citing the card sentence that supports it, and the mechanism/concept slug collision is resolved (concepts 6→4; `collectivisation` and `racial-essentialism` were **removed from the concept vocabulary**, not renamed, because each restated an existing mechanism and a renamed duplicate would still be indistinguishable by slug). `anti-zionism` remains a deliberate orphan — no card discusses it, and inventing a link is what Q2 forbids — so the verifier names it as a recorded gap and still fails on any *new* orphan. *Still open:* no reader path loads `card_concepts`, so the projection cannot emit a Concept node. That is a projection change, not a corpus one. **Concept stays excluded from v1 on that basis, not on the old corpus grounds.**
+- **B1 — RESOLVED, corpus and projection.** Was: `card_concepts` never populated, all 6 concepts orphaned, no `cardConcepts` insert anywhere. *Now:* Q2's corpus task is done. `card_concepts` has 12 rows across 8 cards, each link citing the card sentence that supports it, and the mechanism/concept slug collision is resolved (concepts 6→4; `collectivisation` and `racial-essentialism` were **removed from the concept vocabulary**, not renamed, because each restated an existing mechanism and a renamed duplicate would still be indistinguishable by slug). `anti-zionism` remains a deliberate orphan — no card discusses it, and inventing a link is what Q2 forbids — so the verifier names it as a recorded gap and still fails on any *new* orphan. 12 links reach 11 cards (`zionist-as-slur` carries two). *Projection side, now done:* `DrizzleGraphReader` loads `card_concepts` joined to `concepts`, carrying `definition` and the authored `relationship`; `taxonomy` emits one `ConceptNode` and one `HAS_CONCEPT` edge per row; v1 excludes the type by scope. **B1 is closed.**
 - **B2 — RESOLVED by the v0.11 corpus increment.** Was: 0 rows and no code path. The 5 authored rows now exist, written by `seed/claimRelations.ts` and read by the projection through `claimRelationCandidate`. *Resolved as:* `claim_relations` is **first-class, not duplicative**. It records that one claim stands in a stated relation to another; `inference_*` records that a conclusion follows from premises by a named inferential form. The two are different propositions, so a pair may legitimately appear in one and not the other — and `seed/claimRelations.ts` enforces that a pair already wired as an inference binding is never also written as a claim relation. No projection change was needed, which is what Q1 predicted.
 - **B3 — `relationships` is polymorphic with no referential integrity.** `from_entity_type`/`to_entity_type` are free text; `from_entity_id`/`to_entity_id` are unconstrained uuids with **no FKs**. A projection cannot verify an endpoint exists or that a `*_entity_type` string is a known type. *Effect:* reading `relationships` as a trusted edge source is unsafe for arbitrary types. *Mitigation (v1):* only project rows where both `*_entity_type == 'CARD'` and both uuids resolve to cards; surface any other row as a `meta.warnings[]` entry rather than dropping it silently. All 11 current rows are CARD→CARD, so v1 is safe today. *Decision:* harden to typed FKs / an entity-type enum, or keep polymorphic + defensive filter (§11 Q5).
 - **B4 — Status is modelled inconsistently; a single cross-entity status filter is unsound.** `epistemic_status` is the `enum` on `cards`/`claims` but `text` on `inference_steps`/`argument_chains`; lifecycle uses four unrelated enums plus `inference_steps.is_canonical` (boolean) and `evidence_items.evidence_status` (text, no vocabulary). *Effect:* a projection offering one graph-wide "status" filter/rollup would be wrong. *Mitigation:* expose `epistemicStatus` per node type only (§3); no global status. *Decision (§11 Q4):* unify inference status onto the enum, or keep it deliberately decoupled per `EVIDENCE_LAYER.md`?
@@ -280,7 +281,7 @@ All five share the §3 node model and §4 edge model; only the allowed `(node, e
 ## 9. Deferred issues (known imperfections — do not block v1)
 
 - `primaryType` is legacy/write-only — documented, excluded from all classification authority (Issue #2).
-- `mechanisms`/`concepts` slug collision on `collectivisation` and `racial-essentialism` (two tables, two `UNIQUE(slug)`, near-duplicate definitions). Resolve when `card_concepts` (B1) is addressed.
+- ~~`mechanisms`/`concepts` slug collision on `collectivisation` and `racial-essentialism`~~ **resolved** — both concepts removed rather than renamed, so concepts 6→4 and no slug now appears in both tables.
 - Four `cards` columns are permanently NULL (`trigger`, `mechanism_summary`, `counter_test`, `published_at` = 0/47); the seeder writes only 7 fields.
 - `card_axes.ordinal` has no `CHECK (ordinal >= 0)`; the seeder temporarily writes negative ordinals to avoid the unique-index collision during reorder (internal to the seeder).
 - Ordinal base is inconsistent across tables: `card_axes` 0-based, `argument_chain_steps` seeded 1-based, `inference_premises` 0-based.
@@ -318,7 +319,7 @@ Mirrors ADR §9, grounded in the findings above. Status as of the implementation
 ## 11. Open architectural questions (require human decisions)
 
 1. **`claim_relations`: populate or retire?** (B2) Does the 11-value claim-relation vocabulary become first-class data, or is it duplicative of the inference-step model? This decides whether claim↔claim SUPPORTS/QUALIFIES/ANACHRONISTICALLY_MAPS/RETROSPECTIVELY_IDENTIFIES edges exist at all.
-2. **Concept: first-class or retired?** (B1) Populate `card_concepts`, or remove Concept from the taxonomy view? Interacts with the mechanism/concept slug collision.
+2. ~~**Concept: first-class or retired?**~~ **settled** — first-class, populated (12 rows), projected in `taxonomy`; the mechanism/concept slug collision is resolved.
 3. **Suit vocabulary reconciliation (Issue #2).** Issue #2 names suits `CLASSIC/ZIONISM_CODED/REGIONAL/REFERENCE/CONTESTED`; the live collections are `classic/zionism-coded/south-africa/fact-rebuttal/foundational` and no `contested` collection exists. Which vocabulary is canonical? (Issue #2's decision; this design uses `collections` as-is.)
 4. **Epistemic status: unify or keep decoupled?** (B4) Should `inference_steps`/`argument_chains` migrate to the `epistemic_status` enum, or stay deliberately independent text per `EVIDENCE_LAYER.md` "never collapse these"? Affects node metadata and any status filter.
 5. **`relationships` hardening.** (B3) Keep polymorphic with a defensive projection filter, or migrate to typed FKs / an entity-type enum?
@@ -360,14 +361,39 @@ premise→conclusion pair.
 
 ### Q2 — Concept: excluded from v1, not retired
 
-**Decision.** Concept stays first-class in the ontology and keeps its node type, but v1 emits **no
-Concept nodes**, because `card_concepts` has 0 rows and a Concept node with no card edge would be an
-island. The exclusion reason is reported in `meta.warnings[]`.
+**Decision.** Concept is first-class and **is projected**: `DrizzleGraphReader` loads
+`card_concepts` joined to `concepts`, and `taxonomy` emits one `ConceptNode` per authored row plus
+one `Card --HAS_CONCEPT--> Concept` edge per row. v1 (`card-argument-taxonomy`) still emits **no
+Concept node**, on scope rather than for want of data.
 
-**Why.** Inventing Concept nodes would require inventing the edges too, i.e. authoring ontology in
-a projection. The projection reports the gap instead of filling it.
+**Why.** The `card_concepts` row *is* the ontology. There is one edge per row, no fallback that
+reconstructs membership from a Mechanism name, an Axis, a Suit, a Locale, claim text or the card
+slug, so a card with no authored row emits no Concept edge and no Concept node. That is what makes
+the projection safe to trust: it cannot invent the association it would need in order to show a
+Concept. `anti-zionism` demonstrates it — 4 concepts exist, only 3 are linked by any card, and the
+fourth never appears in any projection.
 
-**Consequence.** `taxonomy` cannot render Concept until B1 lands. Follow-up: B1.
+**Relationship text is preserved.** `card_concepts.relationship` is nullable free text with no
+vocabulary, and it is the only record of *why* a card is associated with a concept. It rides on
+`GraphEdge.attributes.relationship` verbatim, including `null`. Contrast `card_mechanisms`, which
+has no such column, so `HAS_MECHANISM` carries only `slug` and `name`.
+
+**Edge vocabulary.** `HAS_CONCEPT` is a third `classification` value, not a reuse of
+`HAS_MECHANISM`. The two tables have independent `UNIQUE(slug)` columns and no cross-mapping, so
+sharing a relation word would leave a consumer unable to tell a Concept edge from a Mechanism edge.
+Edge ids are namespaced by family and relation word, so a Suit and a Concept sharing a slug stay
+two distinct edges.
+
+**Why v1 still excludes it.** v1 was chosen because it is the projection fully populated for all
+47 cards. Concept reaches 11 of them. Admitting it there would report an association for a minority
+of cards and silence for the rest — the exact asymmetry the view choice exists to avoid. The
+`taxonomy` view's own description already read "Mechanism / Concept / Suit structure" and its
+`nodeTypes` already listed `concept`, so it needed no contract change; no new view was invented.
+Admitting Concept to v1 later is a one-line `nodeTypes` change with no reader or ontology work
+outstanding.
+
+**Consequence.** `taxonomy` renders Concept from the 11 linked cards. 36 cards project with no
+Concept node, which is valid and asserted rather than treated as a gap.
 
 ### Q3 — Suit vocabulary: use the live collections verbatim
 
@@ -464,7 +490,7 @@ projection cost is bounded by `maxNodes`.
 | Question | Decision | Blocking issue | Disposition |
 |---|---|---|---|
 | Q1 | read authored only | B2 `claim_relations` | **closed** — 5 rows, live, no projection change |
-| Q2 | exclude Concept from v1 | B1 `card_concepts` | deferred, scoped issue |
+| Q2 | first-class Concept, read from authored rows only | B1 `card_concepts` | **closed** — 12 rows, projected in `taxonomy`, v1 excludes by scope |
 | Q3 | use live suits | Issue #2 owns Suit/Axis | not this issue's to settle |
 | Q4 | keep statuses decoupled | B4 inconsistent status modelling | deferred, documentation issue |
 | Q5 | defensive projection filter | B3 unconstrained `relationships` | deferred, hardening issue |

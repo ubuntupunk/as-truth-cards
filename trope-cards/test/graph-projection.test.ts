@@ -11,6 +11,7 @@ import type {
   ClaimNode,
   GraphEdge,
   GraphNode,
+  GraphProjection,
   InferenceStepNode,
 } from '../src/graph/types'
 import {
@@ -24,6 +25,7 @@ import {
   card,
   chain,
   claim,
+  conceptLink,
   emptyCorpus,
   link,
   localeLink,
@@ -196,12 +198,26 @@ describe('invariant 3: no excluded edge is emitted', () => {
     }
   })
 
-  it('never emits a Concept node, because no reader path loads card_concepts', async () => {
+  it('never emits a Concept node in v1, which excludes the type by scope', async () => {
+    // The reader *can* load card_concepts now, so this is no longer a "no reader" exclusion. The
+    // fixture is deliberately given a `card_concepts` row for card-1, so a regression that added
+    // `concept` to v1's nodeTypes, or that dropped the nodeTypes filter, would show up here as a
+    // Concept node rather than passing unnoticed.
     const { result } = await project(richCorpus(), { depth: 3 })
+    assert.equal(
+      richCorpus().cardConcepts.filter((c) => c.cardId === 'card-1').length,
+      1,
+      'the fixture must carry a card_concepts row for the focus card, or the exclusion is untested',
+    )
     assert.deepEqual(
       nodesOfType(result.nodes, 'concept').map((n) => n.id),
       [],
-      'the projection has no reader for card_concepts, so a Concept node here would be invented',
+      'v1 excludes Concept by scope, so an authored row must still not surface a node here',
+    )
+    assert.equal(
+      result.edges.filter((e) => e.type.value === 'HAS_CONCEPT').length,
+      0,
+      'a Card -> Concept edge must not leak into a view that excludes the type',
     )
     assert.ok(
       view.excludedNodeTypes.some((e) => e.type === 'concept'),
@@ -531,6 +547,7 @@ describe('invariant 6: the projection introduces no second ontology', () => {
       'relationships',
       'card_collections',
       'card_mechanisms',
+      'card_concepts',
     ])
     for (const edge of result.edges) {
       assert.ok(
@@ -715,6 +732,164 @@ describe('Q6: argument chains ride on inference steps', () => {
 // Q9: depth is hops within the view
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Q2: Concept
+// ---------------------------------------------------------------------------
+
+describe('Q2: Concept is projected only from authored card_concepts rows', () => {
+  /**
+   * `taxonomy` is the view that emits Concept. `project()` defaults to v1, which excludes the
+   * type, so every test here overrides the view rather than reaching for a bespoke harness.
+   */
+  const taxonomy = getGraphView('taxonomy')!
+
+  /** Concept edges in a projection, the only shape a Concept association can take. */
+  function conceptEdges(result: GraphProjection) {
+    return result.edges.filter((e) => e.type.value === 'HAS_CONCEPT')
+  }
+
+  it('turns one authored row into exactly one node and one edge', async () => {
+    const { result } = await project(richCorpus(), { view: taxonomy, depth: 2 })
+
+    assert.deepEqual(
+      nodesOfType(result.nodes, 'concept').map((n) => n.id),
+      ['concept-zionism'],
+      'exactly the concept named by a card_concepts row for the focus card',
+    )
+    assert.equal(conceptEdges(result).length, 1, 'one row must not fan out into several edges')
+
+    const edge = conceptEdges(result)[0]!
+    assert.equal(edge.family, 'classification')
+    assert.equal(edge.sourceTable, 'card_concepts', 'the edge must name its canonical table')
+    assert.equal(edge.from, 'card-1')
+    assert.equal(edge.to, 'concept-zionism')
+    assert.equal(edge.id, 'classification|card-1|HAS_CONCEPT|concept-zionism')
+  })
+
+  it('carries the authored relationship verbatim, and null stays null', async () => {
+    const withText = await project(richCorpus(), { view: taxonomy, depth: 2 })
+    assert.equal(
+      conceptEdges(withText.result)[0]!.attributes.relationship,
+      'The card is about the movement itself.',
+      "the editorial justification is the edge's only recorded reason and must survive intact",
+    )
+
+    // A row with no relationship text is still an association, not an error.
+    const corpus = richCorpus()
+    corpus.cardConcepts = [
+      conceptLink({ cardId: 'card-1', id: 'concept-zionism', slug: 'zionism', name: 'Zionism' }),
+    ]
+    const { result } = await project(corpus, { view: taxonomy, depth: 2 })
+    assert.equal(conceptEdges(result).length, 1)
+    assert.equal(
+      conceptEdges(result)[0]!.attributes.relationship,
+      null,
+      'a missing relationship must be reported as null rather than invented or omitted',
+    )
+  })
+
+  it('emits no Concept edge for a card with no authored row', async () => {
+    const corpus = richCorpus()
+    corpus.cardConcepts = []
+    const { result } = await project(corpus, { view: taxonomy, depth: 3 })
+
+    assert.deepEqual(conceptEdges(result), [], 'no rows means no edges')
+    assert.deepEqual(
+      nodesOfType(result.nodes, 'concept'),
+      [],
+      'and no node either: a Concept reachable only by inference would be invented',
+    )
+  })
+
+  it('does not derive a Concept from a Mechanism with the same subject', async () => {
+    // card-2 holds a Mechanism whose slug and name are both `zionism`, and no `card_concepts` row.
+    const { result } = await project(richCorpus(), {
+      view: taxonomy,
+      focus: 'card-2',
+      depth: 3,
+    })
+
+    assert.ok(
+      nodesOfType(result.nodes, 'mechanism').some((n) => n.id === 'mechanism-zionism'),
+      'the Mechanism itself must still project',
+    )
+    assert.deepEqual(
+      conceptEdges(result),
+      [],
+      "a Mechanism sharing a Concept's slug and name must not produce a Concept edge",
+    )
+    assert.deepEqual(
+      nodesOfType(result.nodes, 'concept'),
+      [],
+      'Concept and Mechanism are separate tables with no cross-mapping (Q2)',
+    )
+  })
+
+  it('keeps a Concept distinct from a Suit that shares its slug', async () => {
+    const { result } = await project(richCorpus(), { view: taxonomy, depth: 2 })
+    const slugs = new Map(
+      [...nodesOfType(result.nodes, 'concept'), ...nodesOfType(result.nodes, 'collection')].map(
+        (n) => [n.type, n.metadata.slug],
+      ),
+    )
+    assert.equal(slugs.get('concept'), 'zionism')
+    assert.equal(
+      slugs.get('collection'),
+      'zionism',
+      'the fixture must contain the same slug in both tables for this test to mean anything',
+    )
+    assert.equal(
+      nodesOfType(result.nodes, 'concept')[0]!.id,
+      'concept-zionism',
+      'same slug, different node: taxonomy ids come from their own table',
+    )
+  })
+
+  it('reuses HAS_MECHANISM never for Concept, keeping the vocabularies separate', async () => {
+    const { result } = await project(richCorpus(), { view: taxonomy, depth: 2 })
+    assert.ok(
+      result.edges.some((e) => e.type.value === 'HAS_MECHANISM'),
+      'the fixture must still emit a Mechanism edge',
+    )
+    for (const edge of conceptEdges(result)) {
+      assert.notEqual(
+        edge.type.value,
+        'HAS_MECHANISM',
+        'a shared relation word would make Concept and Mechanism indistinguishable downstream',
+      )
+      assert.equal(edge.sourceTable, 'card_concepts')
+    }
+  })
+
+  it('keeps Concept edges clear of claim_relations and inference families', async () => {
+    const { result } = await project(richCorpus(), { view: taxonomy, depth: 3 })
+    const tables = new Set(conceptEdges(result).map((e) => e.sourceTable))
+    assert.deepEqual([...tables], ['card_concepts'])
+    assert.ok(
+      !result.edges.some(
+        (e) => e.family === 'claim_relation' && e.sourceTable === 'card_concepts',
+      ),
+      'a classification edge must not report a claim_relation family',
+    )
+  })
+
+  it('emits node ids verbatim, so cross-table uniqueness rests on the uuids', async () => {
+    // This is the one place the boundary is weaker than it looks, so it is asserted rather than
+    // assumed. `GraphEdge.id` is namespaced by family and relation word, but `GraphNode.id` is
+    // the bare table uuid with no type prefix. Two taxonomies sharing one uuid would therefore
+    // collide in the Graphology adapter, which keys nodes on `node.id`. Every `trope_graph`
+    // table generates `defaultRandom()` uuids independently, so this cannot happen from seeded
+    // data — but a future change that made node ids slugs would break it silently.
+    const { result } = await project(richCorpus(), { view: taxonomy, depth: 2 })
+    const ids = result.nodes.map((n) => n.id)
+    assert.equal(new Set(ids).size, ids.length, 'emitted node ids must be unique within a projection')
+    assert.ok(
+      ids.includes('concept-zionism'),
+      'ids are verbatim table uuids, not prefixed with the node type',
+    )
+  })
+})
+
 describe('Q9: depth counts hops under the view adjacency rules', () => {
   it('reports hop distance, not table distance', async () => {
     const shallow = await project(richCorpus(), { depth: 1 })
@@ -844,10 +1019,31 @@ describe('view registry', () => {
     assert.equal(view.maxDepth, 3)
   })
 
-  it('names the mechanism/concept slug collision rather than resolving it', () => {
+  it('states a scope reason for v1 Concept, not a data one', () => {
+    // This assertion previously required the reason to mention the unresolved slug collision.
+    // The collision *is* resolved now — `f00e430` removed the two concepts that restated a
+    // mechanism — so that wording became false, and a test that keeps matching on `slug` would
+    // quietly pass for the wrong reason. It now requires the reason to be about scope and to
+    // say where Concept *is* emitted, so the exclusion cannot silently become a data gap again.
+    const exclusion = view.excludedNodeTypes.find((e) => e.type === 'concept')
+    assert.ok(exclusion, 'v1 still excludes Concept')
     assert.ok(
-      view.excludedNodeTypes.some((e) => e.type === 'concept' && /slug/i.test(e.reason)),
-      'Q2 requires the collision to stay visible until the corpus task resolves it',
+      /scope/i.test(exclusion.reason) && !/slug collision/i.test(exclusion.reason),
+      `v1's Concept exclusion must be a scope decision, was: ${exclusion.reason}`,
+    )
+    assert.match(exclusion.reason, /taxonomy/, 'the reason must name the view that does emit it')
+  })
+
+  it('emits Concept in taxonomy, which already declared the node type', () => {
+    const taxonomy = getGraphView('taxonomy')!
+    assert.ok(
+      taxonomy.nodeTypes.includes('concept'),
+      'taxonomy named "Mechanism / Concept / Suit" in its description before the reader existed',
+    )
+    assert.equal(
+      taxonomy.excludedNodeTypes.length,
+      0,
+      'Concept is no longer on hold, so taxonomy has nothing left to exclude',
     )
   })
 

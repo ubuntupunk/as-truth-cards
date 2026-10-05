@@ -59,6 +59,7 @@ import type {
   CardNodeMetadata,
   ClaimNode,
   CollectionNode,
+  ConceptNode,
   GraphEdge,
   GraphEdgeType,
   GraphNode,
@@ -443,6 +444,35 @@ function cardCandidates(
         }),
       )
     }
+    // One edge per `card_concepts` row, never more. The row is the whole justification: there is
+    // no fallback that reconstructs Concept membership from a Mechanism name, an Axis, a
+    // Collection, a Locale, claim text or the card slug, so a card whose authored rows are
+    // empty simply emits no Concept edge.
+    for (const row of expansion.cardConcepts) {
+      out.push(
+        authored({
+          id: buildEdgeId(
+            'classification',
+            row.cardId,
+            'HAS_CONCEPT',
+            row.conceptId,
+          ),
+          type: { family: 'classification', value: 'HAS_CONCEPT' },
+          sourceTable: 'card_concepts',
+          from: { type: 'card', id: row.cardId },
+          to: { type: 'concept', id: row.conceptId },
+          // `relationship` is the authored editorial justification and is passed through
+          // verbatim, including null. Normalising it away would leave an edge asserting a
+          // Concept link with no recorded reason.
+          attributes: {
+            slug: row.slug,
+            name: row.name,
+            relationship: row.relationship,
+          },
+          depth,
+        }),
+      )
+    }
   }
 
   if (viewTraversesFamily(view, 'domain')) {
@@ -808,6 +838,7 @@ function buildNodes(
   const stepIds = new Set(refs.inferenceStepIds)
   const collectionIds = new Set(refs.collectionIds)
   const mechanismIds = new Set(refs.mechanismIds)
+  const conceptIds = new Set(refs.conceptIds)
 
   const axesByCard = groupCardAxes(hydration.cardAxes)
   const suitsByCard = groupCardClassifications(
@@ -962,6 +993,28 @@ function buildNodes(
         slug: row.slug,
         description: row.description,
         definition: null,
+      },
+    }
+    nodes.push(node)
+  }
+
+  for (const row of uniqueBy(hydration.cardConcepts, (r) => r.conceptId)) {
+    if (!conceptIds.has(row.conceptId)) continue
+    const node: ConceptNode = {
+      id: row.conceptId,
+      type: 'concept',
+      label: row.name,
+      depth: distanceFor(distances, 'concept', row.conceptId),
+      isFocus: false,
+      degree: 0,
+      status: taxonomyStatus(),
+      metadata: {
+        slug: row.slug,
+        // `concepts` stores `definition` where Mechanism and Collection store `description`.
+        // Both metadata keys exist so one TaxonomyNodeMetadata can cover all three tables, so
+        // `description` is null here rather than holding a copy of the definition.
+        description: null,
+        definition: row.definition,
       },
     }
     nodes.push(node)
@@ -1243,6 +1296,10 @@ function countFor(type: GraphNodeType, hydration: NodeHydration): number {
       return hydration.cardCollections.length
     case 'mechanism':
       return hydration.cardMechanisms.length
+    case 'concept':
+      // Counts hydrated Card -> Concept rows, not `concepts` rows. A view is data-blocked when
+      // the associations it would render are absent, not merely because the vocabulary exists.
+      return hydration.cardConcepts.length
     case 'argument_chain':
       return hydration.chains.length
     default:
@@ -1327,6 +1384,7 @@ function splitRefs(
   const inferenceStepIds: string[] = []
   const collectionIds: string[] = []
   const mechanismIds: string[] = []
+  const conceptIds: string[] = []
 
   for (const key of allowed) {
     const ref = discovered.get(key)
@@ -1347,6 +1405,9 @@ function splitRefs(
       case 'mechanism':
         mechanismIds.push(ref.id)
         break
+      case 'concept':
+        conceptIds.push(ref.id)
+        break
       default:
         // A view may declare a node type the v1 reader cannot hydrate. Reaching this means the
         // view registry and the reader disagree, which `test/graph-projection.test.ts` asserts
@@ -1355,7 +1416,14 @@ function splitRefs(
     }
   }
 
-  return { cardIds, claimIds, inferenceStepIds, collectionIds, mechanismIds }
+  return {
+    cardIds,
+    claimIds,
+    inferenceStepIds,
+    collectionIds,
+    mechanismIds,
+    conceptIds,
+  }
 }
 
 /** Look up a node's hop distance from the focus. */

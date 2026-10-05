@@ -35,11 +35,13 @@ import {
 import {
   cardAxes,
   cardCollections,
+  cardConcepts,
   cardLocales,
   cardMechanisms,
   cards,
   claims,
   collections,
+  concepts,
   locales,
   mechanisms,
   relationships,
@@ -48,6 +50,7 @@ import type {
   ArgumentChainMembershipRow,
   ArgumentChainRow,
   CardCollectionRow,
+  CardConceptRow,
   CardExpansion,
   CardLocaleRow,
   CardMechanismRow,
@@ -143,6 +146,20 @@ const cardMechanismColumns = {
   slug: mechanisms.slug,
   name: mechanisms.name,
   description: mechanisms.description,
+}
+
+/**
+ * The columns a `card_concepts` -> `concepts` join projects.
+ *
+ * `relationship` comes from the join table, not from `concepts`, and is passed through as-is.
+ */
+const cardConceptColumns = {
+  cardId: cardConcepts.cardId,
+  conceptId: concepts.id,
+  slug: concepts.slug,
+  name: concepts.name,
+  definition: concepts.definition,
+  relationship: cardConcepts.relationship,
 }
 
 /** The columns a `card_locales` -> `locales` join projects. */
@@ -263,6 +280,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
       relationshipRows,
       collectionRows,
       mechanismRows,
+      conceptRows,
       cardLocaleRows,
       chainRows,
     ] = await Promise.all([
@@ -303,6 +321,11 @@ export class DrizzleGraphReader implements TropeGraphReader {
         .innerJoin(mechanisms, eq(cardMechanisms.mechanismId, mechanisms.id))
         .where(inArray(cardMechanisms.cardId, ids)),
       this.client
+        .select(cardConceptColumns)
+        .from(cardConcepts)
+        .innerJoin(concepts, eq(cardConcepts.conceptId, concepts.id))
+        .where(inArray(cardConcepts.cardId, ids)),
+      this.client
         .select(cardLocaleColumns)
         .from(cardLocales)
         .innerJoin(locales, eq(cardLocales.localeId, locales.id))
@@ -332,6 +355,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
       cardRelationships: relationshipRows,
       cardCollections: collectionRows,
       cardMechanisms: mechanismRows,
+      cardConcepts: conceptRows,
       cardLocales: cardLocaleRows,
       argumentChains: chainRows,
       chainMemberships: membershipRows,
@@ -479,6 +503,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
     const [
       collectionRows,
       mechanismRows,
+      conceptRows,
       membershipRows,
       premiseRows,
       conclusionRows,
@@ -499,6 +524,17 @@ export class DrizzleGraphReader implements TropeGraphReader {
           .from(cardMechanisms)
           .innerJoin(mechanisms, eq(cardMechanisms.mechanismId, mechanisms.id))
           .where(inArray(mechanisms.id, refs.mechanismIds)),
+      ),
+      // Hydrated by concept id, so the projection can resolve a Card -> Concept edge's endpoint
+      // without a second lookup. A concept referenced by no card never reaches `conceptIds` and
+      // is never hydrated, which is how the `anti-zionism` orphan stays absent rather than
+      // becoming a node with no edges.
+      emptyIfNo(refs.conceptIds, () =>
+        this.client
+          .select(cardConceptColumns)
+          .from(cardConcepts)
+          .innerJoin(concepts, eq(cardConcepts.conceptId, concepts.id))
+          .where(inArray(concepts.id, refs.conceptIds)),
       ),
       emptyIfNo(stepIds, () =>
         this.client
@@ -543,6 +579,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
       cardAxes: axisRows,
       cardCollections: collectionRows,
       cardMechanisms: mechanismRows,
+      cardConcepts: conceptRows,
       cardLocales: localeRows,
       claims: claimRows,
       inferenceSteps: stepRows,
@@ -660,6 +697,7 @@ function emptyCardExpansion(): CardExpansion {
     cardRelationships: [],
     cardCollections: [],
     cardMechanisms: [],
+    cardConcepts: [],
     cardLocales: [],
     argumentChains: [],
     chainMemberships: [],
@@ -702,6 +740,11 @@ export type SelectedRowChecks = [
   Awaited<
     ReturnType<DrizzleGraphReader['expandCards']>
   >['cardMechanisms'][number] extends CardMechanismRow
+    ? true
+    : never,
+  Awaited<
+    ReturnType<DrizzleGraphReader['expandCards']>
+  >['cardConcepts'][number] extends CardConceptRow
     ? true
     : never,
   Awaited<
