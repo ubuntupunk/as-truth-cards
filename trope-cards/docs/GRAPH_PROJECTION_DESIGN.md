@@ -509,13 +509,13 @@ with `meta.warnings[]`, never a 404 — a card with no claims is a fact, not a f
 |---|---|---|
 | Unit (fake reader): projection, views, query | 142 | yes |
 | Locale unit: schema shape, seed corpus | 23 | yes |
-| Graphology adapter + analysis unit (Issue #3 step 4) | 38 | yes |
+| Graphology adapter + analysis unit (Issue #3 step 4) | 41 | yes |
 | Integration (live SQL): projection over all 47 seeded cards | 18 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
 | Axis integration (pre-existing) | 7 | no — unchanged |
 | Locale integration (Issue #6) | 8 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
 | Graphology adapter integration (Issue #3 step 4) | 8 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
 
-203 unit tests pass with no database configured; 244 pass with one. The locale integration suite
+206 unit tests pass with no database configured; 247 pass with one. The locale integration suite
 closes the gap flagged when Issue #6 was written: it asserts each card kept the locale it was
 authored with, that an untagged card stays untagged, that no locale is dead, that the shared
 `south-africa` slug resolves to two different rows, and that a card survives a projection through
@@ -564,6 +564,32 @@ Traversal is bounded by both `maxDepth` and `maxNodes`, iterates neighbours in s
 reports `truncated` only when the node cap actually cut the walk short — a depth limit is a
 deliberate request, not a truncation. Results are sorted, so the same projection yields the same
 ids every time.
+
+### Traversal and connectivity are different questions
+
+`reachableFrom` and `connectedComponents` are both BFS with the same determinism guarantees, and
+they deliberately disagree about adjacency:
+
+| | honours `traversal`? | question it answers |
+|---|---|---|
+| `reachableFrom` | yes | "what can this node see within N hops?" |
+| `connectedComponents` | **no** | "what is structurally attached to this node?" |
+
+A `directed` edge yields only its target to `reachableFrom`, so `claims.card_id` reads one way. It
+yields *both* endpoints to `connectedComponents`. "These two are connected" is a structural fact
+the edge asserts; "this card may see that relationship" is the projection's editorial decision, and
+the two are not the same claim.
+
+This matters even though no v1 edge is directed today. Building components on the traversal-aware
+walk would be correct for the seeded corpus and wrong the moment a `directed` family existed: one
+one-way edge would split a single component in two and understate connectivity, with nothing in
+the test suite failing to say so. `connectedComponents` walks weak adjacency of its own, and a
+hand-built directed projection pins the disagreement — `reachableFrom(B)` returns `[]` while
+`connectedComponents` returns `[[A, B]]` on the same graph.
+
+`degreeReport.total` is Graphology's `degree`, i.e. `in + out`, so **a self-loop counts two**, not
+one. That is Graphology's own multigraph semantics rather than the "each incident edge once"
+reading some libraries use, and it is pinned by a test rather than left to a comment.
 
 ### Deliberately not built
 

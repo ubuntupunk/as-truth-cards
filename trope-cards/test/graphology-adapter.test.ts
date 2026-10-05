@@ -611,6 +611,90 @@ describe('analysis over the adapted graph', () => {
     assert.equal(forward.truncated, false)
   })
 
+  it('counts a directed edge as one component, because weak connectivity ignores direction', async () => {
+    // The counterpart to the test above, and the reason `connectedComponents` does not build on
+    // `reachableFrom`. "These two are connected" is structural; "this card can see that
+    // relationship" is the projection's editorial decision. If component membership honoured
+    // `traversal`, one directed edge would split a single component into two and understate
+    // connectivity — invisible today, since every v1 family emits `bidirectional`.
+    const { projection } = await adapt()
+    const template = projection.edges[0]
+    assert.ok(template)
+    const directed: GraphEdge = {
+      ...template,
+      id: 'domain|asserts|weakly-connected',
+      traversal: 'directed',
+    }
+    const pairOnly: GraphProjection = mutate(
+      {
+        ...projection,
+        nodes: projection.nodes.filter(
+          (n) => n.id === directed.from || n.id === directed.to,
+        ),
+      },
+      { edges: [directed], focus: { ...projection.focus, id: directed.from } },
+    )
+    assert.deepEqual(
+      connectedComponents(toGraphology(pairOnly)),
+      [[directed.from, directed.to].sort()],
+      'a one-way edge still connects its endpoints',
+    )
+  })
+
+  it('splits components on reachability but not on connectivity', async () => {
+    // One test, both behaviours, on the same A -> B graph: traversal says B is unreachable from
+    // A's target, connectivity says they are one component. Keeping them adjacent in the file
+    // is the point — they are meant to disagree.
+    const { projection } = await adapt()
+    const template = projection.edges[0]
+    assert.ok(template)
+    const directed: GraphEdge = { ...template, id: 'domain|asserts|disagreement', traversal: 'directed' }
+    const graph = toGraphology(
+      mutate(
+        {
+          ...projection,
+          nodes: projection.nodes.filter(
+            (n) => n.id === directed.from || n.id === directed.to,
+          ),
+        },
+        { edges: [directed], focus: { ...projection.focus, id: directed.to } },
+      ),
+    )
+    assert.deepEqual(reachableFrom(graph, directed.to).nodeIds, [])
+    assert.deepEqual(connectedComponents(graph), [[directed.from, directed.to].sort()])
+  })
+
+  it('counts a self-loop twice in total degree, matching Graphology', async () => {
+    // Measured, not assumed: Graphology's `degree` is `in + out`, so a self-loop is 2, not the 1
+    // some graph libraries report. Pinned here so the doc comment and the number cannot drift
+    // apart again. Connectivity is the loop-free question, and a self-loop must not inflate it.
+    const { projection } = await adapt()
+    const template = projection.edges[0]
+    assert.ok(template)
+    // Fold the target onto the source so the edge is a genuine self-loop, not an edge to a
+    // node this trimmed projection no longer emits.
+    const nodeId = template.from
+    const loop: GraphEdge = {
+      ...template,
+      id: 'domain|asserts|self-loop',
+      from: nodeId,
+      to: nodeId,
+      traversal: 'bidirectional',
+    }
+    const graph = toGraphology(
+      mutate(
+        { ...projection, nodes: projection.nodes.filter((n) => n.id === nodeId) },
+        { edges: [loop], focus: { ...projection.focus, id: nodeId } },
+      ),
+    )
+    const degrees = degreeReport(graph)
+    assert.deepEqual(degrees[nodeId], { in: 1, out: 1, total: 2 })
+    assert.equal(degrees[nodeId]!.total, degrees[nodeId]!.in + degrees[nodeId]!.out)
+    // A self-loop does not create a second node or a second component.
+    assert.deepEqual(connectedComponents(graph), [[nodeId]])
+    assert.equal(graph.order, 1)
+  })
+
   it('bounds traversal by depth and reports the depth reached', async () => {
     const { projection, graph } = await adapt(richCorpus(), { depth: 3 })
     const focus = projection.focus.id
