@@ -42,7 +42,11 @@ export type NodeDegrees = {
  *
  * Reported in three parts because a directed graph has no single meaningful degree: a claim
  * that many steps conclude from is not in the same position as one that concludes many.
- * `total` counts each incident edge once, so a self-loop contributes one rather than two.
+ *
+ * `total` is Graphology's own degree, which is `in + out`. That means a self-loop contributes
+ * **two**, not one, because it is both inbound and outbound. This is deliberate and matches
+ * Graphology's multigraph semantics rather than the "count each incident edge once" reading some
+ * graph libraries use; {@link connectedComponents} is where the loop-free question belongs.
  */
 export function degreeReport(
   graph: TropeGraphologyGraph,
@@ -185,11 +189,15 @@ export function connectedComponents(graph: TropeGraphologyGraph): string[][] {
 
   for (const startId of [...graph.nodes()].sort()) {
     if (assigned.has(startId)) continue
-    // Reuses the same traversal rule as reachability, so a component and a neighbourhood mean
-    // the same thing to a reader.
-    const members = [startId, ...reachableFrom(graph, startId).nodeIds]
+    // Deliberately *not* `reachableFrom`. Weak connectivity ignores direction, so a component
+    // has to walk every edge both ways regardless of `traversal`. Reusing the traversal-aware
+    // helper would have been a latent bug: it happens to agree today because every v1 family
+    // emits `bidirectional`, but the first `directed` edge would silently split one component
+    // into two and understate connectivity. Same BFS shape as `reachableFrom`, different
+    // adjacency — which is exactly why the two are separate functions.
+    const members = weaklyConnectedTo(graph, startId)
     for (const member of members) assigned.add(member)
-    components.push(members.sort())
+    components.push(members)
   }
 
   // Ordering by smallest member makes the output independent of node insertion order.
@@ -198,10 +206,68 @@ export function connectedComponents(graph: TropeGraphologyGraph): string[][] {
 }
 
 /**
- * Neighbours reachable across one incident edge.
+ * The whole weakly connected component containing `nodeId`, sorted, including `nodeId` itself.
  *
- * Internal, and the single place {@link reachableFrom} and {@link connectedComponents} agree
- * on what "adjacent" means.
+ * Internal, and the one place weak connectivity differs from {@link reachableFrom}. Both are
+ * BFS with the same determinism guarantees — frontiers and neighbours sorted before expansion —
+ * so the only difference between a component and a neighbourhood is the adjacency rule.
+ *
+ * A `directed` edge still yields both endpoints here: "these two are connected" is a structural
+ * fact, while "this card can see that relationship" is the projection's editorial decision.
+ *
+ * Unbounded, unlike {@link reachableFrom}. The caller's input is already a bounded projection,
+ * so the component cannot exceed the node count the caller holds, and stopping it at a cap would
+ * report a component as smaller than it is — the one error this function must not make.
+ */
+function weaklyConnectedTo(
+  graph: TropeGraphologyGraph,
+  startId: string,
+): string[] {
+  const visited = new Set<string>([startId])
+  let frontier = [startId]
+
+  while (frontier.length > 0) {
+    const next: string[] = []
+    for (const nodeId of frontier) {
+      for (const neighbour of weaklyAdjacent(graph, nodeId)) {
+        if (visited.has(neighbour)) continue
+        visited.add(neighbour)
+        next.push(neighbour)
+      }
+    }
+    if (next.length === 0) break
+    frontier = next.sort()
+  }
+
+  return [...visited].sort()
+}
+
+/**
+ * Every node sharing an incident edge with `nodeId`, ignoring `traversal` entirely.
+ *
+ * Internal. Deduplicated because a multigraph reports every parallel edge separately, so two
+ * parallel edges between the same pair would otherwise yield that neighbour twice. A self-loop
+ * yields the node itself, which the caller's `visited` set absorbs.
+ */
+function* weaklyAdjacent(
+  graph: TropeGraphologyGraph,
+  nodeId: string,
+): Generator<string> {
+  const neighbours = new Set<string>()
+  for (const edge of graph.edges(nodeId)) {
+    neighbours.add(graph.source(edge) as string)
+    neighbours.add(graph.target(edge) as string)
+  }
+  for (const neighbour of [...neighbours].sort()) {
+    yield neighbour
+  }
+}
+
+/**
+ * Neighbours reachable across one incident edge, honouring `traversal`.
+ *
+ * Internal, and the traversal-aware half of what "adjacent" means. Weak connectivity deliberately
+ * does not use this — see {@link weaklyAdjacent} for why the two must disagree.
  *
  * A `directed` edge yields only its target, so `claims.card_id` reads one way. A
  * `bidirectional` edge also yields its source, which is what lets a card see the relationships
