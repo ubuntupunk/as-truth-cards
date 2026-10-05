@@ -26,12 +26,14 @@ import type {
  *
  * The projection is where the six normalisation invariants live, and those invariants are
  * properties of the *shape* of a projection, not of any particular corpus. Asserting them
- * against seeded data would let them pass by luck: the corpus has 0 `claim_relations` rows and
- * 6 concepts, so a rule about authored claim relations would never be exercised.
+ * against seeded data would let them pass by luck: the corpus has only 5 `claim_relations`
+ * rows and 6 concepts, so a rule about authored claim relations or Concept edges would only
+ * ever be exercised on a handful of cases and never on the cases that must be *rejected*.
  *
  * This fake holds a hand-built corpus that contains every case the invariants exist for —
  * including the rows that must be *rejected* — so each invariant is proved against both the
- * accepting and the refusing case.
+ * accepting and the refusing case. The v0.11 corpus increment added claim relations and
+ * sources to the real database, but it did not make the seeded corpus a substitute for this.
  */
 
 /** A card row, with only the fields the projection reads. */

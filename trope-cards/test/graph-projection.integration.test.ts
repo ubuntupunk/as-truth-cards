@@ -111,10 +111,68 @@ describe(
       // These zero counts are the reason Q1, Q2 and Q5 are worded the way they are. If one
       // becomes non-zero, the corpus task that filled it should also revisit the decision —
       // so the assertion states the current state rather than merely passing.
+      //
+      // Two of the three were filled by the v0.11 corpus increment. Each now records the
+      // decision that made it non-zero, so the tripwire still fires on the next change rather
+      // than being quietly relaxed.
       assert.equal(population.cardConcepts, 0, 'Q2 assumed card_concepts is unpopulated')
-      assert.equal(population.claimRelations, 0, 'Q1 assumed claim_relations is unpopulated')
-      assert.equal(population.sources, 0, 'evidence decisions assumed sources is unpopulated')
+
+      // Filled by v0.11. Q1 anticipated exactly this: "claim_relations becomes live the moment
+      // it is populated, with no projection change". The projection already projects authored
+      // rows, so the count is the design working, not drifting from it.
+      assert.equal(population.claimRelations, 5, 'Q1 anticipated claim_relations becoming live')
+
+      // Filled by v0.11, bibliographically only. B5 deprecates claim_sources "when the evidence
+      // corpus is populated"; it is not, so the table stays. See sourceLayer.ts.
+      assert.equal(population.sources, 3, 'v0.11 added bibliographic sources')
+
+      // Still zero, and load-bearing: evidence_items requires a located passage with verifiable
+      // wording. Its emptiness is a decision, not a gap. See CORPUS_GAP_ANALYSIS.md section 4.
       assert.equal(population.evidenceItems, 0)
+    })
+
+    it('projects authored claim relations without inferring any', async () => {
+      // Q1's operative rule: the projection reads claim_relations as authored and derives
+      // nothing from inference structure. Now that 5 rows exist, the rule is testable where it
+      // previously could not be: an authored row must reach the projection, and no
+      // claim_relation edge may come from anything but an authored row.
+      const slugsWithRelations = [
+        'canaanite-card',
+        'jesus-was-a-zionist',
+        'palestinian-flag',
+      ]
+      const projectedValues: string[] = []
+      for (const slug of slugsWithRelations) {
+        const projection = await projectGraph(reader, {
+          focus: slug,
+          view,
+          depth: 2,
+          maxNodes: DEFAULT_MAX_NODES,
+        })
+        const relationEdges = projection.edges.filter(
+          (e) => e.family === 'claim_relation',
+        )
+        for (const edge of relationEdges) {
+          // Q1: an edge in this family must be traceable to an authored claim_relations row.
+          assert.equal(
+            edge.sourceTable,
+            'claim_relations',
+            `edge ${edge.id} claims the claim_relation family but reads ${edge.sourceTable}`,
+          )
+        }
+        projectedValues.push(...relationEdges.map((e) => e.type.value))
+      }
+
+      assert.ok(
+        projectedValues.length > 0,
+        'authored claim relations should reach the projection now that the table is populated',
+      )
+      // The five authored relations sit on three cards; each of those cards must surface at
+      // least one, so a projection that silently dropped the family would be caught.
+      assert.ok(
+        projectedValues.length >= 5,
+        `expected all 5 authored relations across 3 cards, saw ${projectedValues.length}`,
+      )
     })
 
     it('resolves a card by slug and by uuid to the same row (Q7)', async () => {

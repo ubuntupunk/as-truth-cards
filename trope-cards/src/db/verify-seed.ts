@@ -3,8 +3,13 @@ import process from 'node:process'
 import { sql } from 'drizzle-orm'
 
 import { getDb, getPool } from './client'
+import { claimRelations as claimRelationsSeed } from './seed/claimRelations'
 import { cardCorpus } from './seed/corpus'
+import { identityRetrospectionClaims } from './seed/identityRetrospection'
 import { seedTropeGraph } from './seed/index'
+import { newIdentityClaims } from './seed/newIdentityClaims'
+import { referenceClaims } from './seed/referenceClaims'
+import { corpusClaimSources, corpusSources } from './seed/sourceLayer'
 import { assertLocalHostFromEnv } from './url'
 
 /**
@@ -33,7 +38,12 @@ const EXPECTED = {
   // same way `cardAxes` did.
   locales: 1,
   cardLocales: 7,
-  claims: 19,
+  // Recomputed from the three claim seed files by the claim-preservation check below.
+  claims: 33,
+  // The v0.11 increment: 5 direct claim relations, 3 bibliographic sources, 6 attributions.
+  claimRelations: 5,
+  sources: 3,
+  claimSources: 6,
   relationships: 11,
   inferenceSteps: 4,
   inferencePremises: 9,
@@ -63,6 +73,9 @@ async function snapshot(): Promise<Record<keyof typeof EXPECTED, number>> {
       (SELECT count(*)::int FROM trope_graph.locales)                         AS locales,
       (SELECT count(*)::int FROM trope_graph.card_locales)                    AS "cardLocales",
       (SELECT count(*)::int FROM trope_graph.claims)                          AS claims,
+      (SELECT count(*)::int FROM trope_graph.claim_relations)                 AS "claimRelations",
+      (SELECT count(*)::int FROM trope_graph.sources)                         AS sources,
+      (SELECT count(*)::int FROM trope_graph.claim_sources)                   AS "claimSources",
       (SELECT count(*)::int FROM trope_graph.relationships)                   AS relationships,
       (SELECT count(*)::int FROM trope_graph.inference_steps)                 AS "inferenceSteps",
       (SELECT count(*)::int FROM trope_graph.inference_premises)              AS "inferencePremises",
@@ -272,8 +285,9 @@ async function integrityChecks(): Promise<{
   `)
   if (unboundClaims && unboundClaims.n > 0) {
     warnings.push(
-      `${unboundClaims.n} claim(s) are not bound to any inference step. Expected while the ` +
-        'v0.4 claim corpus is deferred, and for the v0.5 identity claims.',
+      `${unboundClaims.n} claim(s) are not bound to any inference step. Expected: the ` +
+        'v0.4 corpus is deferred, the v0.5 identity claims were never decomposed, and the ' +
+        'v0.11 reference claims restate a card summary rather than an argument.',
     )
   }
 
@@ -285,8 +299,129 @@ async function integrityChecks(): Promise<{
   `)
   if (claimlessCards && claimlessCards.n > 0) {
     warnings.push(
-      `${claimlessCards.n} of ${EXPECTED.cards} card(s) have no claims. Expected while the ` +
-        '152-claim v0.4 corpus is held back pending source verification.',
+      `${claimlessCards.n} of ${EXPECTED.cards} card(s) have no claims. Down from 41 before ` +
+        'the v0.11 increment. Expected while the 152-claim v0.4 corpus is held back pending ' +
+        'source verification, and for the tactic cards, whose summaries describe an ' +
+        'operation rather than assert a proposition.',
+    )
+  }
+
+  // -- v0.11 claim, relation, and source checks ------------------------------
+  // EXPECTED.claims is a hand-maintained constant and three separate files now feed it, so
+  // it is recomputed here. A file gaining or losing a claim fails loudly instead of quietly
+  // invalidating the assertion below.
+  const authoredClaims = [
+    ...newIdentityClaims,
+    ...identityRetrospectionClaims,
+    ...referenceClaims,
+  ]
+  if (authoredClaims.length !== EXPECTED.claims) {
+    errors.push(
+      `EXPECTED.claims is ${EXPECTED.claims} but the claim seed files author ` +
+        `${authoredClaims.length} claims ` +
+        `(${newIdentityClaims.length} + ${identityRetrospectionClaims.length} + ` +
+        `${referenceClaims.length}); update EXPECTED when the corpus changes`,
+    )
+  }
+
+  // Claim slugs key every premise binding, claim relation, and source attribution. Two files
+  // using one slug would rewire all three onto a single claim, and nothing in the schema
+  // would object.
+  const claimSlugCounts = new Map<string, number>()
+  for (const claim of authoredClaims) {
+    claimSlugCounts.set(claim.slug, (claimSlugCounts.get(claim.slug) ?? 0) + 1)
+  }
+  for (const [slug, n] of claimSlugCounts) {
+    if (n > 1) {
+      errors.push(
+        `claim slug "${slug}" is defined ${n} times across the seed files`,
+      )
+    }
+  }
+
+  // Same reasoning for the relation, source, and attribution constants.
+  if (claimRelationsSeed.length !== EXPECTED.claimRelations) {
+    errors.push(
+      `EXPECTED.claimRelations is ${EXPECTED.claimRelations} but claimRelations.ts authors ` +
+        `${claimRelationsSeed.length}`,
+    )
+  }
+  if (corpusSources.length !== EXPECTED.sources) {
+    errors.push(
+      `EXPECTED.sources is ${EXPECTED.sources} but sourceLayer.ts authors ` +
+        `${corpusSources.length}`,
+    )
+  }
+  if (corpusClaimSources.length !== EXPECTED.claimSources) {
+    errors.push(
+      `EXPECTED.claimSources is ${EXPECTED.claimSources} but sourceLayer.ts authors ` +
+        `${corpusClaimSources.length}`,
+    )
+  }
+
+  // Every endpoint of a claim relation must be a claim, and the two must differ. Foreign keys
+  // cover the first; nothing in the schema forbids the second.
+  const {
+    rows: [selfRelations],
+  } = await db.execute<{ n: number }>(sql`
+    SELECT count(*)::int AS n FROM trope_graph.claim_relations
+    WHERE source_claim_id = target_claim_id
+  `)
+  if (selfRelations && selfRelations.n > 0) {
+    errors.push(`${selfRelations.n} claim relation(s) relate a claim to itself`)
+  }
+
+  // `sources` has no unique constraint: the runner achieves idempotency by reading on title
+  // before inserting. That works only while titles stay unique, so it is asserted here
+  // rather than assumed.
+  const {
+    rows: [sourceDupes],
+  } = await db.execute<{ n: number }>(sql`
+    SELECT count(*)::int AS n FROM (
+      SELECT title FROM trope_graph.sources GROUP BY title HAVING count(*) > 1
+    ) d
+  `)
+  if (sourceDupes && sourceDupes.n > 0) {
+    errors.push(
+      `${sourceDupes.n} duplicate source title(s); the runner deduplicates on title, so a ` +
+        'repeated title silently merges two source records',
+    )
+  }
+
+  // The central constraint of the v0.11 increment, enforced on the database rather than
+  // trusted to reviewer discipline: no attribution asserts a quotation or a locator.
+  //
+  // A claim naming the document it rests on is a bibliographic statement. A quotation is an
+  // assertion about wording, and nothing in the corpus verifies wording. Once one quotation
+  // exists among the rest, it reads as checked work, which is the appearance this increment
+  // refuses to create. Lifting this requires a real evidence_items row with a verified
+  // locator, not an edit here.
+  const {
+    rows: [quotedAttributions],
+  } = await db.execute<{ n: number }>(sql`
+    SELECT count(*)::int AS n FROM trope_graph.claim_sources
+    WHERE quote_or_excerpt IS NOT NULL OR page_reference IS NOT NULL
+  `)
+  if (quotedAttributions && quotedAttributions.n > 0) {
+    errors.push(
+      `${quotedAttributions.n} claim_source row(s) assert a quote or page reference. The ` +
+        'v0.11 increment records bibliographic attribution only; excerpts belong in ' +
+        'evidence_items with a verified locator. See seed/sourceLayer.ts.',
+    )
+  }
+
+  // `evidence_items` is absent from EXPECTED because it must stay empty for now. It is
+  // asserted explicitly so that the table cannot quietly acquire a row without this
+  // decision being revisited.
+  const {
+    rows: [evidence],
+  } = await db.execute<{ n: number }>(sql`
+    SELECT count(*)::int AS n FROM trope_graph.evidence_items
+  `)
+  if (evidence && evidence.n > 0) {
+    errors.push(
+      `${evidence.n} evidence item(s) exist. Recording one requires a located passage with ` +
+        'verifiable wording; see docs/CORPUS_GAP_ANALYSIS.md section 4.',
     )
   }
 

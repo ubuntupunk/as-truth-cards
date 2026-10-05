@@ -8,6 +8,7 @@ import {
   inferenceStepRelations,
 } from '../schema/argumentChains'
 import {
+  claimRelations as claimRelationsTable,
   inferenceConclusions,
   inferencePremises,
   inferenceSteps,
@@ -19,29 +20,34 @@ import {
   cardLocales,
   cardMechanisms,
   cards,
+  claimSources,
   claims,
   collections,
   concepts,
   locales,
   mechanisms,
   relationships,
+  sources,
 } from '../schema/tropeGraph'
 import { assertLocalHostFromEnv } from '../url'
 import { argumentChainSeed } from './argumentChains'
 import { claimDecompositionSeed } from './claimDecomposition'
+import { claimRelations } from './claimRelations'
 import { cardCorpus } from './corpus'
 import {
   identityRetrospectionClaims,
   identityRetrospectionRelationships,
 } from './identityRetrospection'
 import { newIdentityClaims } from './newIdentityClaims'
+import { referenceClaims } from './referenceClaims'
+import { corpusClaimSources, corpusSources } from './sourceLayer'
 import {
   collectionsSeed,
   conceptsSeed,
   localesSeed,
   mechanismsSeed,
 } from './taxonomy'
-import type { CardAxis, CardSeed } from './types'
+import type { CardAxis, CardSeed, ClaimSeed } from './types'
 
 /**
  * The full card corpus: the 45-card v0.5 draft plus the two Identity Retrospection
@@ -398,24 +404,24 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
     }
 
     // -- Claims ------------------------------------------------------------
-    // Only identityRetrospectionClaims carry a `slug`; newIdentityClaims are referenced
-    // by nothing, so they need no label. Both are inserted, and the slug map is built
-    // from whichever rows have one.
-    for (const claim of newIdentityClaims) {
-      await tx
-        .insert(claims)
-        .values({
-          cardId: requireCard(claim.cardSlug),
-          statement: claim.statement,
-          claimType: claim.claimType,
-          description: `Evidence required: ${claim.evidenceRequirement}`,
-          epistemicStatus: claim.status,
-        })
-        .onConflictDoNothing()
-    }
-
+    // Every claim seed carries a `slug` as of v0.11. newIdentityClaims did not until then,
+    // which is why the old runner inserted them in a separate loop that never resolved an
+    // id: those claims were unreachable from any other seed file. All three sets now share
+    // one insert path, so a claim is referenceable regardless of which file authored it.
     const claimIds = new Map<string, string>()
-    for (const claim of identityRetrospectionClaims) {
+
+    const insertClaim = async (
+      claim: ClaimSeed & { slug: string },
+      description?: string,
+    ): Promise<void> => {
+      if (claimIds.has(claim.slug)) {
+        throw new Error(
+          `Duplicate claim slug "${claim.slug}". Slugs key every binding, claim ` +
+            `relation, and source attribution, so a collision would silently rewire one ` +
+            `of them onto a different claim.`,
+        )
+      }
+
       const cardId = requireCard(claim.cardSlug)
       const [row] = await tx
         .insert(claims)
@@ -423,17 +429,23 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
           cardId,
           statement: claim.statement,
           claimType: claim.claimType,
+          // `description` comes from the seed's own field when present, otherwise from an
+          // argument (the identity cluster passes its evidenceRequirement note this way).
+          ...(claim.description !== undefined
+            ? { description: claim.description }
+            : description !== undefined
+              ? { description }
+              : {}),
           epistemicStatus: claim.status,
         })
         .onConflictDoNothing()
         .returning({ id: claims.id })
 
       let claimId = row?.id
-      if (row === undefined) {
-        // Expected only on a re-run, where the claim already exists.
-      }
       if (!claimId) {
-        // Already seeded: re-read by statement, since claims have no unique slug column.
+        // Expected only on a re-run, where claims_card_statement_unique_idx rejects the
+        // insert. Claims have no slug column, so the re-read keys on the same columns the
+        // constraint covers.
         const [existing] = await tx
           .select({ id: claims.id })
           .from(claims)
@@ -451,15 +463,127 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
       claimIds.set(claim.slug, claimId)
     }
 
+    for (const claim of newIdentityClaims) {
+      await insertClaim(
+        claim,
+        `Evidence required: ${claim.evidenceRequirement}`,
+      )
+    }
+    for (const claim of identityRetrospectionClaims) {
+      await insertClaim(claim)
+    }
+    for (const claim of referenceClaims) {
+      await insertClaim(claim)
+    }
+
     const requireClaim = (slug: string): string => {
       const id = claimIds.get(slug)
       if (!id) {
         throw new Error(
-          `Seed references claim "${slug}", which identityRetrospection.ts does not define. ` +
+          `Seed references claim "${slug}", which no claim seed file defines. ` +
             `Known claims: ${[...claimIds.keys()].sort().join(', ')}`,
         )
       }
       return id
+    }
+
+    // -- Direct claim relations ---------------------------------------------
+    // Distinct from the inference bindings below: a claim relation records a stated
+    // relationship between two propositions, an inference step records that one follows
+    // from others by a named inferential form. See seed/claimRelations.ts for the rule
+    // that keeps a pair from appearing in both.
+    for (const relation of claimRelations) {
+      if (relation.sourceClaimSlug === relation.targetClaimSlug) {
+        throw new Error(
+          `Claim relation "${relation.sourceClaimSlug}" is a self-relation. A claim ` +
+            `cannot stand in a stated relationship to itself.`,
+        )
+      }
+      await tx
+        .insert(claimRelationsTable)
+        .values({
+          sourceClaimId: requireClaim(relation.sourceClaimSlug),
+          targetClaimId: requireClaim(relation.targetClaimSlug),
+          relationType: relation.relationType,
+          description: relation.description,
+        })
+        .onConflictDoNothing()
+    }
+
+    // -- Sources and claim attributions -------------------------------------
+    // `sources` has no unique constraint, so `onConflictDoNothing` would never fire and
+    // every re-run would duplicate the row. Idempotency comes from reading by title first.
+    // Titles are hand-assigned and unique per source; a collision is an authoring mistake
+    // and is reported rather than merged.
+    const sourceIds = new Map<string, string>()
+    const sourceTitles = new Map<string, string>()
+
+    for (const source of corpusSources) {
+      const claimedTitle = sourceTitles.get(source.label)
+      if (claimedTitle !== undefined) {
+        throw new Error(
+          `Duplicate source label "${source.label}" (already used by ` +
+            `"${claimedTitle}"). Labels key every claim attribution.`,
+        )
+      }
+      sourceTitles.set(source.label, source.title)
+
+      const [existing] = await tx
+        .select({ id: sources.id })
+        .from(sources)
+        .where(eq(sources.title, source.title))
+
+      let sourceId = existing?.id
+      if (!sourceId) {
+        const [row] = await tx
+          .insert(sources)
+          .values({
+            title: source.title,
+            author: source.author,
+            publisher: source.publisher,
+            publicationDate: source.publicationDate,
+            sourceType: source.sourceType,
+            url: source.url,
+            archiveUrl: source.archiveUrl,
+            citation: source.citation,
+            description: source.description,
+          })
+          .returning({ id: sources.id })
+        sourceId = row?.id
+      }
+      if (!sourceId) {
+        throw new Error(`Unable to resolve source "${source.label}" to an id.`)
+      }
+      sourceIds.set(source.label, sourceId)
+    }
+
+    const requireSource = (label: string): string => {
+      const id = sourceIds.get(label)
+      if (!id) {
+        throw new Error(
+          `Seed references source "${label}", which sourceLayer.ts does not define. ` +
+            `Known sources: ${[...sourceIds.keys()].sort().join(', ')}`,
+        )
+      }
+      return id
+    }
+
+    // claim_sources' primary key is (claim_id, source_id), so onConflictDoNothing makes
+    // this idempotent. quoteOrExcerpt and pageReference are left null throughout: naming
+    // the document a claim rests on is not the same as quoting it, and asserting a locator
+    // this increment cannot verify would misrepresent evidence that does not exist.
+    for (const link of corpusClaimSources) {
+      await tx
+        .insert(claimSources)
+        .values({
+          claimId: requireClaim(link.claimSlug),
+          sourceId: requireSource(link.sourceLabel),
+          relationship: link.relationship,
+          quoteOrExcerpt: link.quoteOrExcerpt ?? null,
+          pageReference: link.pageReference ?? null,
+          notes: link.notes,
+        })
+        .onConflictDoNothing()
     }
 
     // -- Typed graph edges -------------------------------------------------
@@ -719,6 +843,9 @@ export async function seedTropeGraph(): Promise<Record<string, number>> {
       locales: await count(locales),
       cardLocales: await count(cardLocales),
       claims: await count(claims),
+      claimRelations: await count(claimRelationsTable),
+      sources: await count(sources),
+      claimSources: await count(claimSources),
       relationships: await count(relationships),
       inferenceSteps: await count(inferenceSteps),
       inferencePremises: await count(inferencePremises),
@@ -747,9 +874,17 @@ export async function main(): Promise<number> {
       console.log(`  ${key.padEnd(22)} ${value}`)
     }
     console.log('\nNot seeded (intentionally):')
-    console.log('  evidence items        0  no located passages recorded yet')
+    console.log(
+      '  evidence items        0  no located passages recorded yet; claim_sources names',
+    )
+    console.log(
+      '                             the documents without asserting quotations',
+    )
     console.log(
       '  v0.4 claim corpus     0  held back pending source verification',
+    )
+    console.log(
+      '  cases / interp.       0  corpus names no dockets, dates, or attributed readers',
     )
     return 0
   } catch (error) {
