@@ -222,10 +222,16 @@ Node `id` = canonical `trope_graph` uuid (stable). Edge `id` = deterministic com
 
 ## 6. Projection / adapter design
 
-Relational → normalized domain projection → (future) Graphology. The projection is computed by Drizzle/SQL; Graphology is a later, ephemeral consumer.
+Relational → normalized domain projection → Graphology (optional analysis) → Cytoscape (presentation). The projection is computed by Drizzle/SQL. Graphology and Cytoscape are later, ephemeral consumers: neither is a source of truth, neither may re-query the database, and nothing either computes is persisted.
 
 ```
-Postgres / Drizzle  ──(view adjacency rules)──▶  normalized projection {nodes, edges}  ──(later)──▶  Graphology
+Postgres / Drizzle  ──(view adjacency rules)──▶  normalized projection {nodes, edges, meta}
+                                                        │
+                    ┌───────────────────────────────┴───────────────────────────────┐
+                    ▼                                                               ▼
+        Graphology (analysis, optional)                              Cytoscape (presentation)
+        toGraphology() — MultiDirectedGraph                          toCytoscapePresentation()
+        traversal, degree, components                                 ElementDefinition[] + context
 ```
 
 **Algorithm (per request):**
@@ -504,8 +510,8 @@ projection cost is bounded by `maxNodes`.
 
 ## 13. Implementation record
 
-Implemented after §11 was answered. Still no Graphology, no Cytoscape, no schema change, no UI
-change, no new dependency.
+Implemented after §11 was answered. Still no schema change and no UI change. Graphology and
+Cytoscape were added afterwards as separate consumers of the projection, each in its own adapter.
 
 ### What exists
 
@@ -518,6 +524,9 @@ change, no new dependency.
 | Projection | `trope-cards/src/graph/projection.ts` | BFS, filtering, node/edge emission, warnings, truncation |
 | Request contract | `trope-cards/src/graph/query.ts` | Validation, filter normalisation, error taxonomy |
 | HTTP boundary | `server/api/graph.ts` | `GET /api/graph`, `GET /api/graph/views` |
+| Graphology adapter | `trope-cards/src/graph/graphology-adapter.ts` | Projection → `MultiDirectedGraph` (analysis) |
+| Analysis | `trope-cards/src/graph/analysis.ts` | Bounded traversal, degree, components |
+| Cytoscape adapter | `trope-cards/src/graph/cytoscape-adapter.ts` | Projection → `ElementDefinition[]` + `context` (presentation) |
 
 The projection depends only on the read port, which is why the invariant suite runs against an
 in-memory fake and the same suite can run against live SQL.
@@ -543,12 +552,17 @@ with `meta.warnings[]`, never a 404 — a card with no claims is a fact, not a f
 | Unit (fake reader): projection, views, query | 142 | yes |
 | Locale unit: schema shape, seed corpus | 23 | yes |
 | Graphology adapter + analysis unit (Issue #3 step 4) | 41 | yes |
+| Cytoscape adapter unit (Issue #3 step 6) | 55 | yes |
+
+Totals: 292 unit tests across the suites above, all passing without a database.
 | Integration (live SQL): projection over all 47 seeded cards | 18 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
 | Axis integration (pre-existing) | 7 | no — unchanged |
 | Locale integration (Issue #6) | 8 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
 | Graphology adapter integration (Issue #3 step 4) | 8 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
 
-206 unit tests pass with no database configured; 247 pass with one. The locale integration suite
+292 unit tests pass with no database configured. The five integration suites
+(`graph-projection`, `graphology-adapter`, `graph-locale`, `graph-axis`, `seed-corpus`) report 0 and
+skip unless `TROPE_GRAPH_DATABASE_URL` is set; they add 51 more when one is. The locale integration suite
 closes the gap flagged when Issue #6 was written: it asserts each card kept the locale it was
 authored with, that an untagged card stays untagged, that no locale is dead, that the shared
 `south-africa` slug resolves to two different rows, and that a card survives a projection through
@@ -559,6 +573,18 @@ adapter's logic over hand-built projections, while the live suite proves it surv
 seeded ontology actually produces — a `relationships` pair with two rows, cards sharing the
 `south-africa` slug across Suit and Locale, axis ordinals, and inference steps whose status
 vocabulary differs from a claim's.
+
+The Cytoscape adapter unit suite has no integration counterpart, deliberately. It already proves
+the thing a live database would be asked to prove — that the adapter preserves whatever
+`projectGraph` emits — by running against the real projection over the fake reader, and its
+remaining risk is Cytoscape's own behaviour rather than the seeded corpus's. So instead of a
+database it uses a real headless `cytoscape()` core, asserting that the library accepts the output,
+preserves direction, applies the derived classes and counts what the projection declared. Seven of
+its cases were derived by mutation testing: breaking the adapter in one specific way each and
+confirming a named test fails. Two survivors from that pass were fixed rather than left —
+a dropped node `metadata` bag and a repeated-id guard — and the mapping is now pinned field by
+field, including through a core, since Cytoscape drops `undefined` from `data()` and reads
+`classes` only at element level.
 
 The integration suite exists because a fake cannot catch a wrong column list or a missed join: it
 hands back exactly the shape the port declares. It projects **every** seeded card, not a sample,
@@ -624,9 +650,75 @@ hand-built directed projection pins the disagreement — `reachableFrom(B)` retu
 one. That is Graphology's own multigraph semantics rather than the "each incident edge once"
 reading some libraries use, and it is pinned by a test rather than left to a comment.
 
+### Cytoscape presentation layer
+
+§10 step 5 is built: `src/graph/cytoscape-adapter.ts`. The layer boundary is the point of it, so
+it is worth stating in one place:
+
+| Layer | Owns | Never does |
+|---|---|---|
+| canonical ontology / `trope_graph` | identity, relations, provenance | presentation, styling, traversal |
+| domain projection (`projection.ts`) | what a given view + focus + depth may see | touch Cytoscape or Graphology |
+| Graphology (`graphology-adapter.ts`, `analysis.ts`) | traversal, degree, components | decide what is visible; persist anything |
+| Cytoscape (`cytoscape-adapter.ts`) | element shape for a renderer | re-query, infer, mutate the ontology, own semantics |
+
+`toCytoscapePresentation(projection)` returns `{ elements, context }`. `elements` is the flat
+`ElementDefinition[]` that `cytoscape({ elements })` consumes, and `context` carries `focus`,
+`view`, `depth` and `meta` — which have no home in an element, because Cytoscape has no
+graph-level attribute bag the way Graphology does. Without `context` a renderer could not tell a
+small graph from a capped one, nor surface the warnings that make an unpopulated layer
+distinguishable from a broken request.
+
+No `cytoscape.Core` is instantiated. The conversion is pure, so it needs no `container` and no
+`headless`, and the same array can be rendered into as many cores as a page wants. The tests
+build real headless cores anyway, to prove the output is accepted by the library and not merely
+structurally plausible.
+
+**Domain → Cytoscape mapping.** Everything below is a copy; nothing is derived.
+
+| Domain | Cytoscape | Notes |
+|---|---|---|
+| `GraphNode.id` | `data.id` | canonical uuid, never rewritten |
+| `GraphNode.type` / `label` | `data.type` / `data.label` | verbatim; no truncation |
+| `GraphNode.depth` / `isFocus` / `degree` | same names | the projection's own numbers, not recomputed |
+| `GraphNode.status` | `data.status` | incl. the `source` tag, so Q4's decoupling survives |
+| `CardNode.classification` | `data.classification` | **card only**; the key is absent elsewhere |
+| `GraphNode.metadata` | `data.metadata` | type-specific bag, verbatim |
+| `GraphEdge.id` | `data.id` | the deterministic `buildEdgeId` composite |
+| `GraphEdge.from` / `to` | `data.source` / `data.target` | authored direction, never swapped |
+| `GraphEdge.family` | `data.family` | kept separate from `relation` on purpose |
+| `GraphEdge.type.value` | `data.relation` | meaningless without `family`, which is why both ship |
+| `GraphEdge.type.vocabulary` | `data.vocabulary` | present only for `inference_step_relations` |
+| `GraphEdge.sourceTable` | `data.sourceTable` | which vocabulary the relation word came from |
+| `GraphEdge.traversal` | `data.traversal` | a walk rule; it never becomes `target` |
+| `GraphEdge.attributes` | `data.projectionAttributes` | `role`, `ordinal`, `description`, … |
+| — | element `classes` | presentation only: `type-*`, `status-*`, `is-focus`, `family-*`, `relation-*`, `traversal-*` |
+
+**Cytoscape mutations are not persisted.** A renderer may move nodes, add classes, restyle or
+delete elements, and none of it reaches `trope_graph`. There is no write-back path, and one should
+not be added casually: an edit made in a view is an edit made in *a projection*, which is a
+depth-bounded, filtered slice — so a mutation cannot be promoted to canonical without a decision
+about which view asserted it and with what authority. Issue #3 lists graph editing as a non-goal
+for this reason, not merely as scope.
+
+**The id question was deliberately left open.** Issue #3 asks whether `GraphNode.id` should
+become type-qualified. This layer does not answer it, because the adapter does not need to: node
+ids are `trope_graph` uuids and edge ids are `family|from|TYPE|to[|discriminator]`, so a uuid
+cannot contain the `|` delimiter and the two id spaces cannot collide. That is now pinned by a
+test rather than asserted here, and it is tracked as a graph-contract hardening item
+(`as-truth-cards-2bq`) rather than left to a future reader. What makes it non-optional is
+Cytoscape's silence about ids —
+measured against 3.34.3, two nodes sharing an id merge into one node, two edges sharing an id
+merge into one edge, and an edge whose id equals a node id is **discarded with no error**, so a
+projection bug would render a quietly smaller graph with nothing failing. The adapter therefore
+refuses all three (`CytoscapeAdapterError`) rather than disambiguating. If a type-qualified id
+scheme ever produces a real collision, the correct response is to stop and take it to Issue #3,
+not to prefix ids inside a presentation layer.
+
 ### Deliberately not built
 
-Cytoscape view, persisted metrics, write paths, auth. §10 steps 5–8 remain.
+Cytoscape layout, styling and interaction (the adapter produces elements and no CSS), persisted
+metrics, write paths, write-back, auth. §10 steps 6–8 remain.
 
 The analysis surface is deliberately narrower than §3.2's list. Centrality, shortest path,
 clustering and community detection are **not** implemented, because on the seeded ontology each
