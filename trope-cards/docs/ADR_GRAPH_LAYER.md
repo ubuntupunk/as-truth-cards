@@ -250,7 +250,7 @@ This remains governed by the separate Suit/Axis ontology work.
 - PostgreSQL
 - Drizzle
 - Existing `trope_graph` migrations and schema
-- Graphology for server-side/in-memory graph computation
+- Graphology `0.26.0` for server-side/in-memory graph computation (pinned; added with the §9 step 4 adapter)
 - Cytoscape.js for the initial interactive graph UI
 - Existing Vite + Express host during integration
 
@@ -269,8 +269,14 @@ A future change of visualization library should not require an ontology or API r
 1. Resolve the existing ontology and integration questions first.
 2. Keep Issue #2 focused on Suit/Axis restoration.
 3. Expose a read-only domain graph projection from Express.
-4. Build a Graphology adapter over that projection.
-5. Add graph algorithms behind the API.
+4. ~~Build a Graphology adapter over that projection.~~ **Done.** `src/graph/graphology-adapter.ts`
+   and `src/graph/analysis.ts`. The adapter is the projection's only input and never queries the
+   database; the graph is multi-directed because `relationships` permits parallel endpoint pairs;
+   `traversal` stays separate from authored direction; and the per-node status `source` tag is
+   copied so the union cannot be collapsed into a graph-wide status (Q4).
+5. Add graph algorithms behind the API. **Partially done:** bounded traversal/reachability, degree
+   and connected components. Centrality, shortest path and clustering are deliberately held back —
+   on the seeded ontology they would measure the projection's depth cap rather than the corpus.
 6. Add Cytoscape as a lazy-loaded graph view.
 7. Connect Card, Claim, Source, Evidence, and Argument views to graph selections.
 8. Add richer graph projections as the corpus becomes populated.

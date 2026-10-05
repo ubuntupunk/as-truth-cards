@@ -509,20 +509,77 @@ with `meta.warnings[]`, never a 404 — a card with no claims is a fact, not a f
 |---|---|---|
 | Unit (fake reader): projection, views, query | 142 | yes |
 | Locale unit: schema shape, seed corpus | 23 | yes |
+| Graphology adapter + analysis unit (Issue #3 step 4) | 38 | yes |
 | Integration (live SQL): projection over all 47 seeded cards | 18 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
 | Axis integration (pre-existing) | 7 | no — unchanged |
 | Locale integration (Issue #6) | 8 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
+| Graphology adapter integration (Issue #3 step 4) | 8 | no — skips unless `TROPE_GRAPH_DATABASE_URL` is set |
 
-165 unit tests pass with no database configured; 196 pass with one. The locale integration suite
+203 unit tests pass with no database configured; 244 pass with one. The locale integration suite
 closes the gap flagged when Issue #6 was written: it asserts each card kept the locale it was
 authored with, that an untagged card stays untagged, that no locale is dead, that the shared
 `south-africa` slug resolves to two different rows, and that a card survives a projection through
 the **real** Drizzle reader rather than the fake.
 
+The Graphology integration suite closes the same gap for the adapter: the unit suite proves the
+adapter's logic over hand-built projections, while the live suite proves it survives the shapes the
+seeded ontology actually produces — a `relationships` pair with two rows, cards sharing the
+`south-africa` slug across Suit and Locale, axis ordinals, and inference steps whose status
+vocabulary differs from a claim's.
+
 The integration suite exists because a fake cannot catch a wrong column list or a missed join: it
 hands back exactly the shape the port declares. It projects **every** seeded card, not a sample,
 and separately re-checks each of the six §6 invariants against real rows.
 
+### Graphology computation layer
+
+§10 step 4 is built: `src/graph/graphology-adapter.ts` and `src/graph/analysis.ts`.
+
+The adapter takes this projection and nothing else. It never queries the database, so a
+projection remains the single place where the ontology decides what a client may see, and no
+analysis call can widen it.
+
+```ts
+const graph = toGraphology(projection)          // projection -> Graphology
+const reach = reachableFrom(graph, focusId, { maxDepth: 2, maxNodes: 200 })
+const degrees = degreeReport(graph)
+const components = connectedComponents(graph)
+```
+
+Three details are load-bearing:
+
+- **The graph is multi-directed.** `relationships` has no uniqueness on its endpoint pair, so two
+  rows may share a `(from, to, type)` triple and differ only by `status`. Graphology's simple
+  `Graph` class rejects that with "duplicate edge", so the adapter uses `MultiDirectedGraph`.
+- **`traversal` is metadata, not direction.** An edge keeps its authored `from`/`to` even when it
+  is walked both ways. Every v1 family hardcodes `traversal: 'bidirectional'` — a neighbourhood
+  that hid one direction would lie — so the directed branch is covered by a hand-built projection
+  and will need a real producer before it carries data.
+- **Status stays per node.** `epistemic_status`, `independent_inference_status` and
+  `evidence_status` are three different columns. The adapter copies the `source` tag so a consumer
+  must narrow, and `degreeReport`/`connectedComponents` have no operation that yields a graph-wide
+  status. That is Q4 enforced by the type, not by a convention.
+
+Traversal is bounded by both `maxDepth` and `maxNodes`, iterates neighbours in sorted order, and
+reports `truncated` only when the node cap actually cut the walk short — a depth limit is a
+deliberate request, not a truncation. Results are sorted, so the same projection yields the same
+ids every time.
+
 ### Deliberately not built
 
-Graphology adapter, Cytoscape view, persisted metrics, write paths, auth. §10 steps 4–8 remain.
+Cytoscape view, persisted metrics, write paths, auth. §10 steps 5–8 remain.
+
+The analysis surface is deliberately narrower than §3.2's list. Centrality, shortest path,
+clustering and community detection are **not** implemented, because on the seeded ontology each
+would measure the seed's arbitrary traversal bounds rather than the corpus — `depth: 2` plus the
+v1 families yields mostly isolated cards, so a betweenness score would be an artefact of the
+projection cap wearing a number. They stay unbuilt until the corpus supports a question they can
+honestly answer. See Issue #3's open questions on that boundary.
+
+Two ontology gaps surfaced while writing the tests, both left unfixed rather than papered over:
+
+- **`evidence_item` and `source` nodes have zero seeded rows.** The `evidence_*` layer is
+  schema-only, so no projection can currently produce them. The adapter handles them and the test
+  builds one by hand, so the handling is pinned before the first evidence row exists.
+- **No v1 family emits `traversal: 'directed'`.** The adapter supports it defensively; nothing
+  produces it.
