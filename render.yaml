@@ -59,7 +59,16 @@ services:
     # `"idempotent": true`), so re-running it on every deploy is what keeps production current.
     #
     # `--allow-remote` is required because DATABASE_URL is a Neon endpoint, not loopback.
-    # `trope-graph:seed` needs no such flag; only migrate and verify check the host.
+    # The seeder has no flag of its own -- it reads TROPE_GRAPH_ALLOW_REMOTE from the
+    # environment -- so that variable below is what lets this step reach production.
+    #
+    # REQUIRES A PAID PLAN. Render skips pre-deploy commands on free instances and logs
+    # `Predeploy command not run. Commands can only run on paid instance types`, then
+    # promotes the build anyway. On free that is silent and dangerous: the deploy reports
+    # success while the schema is stale, the graph schema may not exist at all, and
+    # /api/graph/views answers 500 on `relation "trope_graph.cards" does not exist`. The
+    # service must stay on `starter` (below). If it is ever downgraded, run the three
+    # commands above by hand before trusting a green deploy.
     preDeployCommand: pnpm run db:migrate:deploy && pnpm run trope-graph:migrate -- --allow-remote && pnpm run trope-graph:seed
 
     # `tsx` executes server/index.ts directly; there is no server-side compile step.
@@ -83,6 +92,17 @@ services:
       # empty string, which is not treated as unset.
       - key: DATABASE_URL
         sync: false
+
+      # Opts the graph migrate/verify/seed tooling in to a non-loopback host. Without it
+      # `trope-graph:seed` aborts with `Refusing to touch non-local database host` and the
+      # pre-deploy chain fails after the Prisma migration has already run. The repository
+      # `.env` points DATABASE_URL at live Neon and the graph client falls back to it, so
+      # this is what keeps an unset TROPE_GRAPH_DATABASE_URL from being a footgun.
+      #
+      # `trope-graph:migrate` also accepts `--allow-remote` on the command line, but the
+      # seeder and the verifier only read this variable.
+      - key: TROPE_GRAPH_ALLOW_REMOTE
+        value: "1"
 
       # Better Auth signs and encrypts session cookies with this.
       #
