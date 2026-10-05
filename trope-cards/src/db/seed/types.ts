@@ -8,6 +8,7 @@ import type {
   inferenceStepRelationTypeEnum,
 } from '../schema/argumentChains'
 import type {
+  claimRelationTypeEnum,
   inferencePremiseRoleEnum,
   inferencePremises,
   inferenceSteps,
@@ -16,10 +17,13 @@ import type {
 import type {
   cardAxis,
   cardType,
+  claimSources,
   claimType,
   epistemicStatus,
   relationshipStatus,
   relationshipType,
+  sources,
+  sourceType,
 } from '../schema/tropeGraph'
 
 /**
@@ -53,6 +57,8 @@ export type ArgumentChainKind = Member<typeof argumentChainKindEnum>
 export type InferenceStepRelationType = Member<
   typeof inferenceStepRelationTypeEnum
 >
+export type ClaimRelationType = Member<typeof claimRelationTypeEnum>
+export type SourceType = Member<typeof sourceType>
 
 /**
  * One inference step, referenced by the slug of the card it belongs to.
@@ -163,6 +169,43 @@ export type ClaimSeed = {
   slug?: string
   evidenceRequirement?: string
   description?: string
+}
+
+/**
+ * A bibliographic source, referenced by a stable seed-local label.
+ *
+ * `sources` is a bibliographic object: a thing that exists, with the metadata needed to
+ * find it again. It is deliberately NOT an excerpt. Recording what a source *contains*
+ * belongs to `evidence_items`, which requires a located passage — see the seed
+ * `sourceLayer.ts` for why this increment stops at the bibliographic layer.
+ *
+ * The `label` is a seed-local identifier only; `sources` has no slug column, so the runner
+ * resolves labels to ids in memory, the same way claim labels work.
+ */
+export type SourceSeed = Omit<
+  InferInsertModel<typeof sources>,
+  'id' | 'createdAt' | 'updatedAt'
+> & {
+  /** Stable seed-local label, resolved to a source id by the runner. */
+  label: string
+}
+
+/**
+ * A claim's attribution to a source.
+ *
+ * `relationship` is asserted by the editor and is deliberately not the `sourceType` or any
+ * `evidence_claims.relation`: it records *why this claim names this document*, not what the
+ * document says about the claim. `quoteOrExcerpt` is nullable because attaching a document
+ * the claim names does not require asserting a quotation from it — and asserting one without
+ * a verified locator is exactly the fabrication this seed refuses.
+ */
+export type ClaimSourceSeed = Omit<
+  InferInsertModel<typeof claimSources>,
+  'claimId' | 'sourceId'
+> & {
+  claimSlug: string
+  /** Resolved to a source id via `SourceSeed.label`. */
+  sourceLabel: string
 }
 
 /** A typed graph edge between two cards. */

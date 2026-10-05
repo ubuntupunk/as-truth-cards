@@ -63,7 +63,7 @@ Live counts (local DB): **37 domain tables + `schema_migrations`**, **18 enums**
 - **Two unrelated card models exist.** The graph card (`trope_graph.cards`, `uuid`, `slug`) is the research entry point. The host deck also has a Prisma `public.cards` (`int` id, different fields). They share no key. A projection over `trope_graph` must not conflate them.
 - **`primaryType` is legacy, write-only.** Written by the seeder, read by nothing in the graph. It disagrees with axis on real cards — proof they are independent dimensions, not one field under two names. It must never seed axis.
 - **Card → claims → inference is the argument backbone.** `inference_premises` (claim→step, with `PRIMARY/CONTEXT/BRIDGE/COUNTERPREMISE` role) and `inference_conclusions` (step→claim) reconstruct `Source→Evidence→Claim(premise)→Inference→Claim(conclusion)` without flattening it.
-- **`claim_relations` (11 typed claim↔claim relations: SUPPORTS, QUALIFIES, ANACHRONISTICALLY_MAPS, RETROSPECTIVELY_IDENTIFIES, …) is declared but has 0 rows and no writer.** The claim-relation *vocabulary* exists; the *data* does not. This is central to §8.
+- **`claim_relations` carries 5 authored rows** (v0.11), read exactly as authored per Q1. The claim-relation *vocabulary* and the *data* both exist now. Was the single biggest open ontology question (§8 B2, §11 Q1); resolved in favour of populating it.
 - **`relationships` is polymorphic** (`from_entity_type`/`from_entity_id` → `to_entity_type`/`to_entity_id`, both free-text discriminators, both plain uuids, no FKs). All 11 rows happen to be CARD→CARD.
 - **Inference status is deliberately decoupled.** `cards`/`claims` use the `epistemic_status` enum; `inference_steps`/`argument_chains` use a same-named **text** column; `evidence_items.evidence_status` is text with no vocabulary; lifecycle uses four more enums (`case_status`, `question_status`, `relationship_status`, `contribution_status`) plus a boolean `inference_steps.is_canonical`. "Never collapse these" is an explicit documented rule.
 
@@ -124,7 +124,7 @@ The words SUPPORTS/CHALLENGES/QUALIFIES/CONTEXTUALISES appear in **five** differ
 
 | Vocabulary | Home table | Node pair | Class | v1 populated? |
 |---|---|---|---|---|
-| `SUPPORTS, CHALLENGES, QUALIFIES, CONTRADICTS, CONTEXTUALISES, EXEMPLIFIES, REQUIRES, GENERALISES, EQUATES, ANACHRONISTICALLY_MAPS, RETROSPECTIVELY_IDENTIFIES` | `claim_relations` | claim ↔ claim | **direct domain** | **No — 0 rows, no writer (§8 B2)** |
+| `SUPPORTS, CHALLENGES, QUALIFIES, CONTRADICTS, CONTEXTUALISES, EXEMPLIFIES, REQUIRES, GENERALISES, EQUATES, ANACHRONISTICALLY_MAPS, RETROSPECTIVELY_IDENTIFIES` | `claim_relations` | claim ↔ claim | **direct domain** | **Yes — 5 authored rows, read as authored (Q1)** |
 | `PREDECESSOR, RELATED, SIMILAR_MECHANISM, SUPPORTS, CHALLENGES, COMPETING_INTERPRETATION, CONTEXTUALISES, EXAMPLE_OF, DERIVED_FROM, CONTRADICTS` | `relationships` (polymorphic) | any ↔ any | **direct domain** | Yes for CARD↔CARD (RELATED/CONTEXTUALISES/SIMILAR_MECHANISM/CHALLENGES) |
 | `CHALLENGES, QUALIFIES, ALTERNATIVE_TO, DEPENDS_ON, REFINES, CONTEXTUALISES` | `inference_step_relations` | inference ↔ inference | **inference** | Yes (2 rows) |
 | `PRIMARY, CONTEXT, BRIDGE, COUNTERPREMISE` | `inference_premises.role` | claim → inference | **inference** (premise role) | Yes (9 rows) |
@@ -268,12 +268,12 @@ All five share the §3 node model and §4 edge model; only the allowed `(node, e
 **Definition:** a blocking issue is one that prevents a **clean** projection of a view the design wants to ship. Each is a decision for the maintainers, not a silent fix here.
 
 - **B1 — `card_concepts` is never populated; all 6 concepts are orphaned.** `card_concepts` exists (2 FKs + PK) and `seed/index.ts` inserts the 6 `concepts` rows, but there is **no `cardConcepts` insert anywhere**, and `CardSeed` has no `concepts` field. *Effect:* a Concept node in any view is isolated; a concept/taxonomy view cannot render. *Decision:* populate `card_concepts` (separate issue) or formally retire Concept from the taxonomy view. **This design excludes Concept from v1.**
-- **B2 — `claim_relations` has 0 rows and no code path.** The table, the 11-value `claim_relation_type` enum, indexes, and FKs all exist, but no module imports it, no seeder/validator/test writes it. *Effect:* the claim↔claim relations named in ADR §5 / Issue #3 (SUPPORTS, QUALIFIES, ANACHRONISTICALLY_MAPS, RETROSPECTIVELY_IDENTIFIES, …) have **no representable data**; the only current carrier of retrospective/anachronistic mapping is `inference_steps.inference_type`. *Decision:* is `claim_relations` intended to be populated (making it first-class) or is it duplicative of the inference model and should be retired? **This design does not populate it and routes v1 argument edges through `inference_*`.** This is the single biggest open ontology question (§11 Q1).
+- **B2 — RESOLVED by the v0.11 corpus increment.** Was: 0 rows and no code path. The 5 authored rows now exist, written by `seed/claimRelations.ts` and read by the projection through `claimRelationCandidate`. *Resolved as:* `claim_relations` is **first-class, not duplicative**. It records that one claim stands in a stated relation to another; `inference_*` records that a conclusion follows from premises by a named inferential form. The two are different propositions, so a pair may legitimately appear in one and not the other — and `seed/claimRelations.ts` enforces that a pair already wired as an inference binding is never also written as a claim relation. No projection change was needed, which is what Q1 predicted.
 - **B3 — `relationships` is polymorphic with no referential integrity.** `from_entity_type`/`to_entity_type` are free text; `from_entity_id`/`to_entity_id` are unconstrained uuids with **no FKs**. A projection cannot verify an endpoint exists or that a `*_entity_type` string is a known type. *Effect:* reading `relationships` as a trusted edge source is unsafe for arbitrary types. *Mitigation (v1):* only project rows where both `*_entity_type == 'CARD'` and both uuids resolve to cards; surface any other row as a `meta.warnings[]` entry rather than dropping it silently. All 11 current rows are CARD→CARD, so v1 is safe today. *Decision:* harden to typed FKs / an entity-type enum, or keep polymorphic + defensive filter (§11 Q5).
 - **B4 — Status is modelled inconsistently; a single cross-entity status filter is unsound.** `epistemic_status` is the `enum` on `cards`/`claims` but `text` on `inference_steps`/`argument_chains`; lifecycle uses four unrelated enums plus `inference_steps.is_canonical` (boolean) and `evidence_items.evidence_status` (text, no vocabulary). *Effect:* a projection offering one graph-wide "status" filter/rollup would be wrong. *Mitigation:* expose `epistemicStatus` per node type only (§3); no global status. *Decision (§11 Q4):* unify inference status onto the enum, or keep it deliberately decoupled per `EVIDENCE_LAYER.md`?
-- **B5 (evidence view only) — two competing source-attachment paths.** `claim_sources` (claim→source directly, with `quote_or_excerpt`/`page_reference`) bypasses the located-passage model, and a source can be reached four ways (`claim_sources`, `interpretation_sources`, `question_sources`, `evidence_sources`). `EVIDENCE_LAYER.md` says do not use `claim_sources` when the passage is known, but the table remains. *Effect:* the `evidence` view has no unambiguous claim→source path. Not a v1 blocker (0 rows). *Decision:* retire/deprecate `claim_sources` when the evidence corpus is populated.
+- **B5 (evidence view only) — two competing source-attachment paths.** `claim_sources` (claim→source directly, with `quote_or_excerpt`/`page_reference`) bypasses the located-passage model, and a source can be reached four ways (`claim_sources`, `interpretation_sources`, `question_sources`, `evidence_sources`). `EVIDENCE_LAYER.md` says do not use `claim_sources` when the passage is known, but the table remains. *Effect:* the `evidence` view has no unambiguous claim→source path. Not a v1 blocker (0 rows). *Decision:* retire/deprecate `claim_sources` when the evidence corpus is populated. **Still open:** v0.11 added 6 `claim_sources` rows and 0 `evidence_items`, so the deprecation trigger has *not* fired. Those rows are bibliographic only — `relationship = ATTRIBUTED_TO` with `quote_or_excerpt` and `page_reference` null — which is the one use `EVIDENCE_LAYER.md` permits while the passage is unknown. Both the verifier and an integration test assert the quotes stay null, so the table cannot drift into impersonating the located-passage model.
 
-**Data gaps that are not schema defects but gate the richer views:** the evidence layer, `sources`, `cases`, `interpretations`, and `questions` are schema-only (0 rows); 41 of 47 cards have no claims; only 2 cards have argument chains. These are corpus-population tasks, not blockers of the v1 projection.
+**Data gaps that are not schema defects but gate the richer views:** the evidence layer, `cases`, `interpretations`, and `questions` are schema-only (0 rows); only 2 cards have argument chains. `sources` and `claim_relations` are no longer gaps — v0.11 populated 3 and 5 respectively. Cards without claims fell from 41 to 34 with that increment; the remainder are tactic cards whose summaries describe an operation rather than assert a proposition, plus the deferred v0.4 corpus. These are corpus-population tasks, not blockers of the v1 projection.
 
 ---
 
@@ -345,11 +345,18 @@ relationships or taxonomy.
 **Why.** Inference structure (`inference_premises`/`inference_conclusions`) encodes *how a
 conclusion was reached*, which is a different proposition from *one claim standing in relation to
 another*. Collapsing them would invent authorial intent. The 11-value `claim_relation_type`
-vocabulary exists and is authoritative when rows exist; today there are 0 rows, so v1 simply has
-no such edges.
+vocabulary exists and is authoritative when rows exist. As of the v0.11 corpus increment there
+are 5 rows, and they project with no code change — which is what this decision predicted.
 
 **Consequence.** Argument edges in v1 come only from `inference_*`. `claim_relations` becomes live
-the moment it is populated, with no projection change. Follow-up: B2.
+the moment it is populated, with no projection change. Follow-up: B2 — **now closed**; v0.11
+populated 5 rows and the projection picked them up unchanged.
+
+**Now exercised.** With rows present, the rule is testable where it was not before:
+`graph-projection.integration.test.ts` asserts every `claim_relation` edge has
+`sourceTable === 'claim_relations'`, so a projection that derived one from inference structure
+would fail. `seed-corpus.test.ts` separately asserts no seeded relation restates an inference
+premise→conclusion pair.
 
 ### Q2 — Concept: excluded from v1, not retired
 
@@ -456,7 +463,7 @@ projection cost is bounded by `maxNodes`.
 
 | Question | Decision | Blocking issue | Disposition |
 |---|---|---|---|
-| Q1 | read authored only | B2 `claim_relations` | deferred, scoped issue |
+| Q1 | read authored only | B2 `claim_relations` | **closed** — 5 rows, live, no projection change |
 | Q2 | exclude Concept from v1 | B1 `card_concepts` | deferred, scoped issue |
 | Q3 | use live suits | Issue #2 owns Suit/Axis | not this issue's to settle |
 | Q4 | keep statuses decoupled | B4 inconsistent status modelling | deferred, documentation issue |
