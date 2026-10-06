@@ -1,309 +1,210 @@
-## Task: Design the First Domain Graph Projection
+Next Phase Instructions
 
-We have now established the graph-layer architecture in:
+Accept `3e9300f` / `4ac66d9` as the completed Cytoscape presentation-adapter phase. Do not reopen that implementation unless verification exposes a concrete regression.
 
-`trope-cards/docs/ADR_GRAPH_LAYER.md`
-
-and created GitHub Issue #3:
-
-**Implement graph analysis and visualization as projections of the canonical ontology**
-
-Your immediate task is **discovery and design only**.
+Proceed with the next phase of Issue #3: **graph presentation/UI integration and richer entity views**, while preserving the canonical ontology and projection boundaries.
 
-Do **not** begin implementing Graphology, Cytoscape, a new graph schema, or a frontend rewrite yet.
+### Objective
 
-### Architectural constraints
+Build the first useful presentation layer on top of the now-stable graph stack:
 
-Treat these as non-negotiable:
-
-1. PostgreSQL + Drizzle + the existing `trope_graph` schema are the canonical knowledge model.
-2. The existing ontology is authoritative. Do not create a parallel:
-   - `Trope`
-   - `TruthCard`
-   - `trope_edge`
-     ontology.
+`Postgres/Drizzle → domain projection → optional Graphology analysis → Cytoscape presentation → UI`
 
-3. Card is a presentation/research entry point, not the atomic unit of truth.
-4. Preserve the distinction between:
-   - Card
-   - Claim
-   - Evidence
-   - Source
-   - Inference
-   - Interpretation
-   - Case
-   - Concept
-   - Mechanism
-   - Axis
-   - Suit/Collection
-   - Question
-   - Relationship
-   - Argument chain
+The UI must consume the existing domain graph contracts and Cytoscape adapter. It must not become another source of graph semantics.
 
-5. Graphology, when introduced later, will be an **ephemeral computational projection**.
-6. Cytoscape, when introduced later, will be a **visualization projection**.
-7. The API must expose domain-level graph data rather than Graphology- or Cytoscape-specific structures.
-8. Do not use a graph database.
-9. Do not reintroduce Prisma for the graph subsystem.
-10. Do not turn this into a React/Preact, Express, Neon, authentication, or general framework migration.
-11. Issue #2 remains separately responsible for first-class Suit/Axis restoration.
+### Canonical invariants
 
-### Read these first
+1. **Postgres/Drizzle remains canonical.**
+2. The domain graph projection `{nodes, edges, meta}` remains the semantic contract.
+3. Graphology remains an ephemeral analysis layer.
+4. Cytoscape remains a presentation layer.
+5. `Card` is a projection/access mode, not the ontology's atomic truth.
+6. Claims remain distinct semantic units; evidence attaches to claims.
+7. Preserve:
+   - direct claim relations
+   - inference steps
+   - argument chains
+   - their directional semantics
 
-Before proposing anything, inspect the current repository and specifically:
+8. Never flatten inference/argument structure into ordinary Card→Card relationships.
+9. Axis remains the four-value many-to-many classification:
+   - `TACTIC`
+   - `FACT_REBUTTAL`
+   - `THEOLOGICAL`
+   - `HISTORICAL`
 
-- `trope-cards/docs/ADR_GRAPH_LAYER.md`
-- `trope-cards/docs/TROPE_GRAPH_SCHEMA.md`
-- `trope-cards/docs/CLAIM_DECOMPOSITION_ENGINE.md`
-- `trope-cards/docs/ARGUMENT_CHAIN_ENGINE.md`
-- `trope-cards/docs/EVIDENCE_LAYER.md`
-- `trope-cards/docs/IDENTITY_RETROJECTION_CLUSTER.md`
-- current Drizzle schema
-- current migrations
-- current graph seed data
-- current validators
-- current seed verification
-- existing graph-related code/API routes, if any
-- existing host Express/API structure
+10. Collection/Suit remains mutable convenience curation, not ontology.
+11. Locale remains first-class, many-to-many, and independent of Collection.
+12. Mechanism and Concept remain independent dimensions.
+13. Epistemic status remains independent and must not be rolled up across nodes.
+14. `primaryType` remains legacy/content-shape metadata, never an Axis.
+15. Do not infer semantic relationships from shared slugs, labels, Collections, Mechanisms, Axis, Locale, or presentation state.
+16. Do not solve the type-qualified `GraphNode.id` question in the UI. That remains the open graph-contract follow-up `as-truth-cards-2bq`.
 
-Also inspect Issue #2 and Issue #3 for current architectural intent.
+### Scope
 
-### Questions to answer
+Build the minimum useful UI needed to expose the existing graph projections.
 
-Produce a design report answering these questions.
+At minimum:
 
-#### 1. What is the actual current graph?
+1. **Graph view**
+   - Consume the existing Cytoscape presentation adapter.
+   - Render nodes and directed edges.
+   - Use the supplied presentation classes only as styling hooks.
+   - Do not duplicate ontology logic in the component.
+   - Preserve focus, view, depth, warnings, and projection metadata.
 
-Describe the entities and relationships that already exist in `trope_graph`.
+2. **Node/entity inspection**
+   - Selecting a node should expose its domain identity and relevant metadata.
+   - A Card should expose its classification, Axis assignments, Collection/Suit associations, Locale associations, Mechanisms, Concepts, status, and relevant graph relationships where those already exist in the projection.
+   - Claims should remain visibly distinct from Cards.
+   - Sources/Evidence, inference steps, and argument-chain elements should remain distinguishable by node type.
+   - Do not invent fields merely to make the UI symmetrical.
 
-Do not describe an imagined future graph.
+3. **Projection/view controls**
+   - Support the existing `card-argument-taxonomy` and `taxonomy` projections.
+   - Expose depth/focus where the current API supports them.
+   - Do not hard-code ontology semantics into UI controls.
+   - If a projection does not contain a node type, the UI should represent that absence rather than fabricate one.
 
-Identify:
+4. **Graph states**
+   - Empty projection.
+   - Sparse projection.
+   - Projection containing warnings.
+   - Focused neighbourhood.
+   - Bounded/depth-capped projection.
+   - Unsupported/malformed API response should fail visibly and cleanly.
 
-- tables
-- relevant foreign keys
-- enums
-- relationship tables
-- inference/argument structures
-- classification structures
-- evidence/source structures
-- anything currently missing or incomplete
+5. **Determinism**
+   - Identical domain projection input must result in stable presentation.
+   - Avoid client-side mutation of canonical semantic data.
+   - Cytoscape interaction may alter presentation state, but must not imply persistence.
 
-#### 2. What should the first graph projection contain?
+### Entity-view boundary
 
-Propose the **smallest useful domain graph projection** that can support an initial graph view.
+Do not attempt to build a full graph editor.
 
-For example, consider whether the first projection should contain:
+The initial interaction model should be:
 
-```text
-Card
-Claim
-Concept
-Mechanism
-Source
-Evidence
-Inference
-Relationship
-```
+`select node → inspect entity → navigate/expand existing projection`
 
-But make this decision from the actual schema rather than assuming these all belong in v1.
+not:
 
-Explain:
+`select node → edit ontology → persist graph`
 
-- node types
-- edge types
-- IDs
-- labels
-- metadata
-- provenance
-- epistemic status
-- classification metadata
+No write-back, drag-to-connect, relationship creation, deletion, or ontology editing in this phase.
 
-#### 3. What should NOT be projected initially?
+If navigation to an existing Card/detail surface is useful, reuse the canonical card identity/slug rather than creating a second Card model.
 
-Be explicit.
+### API/data boundary
 
-We do not want to throw the entire ontology into one giant graph simply because it can be represented.
+Prefer the existing graph API and projection contracts.
 
-Identify entities/relationships that should initially remain outside the first visualization projection, and explain why.
+Do not introduce a parallel API response format merely because the UI would find it convenient.
 
-#### 4. What is the correct API boundary?
+If the current projection contract is genuinely insufficient for a required presentation, stop and report the contract gap rather than inventing a UI-specific semantic field.
 
-Design a proposed read-only API contract.
+Presentation-only state may exist in the UI layer, including:
 
-Do not implement it yet.
+- selected node
+- zoom/pan
+- collapsed/expanded visual state
+- active stylesheet/view mode
+- transient interaction state
 
-Address:
+None of these become ontology state.
 
-- endpoint(s)
-- query parameters
-- focus node
-- depth
-- projection/view type
-- relationship filtering
-- node filtering
-- pagination/limits if necessary
-- response shape
-- stable identifiers
-- error cases
+### Testing
 
-The API should be domain-oriented.
+Add focused UI/presentation tests for:
 
-For example, conceptually:
+- projection → rendered graph
+- node selection
+- correct display of node types
+- Card classification
+- multi-valued Axis
+- multi-valued Locale
+- Collection/Suit versus Locale distinction
+- Concept versus Mechanism distinction
+- epistemic-status source preservation
+- directed edges
+- inference/argument edges remaining distinct from claim relations
+- projection warnings
+- empty/sparse graphs
+- focus/depth controls
+- navigation using canonical identity
+- no accidental ontology mutation
+- deterministic rendering/state for identical projection input
 
-```text
-GET /api/graph?focus=<id>&depth=2&view=<projection>
-```
+Do not weaken existing graph, Graphology, or Cytoscape adapter tests.
 
-but do not assume this exact route or parameter scheme.
+### Important test-quality requirement
 
-#### 5. How does the relational model become a graph?
+Watch for vacuous tests.
 
-Describe the adapter/projection algorithm:
+Fixtures must actually contain the relevant node/edge types before asserting their rendering or interaction semantics. In particular, do not repeat the earlier pattern where a default projection depth produced no inference edges and therefore allowed reasoning tests to pass against an empty reasoning layer.
 
-```text
-Postgres / Drizzle
-        ↓
-domain graph query
-        ↓
-normalized graph projection
-        ↓
-Graphology
-```
+### Styling
 
-Do not implement Graphology yet.
+Keep styling minimal and semantic:
 
-We need to understand what data Graphology will eventually receive.
+- node type
+- status
+- focus
+- edge family/relation
 
-#### 6. How should relationships be represented?
+Use the classes already supplied by the adapter.
 
-Pay particular attention to the existing claim/inference model.
+Do not encode ontology semantics into arbitrary visual conventions without documenting the mapping.
 
-Do not collapse these into generic "edges" without preserving semantics.
+No design-system overhaul is required.
 
-Consider existing relations such as:
+### Explicit non-goals
 
-- SUPPORTS
-- CHALLENGES
-- QUALIFIES
-- CONTRADICTS
-- CONTEXTUALISES
-- EXEMPLIFIES
-- REQUIRES
-- GENERALISES
-- EQUATES
-- ANACHRONISTICALLY_MAPS
-- RETROSPECTIVELY_IDENTIFIES
+Do NOT:
 
-Explain which are:
+- redesign the ontology
+- add schema/migrations unless a concrete existing-contract defect makes one unavoidable
+- add new Claims, Concepts, Sources, Evidence, Cases, Interpretations, or Questions merely to make the UI richer
+- infer Concepts or claim relations
+- create geopolitical hierarchies
+- change Axis values
+- change Locale semantics
+- turn Collections into ontology
+- revive `public.cards` or Prisma as canonical
+- add graph persistence
+- add graph editing/write-back
+- modify deployment/auth
+- solve type-qualified GraphNode IDs in the presentation layer
+- introduce Graphology logic into React/UI components
+- replace the domain projection with Cytoscape-specific semantic structures
 
-- direct domain relationships,
-- inference relationships,
-- evidence relationships,
-- presentation-level relationships.
+### Verification
 
-#### 7. What are the likely graph projections?
+Before reporting completion:
 
-Recommend an initial projection strategy that can eventually support multiple views, such as:
-
-```text
-Taxonomy / trope
-Argument
-Evidence / provenance
-Identity-retrojection
-```
-
-Do not build them yet.
-
-Explain how they can all derive from the same canonical ontology.
-
-#### 8. What existing schema defects block this?
-
-Identify anything in the current implementation that would prevent a clean graph projection.
-
-Pay particular attention to issues already identified in the repository audit, including:
-
-- discarded `axis` data
-- unpopulated `card_concepts`
-- vocabulary collisions
-- incomplete claim decomposition
-- incomplete argument chains
-- missing evidence layer
-- phantom references
-- inconsistent status modeling
-- legacy `primaryType`
-- any relationship-table ambiguity
-
-Distinguish:
-
-**blocking problem**
-
-from
-
-**known imperfection that can be deferred**.
-
-### Important principle
-
-Do not "fix" ontology problems silently while doing this analysis.
-
-If the current schema cannot cleanly express something, report that as a finding.
-
-Do not invent a new entity or relationship merely to make the graph projection convenient.
-
-### Deliverable
-
-Create a concise architecture/design document:
-
-`trope-cards/docs/GRAPH_PROJECTION_DESIGN.md`
-
-The document should contain:
-
-1. Current graph inventory
-2. Proposed first projection
-3. Node model
-4. Edge model
-5. API boundary
-6. Projection/adapter design
-7. Future projection types
-8. Blocking schema issues
-9. Deferred issues
-10. Implementation sequence
-11. Open architectural questions
-
-Do **not** modify the database schema.
-
-Do **not** add dependencies.
-
-Do **not** install Graphology or Cytoscape.
-
-Do **not** implement the API yet.
-
-Do **not** modify the existing UI.
-
-### Validation
-
-Before finishing:
-
-- verify that the design matches the current Drizzle schema;
-- verify that it does not introduce a second ontology;
-- verify that it preserves claim/evidence/inference semantics;
-- verify that Suit/Axis remains consistent with Issue #2;
-- run whatever existing schema/seed validation is appropriate;
-- report any existing failures separately from anything caused by your work.
-
-### Final response
+- run `pnpm run trope-graph:check`
+- run graph projection tests
+- run Graphology tests
+- run Cytoscape adapter tests
+- run all new UI/presentation tests
+- run root typecheck
+- run build
+- verify seed/idempotence remains clean
+- confirm no ontology counts changed unexpectedly
+- confirm no new semantic edges/entities were fabricated
 
 Report:
 
-1. files inspected;
-2. current graph findings;
-3. proposed first projection;
-4. important schema blockers;
-5. the proposed API boundary;
-6. files changed;
-7. validation performed;
-8. open questions requiring human architectural decisions.
+1. exact files changed
+2. UI/view architecture
+3. exact data flow from projection to UI
+4. which existing graph contracts were consumed
+5. tests added and total test counts
+6. verification results
+7. any genuine projection/API contract gaps
+8. any remaining limitations
 
-Stop after the design document.
+**Do not close Issue #3 yet.**
 
-Do not proceed into implementation without a separate instruction.
+If the current domain projection/API cannot support a requested UI feature without inventing semantics, stop at that boundary and report the precise contract decision required instead of solving it implicitly in the UI.

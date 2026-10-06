@@ -153,7 +153,14 @@ const TAXONOMY: GraphViewRule = {
     'Mechanism / Concept / Suit structure around a card, without argument depth. The ' +
     'browse-and-classify view.',
   status: 'designed',
-  focusTypes: ['card', 'mechanism', 'collection'],
+  // Card only, matching what `projectGraph` can actually resolve today: focus always goes
+  // through `findCardByRef`, so advertising `mechanism`/`collection` here would promise a
+  // focus path the projection does not implement (mechanism focus 404s with
+  // "no card matches this slug"). The descriptor is served to clients as authoritative
+  // metadata by `/api/graph/views`, so it must describe the implementation that exists, not
+  // the one that is designed. Mechanism/Collection focus is a deliberate future extension,
+  // deferred with the rest of the not-yet-implemented focus paths.
+  focusTypes: ['card'],
   nodeTypes: ['card', 'collection', 'mechanism', 'concept'],
   edgeFamilies: ['classification'],
   // Nothing excluded. Concept was the last holdout and it is now emitted: this view's own

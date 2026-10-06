@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { ThemeProvider } from './components/ThemeProvider'
 import About from './pages/About'
 import Admin from './pages/Admin'
+import Graph from './pages/Graph'
 import Index from './pages/Index'
 import NotFound from './pages/NotFound'
 
@@ -21,6 +22,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/about" element={<About />} />
+            <Route path="/graph" element={<Graph />} />
             <Route path="/admin" element={<Admin />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

@@ -261,7 +261,7 @@ Each view is a different **adjacency rule set** over the same canonical tables �
 | View | Focus | Node types | Edge families | Source tables | Status |
 |---|---|---|---|---|---|
 | `card-argument-taxonomy` | card | card, collection, mechanism, claim, inference_step | classification, ASSERTS, PREMISE_OF, CONCLUDES, step-relations, card↔card | `cards`, `card_*`, `claims`, `inference_*`, `relationships` | **v1 — populated now** |
-| `taxonomy` | card / mechanism / collection / concept | card, mechanism, collection, **concept** | HAS_MECHANISM, HAS_CONCEPT, IN_SUIT | `card_*`, `mechanisms`, `collections`, `concepts` | v2; Concept now projected |
+| `taxonomy` | card | card, mechanism, collection, **concept** | HAS_MECHANISM, HAS_CONCEPT, IN_SUIT | `card_*`, `mechanisms`, `collections`, `concepts` | v2; Concept now projected |
 | `argument` | card / claim | card, claim, inference_step | PREMISE_OF, CONCLUDES, step-relations, ASSERTS | `claims`, `inference_*` | v2; rich on 2 cards today, scales with claim corpus |
 | `evidence` | claim / source | claim, evidence_item, source, inference_step | evidence_claims, evidence_sources, evidence_inferences | `evidence_*`, `sources` | **designed, data-blocked** (0 rows) |
 | `identity-retrojection` | claim / card | claim, inference_step (+source/evidence later) | premise→step→conclusion with `RETROSPECTIVE_IDENTITY`/`ANACHRONISTIC_MAPPING` | `inference_steps`, `claims` | v3; 2 cards carry `RETROSPECTIVE_IDENTITY`/`ANACHRONISTIC_MAPPING` today |

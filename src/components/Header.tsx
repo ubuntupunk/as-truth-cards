@@ -25,6 +25,7 @@ const Header = () => {
             {[
               { path: '/', label: 'Home' },
               { path: '/about', label: 'About' },
+              { path: '/graph', label: 'Graph' },
               { path: '/admin', label: 'Admin', protected: true },
             ]
               .filter((link) => !link.protected || isAdmin)
