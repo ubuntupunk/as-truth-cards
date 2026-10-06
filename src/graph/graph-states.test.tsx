@@ -11,10 +11,12 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { render } from 'preact-render-to-string'
+import type { FacetFilter } from './deck-facets'
 import {
   ApiErrorState,
   DepthBoundedBanner,
   EmptyProjectionState,
+  FilteredEmptyState,
   LoadingState,
   MalformedState,
   NoFocusState,
@@ -110,6 +112,40 @@ describe('EmptyProjectionState', () => {
     assert.ok(html.includes('Nothing to show for view'))
     assert.ok(html.includes('taxonomy'))
     assert.ok(html.includes('No card_axes rows found for this focus'))
+  })
+})
+
+describe('FilteredEmptyState', () => {
+  const noop = () => {}
+
+  it('names the offending facets and offers the clear action', () => {
+    const filter: FacetFilter = {
+      type: 'claim',
+      suit: 'south-africa',
+      axis: null,
+    }
+    const html = render(<FilteredEmptyState filter={filter} onClear={noop} />)
+    assert.ok(html.includes('narrowed the projection to nothing'))
+    assert.ok(html.includes('Claims'))
+    assert.ok(html.includes('Regional'))
+    assert.ok(html.includes('Clear facet filters'))
+  })
+
+  it('explains why a card-level facet cannot combine with a claim type', () => {
+    const filter: FacetFilter = { type: null, suit: 'south-africa', axis: null }
+    const html = render(<FilteredEmptyState filter={filter} onClear={noop} />)
+    assert.ok(html.includes('card-level facet'))
+    assert.ok(html.includes('cannot be combined'))
+  })
+
+  it('falls back to generic wording when no facet is active', () => {
+    const html = render(
+      <FilteredEmptyState
+        filter={{ type: null, suit: null, axis: null }}
+        onClear={noop}
+      />,
+    )
+    assert.ok(html.includes('your facets'))
   })
 })
 

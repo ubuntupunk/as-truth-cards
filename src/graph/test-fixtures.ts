@@ -24,6 +24,7 @@
  */
 
 import type {
+  CardNode,
   EpistemicStatusValue,
   GraphNode,
   GraphProjection,
@@ -62,7 +63,7 @@ function epistemic(value: EpistemicStatusValue): {
 }
 
 /** The focus card, arranged to hit every facet branch. */
-export const FOCUS_CARD_NODE: GraphNode = {
+export const FOCUS_CARD_NODE: CardNode = {
   id: ID.focusCard,
   type: 'card',
   label: 'Jesus was a Zionist',
@@ -92,7 +93,7 @@ export const FOCUS_CARD_NODE: GraphNode = {
 }
 
 /** Other-nodes, so `domain`/`card_relationship` logic has a second card. */
-export const CARD_TWO_NODE: GraphNode = {
+export const CARD_TWO_NODE: CardNode = {
   id: ID.cardTwo,
   type: 'card',
   label: 'The Judean People’s Front',

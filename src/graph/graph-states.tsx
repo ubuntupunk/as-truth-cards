@@ -28,12 +28,75 @@
  * drag real React into a suite that renders with `preact-render-to-string`.
  */
 
-import type { GraphProjection } from '../../trope-cards/src/graph/types.ts'
+import type {
+  GraphNodeType,
+  GraphProjection,
+} from '../../trope-cards/src/graph/types.ts'
+import {
+  AXIS_LABELS,
+  type FacetFilter,
+  ONTOLOGY_TYPE_FACETS,
+  SUIT_LABELS,
+} from './deck-facets'
 import {
   type GraphViewsResponse,
   ProjectionShapeError,
 } from './projection-guards'
 import { GraphApiError } from './use-graph'
+
+/**
+ * The navigator's facets narrowed a *non-empty* projection down to nothing.
+ *
+ * Distinct from `EmptyProjectionState`: the corpus had nodes, the facets ate
+ * them — so the copy names the offending facets and offers the one escape hatch
+ * that actually helps, clearing the filter. Rendered in the graph surface's
+ * place; it is not an error and never replaces the CardFront or the navigator.
+ */
+export const FilteredEmptyState = ({
+  filter,
+  onClear,
+}: {
+  filter: FacetFilter
+  onClear: () => void
+}) => {
+  const parts: string[] = []
+  if (filter.type !== null) {
+    parts.push(ontologyTypeLabel(filter.type))
+  }
+  if (filter.suit !== null) {
+    parts.push(SUIT_LABELS[filter.suit] ?? filter.suit)
+  }
+  if (filter.axis !== null) {
+    parts.push(AXIS_LABELS[filter.axis])
+  }
+  const summary = parts.length > 0 ? parts.join(', ') : 'your facets'
+  return (
+    <div className="rounded-xl border p-6 text-center">
+      <div className="flex items-center justify-center gap-2 text-sm font-medium">
+        <InfoIcon className="h-4 w-4" aria-hidden="true" />
+        The facets narrowed the projection to nothing
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Only “{summary}” is selected. The corpus has nodes, but none match this
+        combination — a card-level facet (Suit/Axis) cannot be combined with a
+        claim-level type such as Claims.
+      </p>
+      <button
+        type="button"
+        onClick={onClear}
+        className="mt-4 rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/80"
+      >
+        Clear facet filters
+      </button>
+    </div>
+  )
+}
+
+/** A human label for an ontology-type facet value. */
+function ontologyTypeLabel(type: GraphNodeType): string {
+  const facet = ONTOLOGY_TYPE_FACETS.find((entry) => entry.type === type)
+  return facet?.label ?? type
+}
 
 /** Warning triangle (inline SVG; see file header). */
 const WarningIcon = ({ className }: { className?: string }) => (

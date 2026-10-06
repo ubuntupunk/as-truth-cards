@@ -23,6 +23,15 @@
  * through the adapter, so a projection that is malformed *for Cytoscape* —
  * reviewable and real, but not presentable — also lands in the malformed
  * state, via its own message.
+ *
+ * The navigator (`deck-navigator.tsx`) narrows the projection with
+ * presentation-only facets — ontology type, Suit, Axis — keyed to the current
+ * focus/view/depth scope, so a new request never inherits a stale filter. The
+ * canvas and the inspector read the *filtered* projection; the notices, the
+ * legend and the CardFront read the *original*, because corpus facts and the
+ * focus card's own record are not facets of browsing. When the facets empty a
+ * non-empty projection, {@link FilteredEmptyState} offers the escape hatch
+ * while the navigator stays on screen.
  */
 
 import { Search } from 'lucide-react'
@@ -40,7 +49,16 @@ import {
   DEFAULT_VIEW_NAME,
   HARD_MAX_DEPTH,
 } from '../../trope-cards/src/graph/views.ts'
+import { CardFront } from '../graph/card-front'
 import { CytoscapeGraph } from '../graph/cytoscape-graph'
+import {
+  applyFacetFilter,
+  deriveFacets,
+  EMPTY_DECK_FACETS,
+  type FacetFilter,
+  NO_FACET_FILTER,
+} from '../graph/deck-facets'
+import { DeckNavigator } from '../graph/deck-navigator'
 import {
   EntityInspector,
   type InspectorSelection,
@@ -48,6 +66,7 @@ import {
 import {
   ApiErrorState,
   EmptyProjectionState,
+  FilteredEmptyState,
   LoadingState,
   MalformedState,
   NoFocusState,
@@ -93,13 +112,70 @@ const Graph = () => {
 
   const projection = projectionQuery.data
 
+  // The navigator's facets are presentation-only and belong to the projection
+  // they were derived from: a new focus/view/depth loads a different corpus, so
+  // the filter is keyed to that scope and goes inert on change rather than
+  // carrying a facet the new projection may not satisfy.
+  const facetScope =
+    String(params.focus) +
+    '|' +
+    String(params.view) +
+    '|' +
+    String(params.depth)
+  const [facetState, setFacetState] = useState<{
+    key: string
+    filter: FacetFilter
+  }>({ key: facetScope, filter: NO_FACET_FILTER })
+  const facetFilter: FacetFilter =
+    facetState.key === facetScope ? facetState.filter : NO_FACET_FILTER
+  const setFacetFilter = (filter: FacetFilter) =>
+    setFacetState({ key: facetScope, filter })
+
+  // Facets describe the *loaded* projection (server truth), never a filtered one.
+  const facets =
+    projection !== undefined ? deriveFacets(projection) : EMPTY_DECK_FACETS
+  const filteredProjection =
+    projection !== undefined
+      ? applyFacetFilter(projection, facetFilter)
+      : undefined
+
+  // The canvas renders the filtered projection; notices and the CardFront read
+  // the original, because corpus facts (warnings, truncation) and the focus
+  // card's own record are not facets of browsing.
   const presentation = (() => {
-    if (projection === undefined) return null
+    if (
+      filteredProjection === undefined ||
+      filteredProjection.nodes.length === 0
+    ) {
+      return null
+    }
     try {
-      return toCytoscapePresentation(projection)
+      return toCytoscapePresentation(filteredProjection)
     } catch (error) {
       return error instanceof CytoscapeAdapterError ? error : null
     }
+  })()
+
+  // The CardFront shows the focus card from the original projection, so a
+  // facet filter never empties it.
+  const focusCard = (() => {
+    if (projection === undefined) return null
+    const node = projection.nodes.find(
+      (candidate) => candidate.id === projection.focus.id,
+    )
+    return node?.type === 'card' ? node : null
+  })()
+
+  // A selection that the filter hid is shown as no selection: the inspector
+  // would otherwise report a stale id as "missing" on a projection it is
+  // merely filtered out of.
+  const visibleSelection = (() => {
+    if (selection === null || filteredProjection === undefined) return null
+    const present =
+      selection.kind === 'node'
+        ? filteredProjection.nodes.some((node) => node.id === selection.id)
+        : filteredProjection.edges.some((edge) => edge.id === selection.id)
+    return present ? selection : null
   })()
 
   const renderProjectionArea = () => {
@@ -126,28 +202,48 @@ const Graph = () => {
     }
 
     return (
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="flex flex-col gap-3">
-          <ProjectionNotices
-            projection={projection}
-            requestedDepth={selectedDepth}
+      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="lg:sticky lg:top-24 lg:self-start">
+          <DeckNavigator
+            facets={facets}
+            filter={facetFilter}
+            onChange={setFacetFilter}
           />
-          <div className="h-[460px] md:h-[560px] overflow-hidden rounded-xl border bg-background">
-            {presentation ? (
-              <CytoscapeGraph
-                presentation={presentation}
-                selectedId={selection?.id ?? null}
-                onSelect={setSelection}
-              />
-            ) : null}
-          </div>
         </div>
-        <div className="max-h-[560px] overflow-y-auto">
-          <EntityInspector
-            projection={projection}
-            selection={selection}
-            onNavigateCard={(slug) => navigateToCard(slug)}
-          />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="flex flex-col gap-3">
+            <ProjectionNotices
+              projection={projection}
+              requestedDepth={selectedDepth}
+            />
+            {filteredProjection !== undefined &&
+            filteredProjection.nodes.length === 0 ? (
+              <FilteredEmptyState
+                filter={facetFilter}
+                onClear={() => setFacetFilter(NO_FACET_FILTER)}
+              />
+            ) : (
+              <div className="h-[460px] md:h-[560px] overflow-hidden rounded-xl border bg-background">
+                {presentation ? (
+                  <CytoscapeGraph
+                    presentation={presentation}
+                    selectedId={visibleSelection?.id ?? null}
+                    onSelect={setSelection}
+                  />
+                ) : null}
+              </div>
+            )}
+          </div>
+          <div className="space-y-4">
+            <CardFront projection={projection} focusCard={focusCard} />
+            <div className="max-h-[560px] overflow-y-auto">
+              <EntityInspector
+                projection={filteredProjection ?? projection}
+                selection={visibleSelection}
+                onNavigateCard={(slug) => navigateToCard(slug)}
+              />
+            </div>
+          </div>
         </div>
       </div>
     )
