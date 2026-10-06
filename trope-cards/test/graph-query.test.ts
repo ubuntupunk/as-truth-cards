@@ -343,4 +343,14 @@ describe('describeViews', () => {
     assert.deepEqual(v1.blockingGaps, [])
     assert.equal(v1.populated, true)
   })
+
+  it('describes the taxonomy view as accepting only the focus the projection resolves', () => {
+    // `/api/graph/views` serves focusTypes as authoritative client metadata, so it must not
+    // advertise focus paths `projectGraph` cannot resolve: focus always goes through
+    // `findCardByRef`, and a mechanism/collection ref 404s with "no card matches this slug".
+    const taxonomy = describeViews(populated).views.find(
+      (v) => v.name === 'taxonomy',
+    )!
+    assert.deepEqual(taxonomy.focusTypes, ['card'])
+  })
 })
