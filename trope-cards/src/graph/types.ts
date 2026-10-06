@@ -527,6 +527,13 @@ export type GraphEdgeType =
   | { readonly family: 'inference'; readonly value: 'PREMISE_OF' }
   /** A reasoning step concludes a claim: `inference_conclusions`, carrying `ordinal`. */
   | { readonly family: 'inference'; readonly value: 'CONCLUDES' }
+  /**
+   * A reasoning step belongs to an argument chain: `argument_chain_steps`
+   * (carrying `role` and `ordinal`), or `inference_steps.argument_chain_id`
+   * when the join row is absent — both paths produce the same edge, tagged in
+   * `attributes.membershipSource`, exactly as step metadata reports them.
+   */
+  | { readonly family: 'inference'; readonly value: 'MEMBER_OF' }
   /** Relations between reasoning steps: `inference_step_relations`. */
   | {
       readonly family: 'inference'

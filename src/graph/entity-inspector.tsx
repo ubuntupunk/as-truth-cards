@@ -30,9 +30,11 @@
  *   nothing may read it as one.
  *
  * The component is pure — props in, string out — which is what lets
- * `preact-render-to-string` test it under Node. Interaction is limited to the
- * one thing the plan gives it: the "Open card" button that navigates to another
- * card's projection.
+ * `preact-render-to-string` test it under Node. Interaction is limited to two
+ * navigations: the "Open card" button that moves the projection to another
+ * card's slug, and the "Focus claim / Focus argument" button that re-focuses
+ * the projection onto a claim or argument chain in the argument view — the one
+ * registered view whose `focusTypes` accepts both.
  */
 
 import type {
@@ -47,6 +49,14 @@ export type InspectorSelection =
   | { readonly kind: 'node'; readonly id: string }
   | { readonly kind: 'edge'; readonly id: string }
   | null
+
+/**
+ * Node types the inspector offers to re-focus the projection onto.
+ *
+ * Exactly the non-card types whose uuid the argument view accepts as a focus;
+ * a type outside this pair could be handed to the handler and silently 404.
+ */
+export type RefocusTarget = 'claim' | 'argument_chain'
 
 /**
  * Look up a node in the projection by its canonical id.
@@ -117,6 +127,9 @@ export function resolveNodeLabel(
  * @param props.selection The current presentation selection, or `null`.
  * @param props.onNavigateCard Optional handler fired by a card's "Open card"
  * button; it receives the card's canonical slug.
+ * @param props.onRefocus Optional handler fired by a claim's or an argument
+ * chain's focus button; it receives the node id and which refocusable type it
+ * is, so the page can move `focus` and switch `view` in one write.
  * @returns A semantic side panel describing the selected node or edge.
  * @example
  * ```tsx
@@ -124,6 +137,7 @@ export function resolveNodeLabel(
  *   projection={projection}
  *   selection={{ kind: 'node', id: selectedId }}
  *   onNavigateCard={(slug) => setSearchParams({ focus: slug })}
+ *   onRefocus={(id, type) => refocus(id, type)}
  * />
  * ```
  */
@@ -131,10 +145,12 @@ export function EntityInspector({
   projection,
   selection,
   onNavigateCard,
+  onRefocus,
 }: {
   projection: GraphProjection
   selection: InspectorSelection
   onNavigateCard?: (slug: string) => void
+  onRefocus?: (id: string, type: RefocusTarget) => void
 }) {
   if (selection === null) {
     return (
@@ -159,6 +175,7 @@ export function EntityInspector({
         projection={projection}
         node={node}
         onNavigateCard={onNavigateCard}
+        onRefocus={onRefocus}
       />
     )
   }
@@ -179,11 +196,15 @@ function NodePanel({
   projection,
   node,
   onNavigateCard,
+  onRefocus,
 }: {
   projection: GraphProjection
   node: GraphNode
   onNavigateCard?: (slug: string) => void
+  onRefocus?: (id: string, type: RefocusTarget) => void
 }) {
+  const refocusType: RefocusTarget | null =
+    node.type === 'claim' || node.type === 'argument_chain' ? node.type : null
   return (
     <aside
       className="rounded-xl border p-4"
@@ -200,6 +221,18 @@ function NodePanel({
         <p className="mt-1 inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300">
           focus node
         </p>
+      ) : null}
+      {onRefocus !== undefined && refocusType !== null && !node.isFocus ? (
+        <button
+          type="button"
+          data-testid="focus-entity"
+          data-entity-type={refocusType}
+          data-entity-id={node.id}
+          onClick={() => onRefocus(node.id, refocusType)}
+          className="mt-3 w-full rounded border border-input px-1.5 py-1 text-xs hover:bg-muted"
+        >
+          {refocusType === 'claim' ? 'Focus claim' : 'Focus argument'}
+        </button>
       ) : null}
 
       <dl className="mt-3 space-y-1.5 text-sm">

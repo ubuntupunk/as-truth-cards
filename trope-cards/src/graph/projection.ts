@@ -33,6 +33,7 @@
  */
 
 import type {
+  ArgumentChainExpansion,
   ArgumentChainMembershipRow,
   ArgumentChainRow,
   CardExpansion,
@@ -67,6 +68,7 @@ import type {
   GraphProjection,
   GraphProjectionMeta,
   InferenceStepNode,
+  InferenceStepRoleValue,
   MechanismNode,
   NodeStatus,
 } from './types'
@@ -207,21 +209,13 @@ export async function projectGraph(
   const warnings: string[] = []
   const { view } = request
 
-  const card = await reader.findCardByRef(request.focus)
-  if (!card) {
+  const { ref: focusRef, card } = await resolveFocus(reader, request.focus)
+  if (!view.focusTypes.includes(focusRef.type)) {
     throw new GraphFocusNotFoundError(
       request.focus,
-      'no card matches this slug or uuid',
+      `view "${view.name}" does not accept a ${focusRef.type} as a focus`,
     )
   }
-  if (!view.focusTypes.includes('card')) {
-    throw new GraphFocusNotFoundError(
-      request.focus,
-      `view "${view.name}" does not accept a card as a focus`,
-    )
-  }
-
-  const focusRef: NodeRef = { type: 'card', id: card.id }
   const edgeFilter = normaliseEdgeFilter(request.includeEdgeTypes)
 
   /** Refs reached so far, in discovery order, keyed by `type|id`. */
@@ -321,10 +315,16 @@ export async function projectGraph(
 
   return {
     focus: {
-      id: card.id,
-      type: 'card',
-      // A slug is only echoed when the caller actually addressed the card that way (Q7).
-      slug: request.focus === card.slug ? card.slug : null,
+      id: focusRef.id,
+      type: focusRef.type,
+      // A slug is only echoed when a card focus was addressed that way (Q7); claims and
+      // argument chains carry no slug, so their focus is uuid-only by construction.
+      slug:
+        focusRef.type === 'card' &&
+        card !== undefined &&
+        request.focus === card.slug
+          ? card.slug
+          : null,
     },
     view: view.name,
     depth: request.depth,
@@ -335,6 +335,50 @@ export async function projectGraph(
     edges: edgeList,
     meta,
   }
+}
+
+/**
+ * Resolve a `focus` reference to the node it names, across every type a view may focus on.
+ *
+ * The card table is tried first because slugs live there and a slug is the only
+ * human-facing alias in the graph; claims and argument chains carry no slug and answer
+ * to their uuid alone, so their finders short-circuit any non-uuid reference.
+ * Type-specific resolution comes before the view's `focusTypes` check, so the error
+ * distinguishes "nothing matches" from "something matches but this view refuses it".
+ *
+ * @param reader Read-only port over `trope_graph`.
+ * @param focus A card slug, or a card / claim / argument-chain uuid.
+ * @returns The resolved ref, plus the matched card row when one exists — it carries the
+ * slug echoed back in `focus.slug` (Q7).
+ * @throws {GraphFocusNotFoundError} If no type in the graph matches the reference.
+ * @example
+ * ```ts
+ * const { ref } = await resolveFocus(reader, "jesus-was-a-zionist");
+ * ref.type; // "card" — slug-addressed, and only the card table has slugs
+ * ```
+ */
+async function resolveFocus(
+  reader: TropeGraphReader,
+  focus: string,
+): Promise<{ ref: NodeRef; card: CardRow | undefined }> {
+  const card = await reader.findCardByRef(focus)
+  if (card) return { ref: { type: 'card', id: card.id }, card }
+
+  const claim = await reader.findClaimByRef(focus)
+  if (claim) return { ref: { type: 'claim', id: claim.id }, card: undefined }
+
+  const chain = await reader.findArgumentChainByRef(focus)
+  if (chain) {
+    return {
+      ref: { type: 'argument_chain', id: chain.id },
+      card: undefined,
+    }
+  }
+
+  throw new GraphFocusNotFoundError(
+    focus,
+    'no card, claim or argument chain matches this slug or uuid',
+  )
 }
 
 /** Clamp a computed hop to the hard depth cap so a reported depth is always requestable. */
@@ -357,10 +401,12 @@ async function expandRound(
   const cardIds: string[] = []
   const claimIds: string[] = []
   const stepIds: string[] = []
+  const chainIds: string[] = []
   for (const ref of frontier) {
     if (ref.type === 'card') cardIds.push(ref.id)
     else if (ref.type === 'claim') claimIds.push(ref.id)
     else if (ref.type === 'inference_step') stepIds.push(ref.id)
+    else if (ref.type === 'argument_chain') chainIds.push(ref.id)
   }
 
   // Every node discovered in this round is exactly one hop from a node in the frontier, so
@@ -386,6 +432,11 @@ async function expandRound(
         view,
         depth,
       ),
+    )
+  }
+  if (chainIds.length > 0) {
+    out.push(
+      ...chainCandidates(await reader.expandChains(chainIds), view, depth),
     )
   }
   return out
@@ -687,6 +738,10 @@ function conclusionCandidate(
 /**
  * Build the candidate edges reachable in one round from a set of inference-step ids.
  *
+ * Covers every family a step touches: premise and conclusion rows (the claims
+ * the steps reason from and arrive at), both chain-membership paths, and the
+ * step-to-step relations.
+ *
  * @param expansion Rows the reader returned for those steps.
  * @param view The view whose adjacency rules apply.
  * @param depth Hop distance from the focus, for every node discovered this round.
@@ -697,9 +752,138 @@ function stepCandidates(
   depth: number,
 ): CandidateEdge[] {
   if (!viewTraversesFamily(view, 'inference')) return []
-  return expansion.stepRelations.map((row: InferenceStepRelationRow) =>
-    stepRelationCandidate(row, depth),
+  const out: CandidateEdge[] = []
+
+  // Both step-to-chain attachment paths are emitted, membership rows first: they carry the
+  // authored `role` and `ordinal`, and the direct `inference_steps.argument_chain_id` path
+  // only adds pairs the join row did not already cover. The dedupe key is the edge id, which
+  // is byte-identical for both paths — the same "both reported, neither silently preferred"
+  // rule `groupChainsByStep` applies when it reports chains from a step's point of view.
+  const seen = new Set<string>()
+  for (const row of expansion.chainMemberships) {
+    const id = buildEdgeId(
+      'inference',
+      row.inferenceStepId,
+      'MEMBER_OF',
+      row.chainId,
+    )
+    seen.add(id)
+    out.push(
+      chainMemberCandidate({
+        id,
+        stepId: row.inferenceStepId,
+        chainId: row.chainId,
+        sourceTable: 'argument_chain_steps',
+        membershipSource: 'argument_chain_steps',
+        role: row.role,
+        ordinal: row.ordinal,
+        depth,
+      }),
+    )
+  }
+  for (const link of expansion.declaredChainLinks) {
+    const id = buildEdgeId('inference', link.stepId, 'MEMBER_OF', link.chainId)
+    if (seen.has(id)) continue
+    seen.add(id)
+    out.push(
+      chainMemberCandidate({
+        id,
+        stepId: link.stepId,
+        chainId: link.chainId,
+        sourceTable: 'inference_steps',
+        membershipSource: 'inference_steps_argument_chain_id',
+        role: null,
+        ordinal: null,
+        depth,
+      }),
+    )
+  }
+
+  // Premise and conclusion rows are emitted from the step side too, not only from a claim
+  // frontier: the claims composing an argument must be reachable when the entry point is a
+  // chain or a step's neighbour, or a chain focus dead-ends at its steps. The edge id is the
+  // claim frontier's byte for byte, so the edges map folds the two emissions into one.
+  out.push(...expansion.premises.map((row) => premiseCandidate(row, depth)))
+  out.push(
+    ...expansion.conclusions.map((row) => conclusionCandidate(row, depth)),
   )
+  out.push(
+    ...expansion.stepRelations.map((row) => stepRelationCandidate(row, depth)),
+  )
+  return out
+}
+
+/**
+ * Build the candidate edges reachable in one round from a set of argument-chain ids.
+ *
+ * A chain frontier expands through its `argument_chain_steps` rows, which place each step
+ * in the chain. The edge is built from the same projection as a step-frontier membership
+ * (same id, same attributes), so a chain reached from a step and a step reached from a
+ * chain produce one edge, not two.
+ *
+ * @param expansion Membership rows the reader returned for those chains.
+ * @param view The view whose adjacency rules apply.
+ * @param depth Hop distance from the focus, for every node discovered this round.
+ */
+function chainCandidates(
+  expansion: ArgumentChainExpansion,
+  view: GraphViewRule,
+  depth: number,
+): CandidateEdge[] {
+  if (!viewTraversesFamily(view, 'inference')) return []
+  return expansion.chainMemberships.map((row) =>
+    chainMemberCandidate({
+      id: buildEdgeId(
+        'inference',
+        row.inferenceStepId,
+        'MEMBER_OF',
+        row.chainId,
+      ),
+      stepId: row.inferenceStepId,
+      chainId: row.chainId,
+      sourceTable: 'argument_chain_steps',
+      membershipSource: 'argument_chain_steps',
+      role: row.role,
+      ordinal: row.ordinal,
+      depth,
+    }),
+  )
+}
+
+/**
+ * Project one step-to-chain attachment as a `MEMBER_OF` edge.
+ *
+ * Authored direction is step → chain regardless of which frontier discovered it: the
+ * membership row says a step *belongs to* a chain, and the reverse discovery is a
+ * traversal detail (every v1 family is bidirectional anyway).
+ *
+ * @param input Edge id, endpoints, which attachment path produced it, and its membership
+ * data — `role`/`ordinal` from the join row, or null on the direct path.
+ * @param depth Hop distance from the focus, for both endpoints.
+ */
+function chainMemberCandidate(input: {
+  id: string
+  stepId: string
+  chainId: string
+  sourceTable: 'argument_chain_steps' | 'inference_steps'
+  membershipSource: 'argument_chain_steps' | 'inference_steps_argument_chain_id'
+  role: InferenceStepRoleValue | null
+  ordinal: number | null
+  depth: number
+}): CandidateEdge {
+  return authored({
+    id: input.id,
+    type: { family: 'inference', value: 'MEMBER_OF' },
+    sourceTable: input.sourceTable,
+    from: { type: 'inference_step', id: input.stepId },
+    to: { type: 'argument_chain', id: input.chainId },
+    attributes: {
+      role: input.role,
+      ordinal: input.ordinal,
+      membershipSource: input.membershipSource,
+    },
+    depth: input.depth,
+  })
 }
 
 /**
@@ -836,6 +1020,7 @@ function buildNodes(
   const cardIds = new Set(refs.cardIds)
   const claimIds = new Set(refs.claimIds)
   const stepIds = new Set(refs.inferenceStepIds)
+  const chainIds = new Set(refs.chainIds)
   const collectionIds = new Set(refs.collectionIds)
   const mechanismIds = new Set(refs.mechanismIds)
   const conceptIds = new Set(refs.conceptIds)
@@ -903,7 +1088,7 @@ function buildNodes(
       type: 'claim',
       label: row.statement,
       depth: distanceFor(distances, 'claim', row.id),
-      isFocus: false,
+      isFocus: focus.type === 'claim' && focus.id === row.id,
       degree: 0,
       status: { source: 'epistemic_status', value: row.epistemicStatus },
       metadata: {
@@ -952,6 +1137,49 @@ function buildNodes(
           claimId: conclusion.claimId,
           ordinal: conclusion.ordinal,
         })),
+      },
+    }
+    nodes.push(node)
+  }
+
+  // Invert both step-to-chain attachment paths into the chain's own membership list, so a
+  // chain's `stepIds` reports `inference_steps.argument_chain_id` attachments even when no
+  // `argument_chain_steps` row exists — the same both-paths rule `groupChainsByStep` applies
+  // when it reports chains from a step's point of view.
+  const stepIdsByChain = new Map<string, Set<string>>()
+  const attachStep = (chainId: string, stepId: string): void => {
+    const set = stepIdsByChain.get(chainId) ?? new Set<string>()
+    set.add(stepId)
+    stepIdsByChain.set(chainId, set)
+  }
+  for (const row of hydration.chainMemberships) {
+    attachStep(row.chainId, row.inferenceStepId)
+  }
+  for (const step of hydration.inferenceSteps) {
+    if (step.argumentChainId) attachStep(step.argumentChainId, step.id)
+  }
+
+  for (const row of hydration.chains) {
+    if (!chainIds.has(row.id)) continue
+    const node: ArgumentChainNode = {
+      id: row.id,
+      type: 'argument_chain',
+      label: row.label,
+      depth: distanceFor(distances, 'argument_chain', row.id),
+      isFocus: focus.type === 'argument_chain' && focus.id === row.id,
+      degree: 0,
+      // The text column, never the epistemic_status enum (Q4) — same rule as a step.
+      status: {
+        source: 'independent_inference_status',
+        value: row.epistemicStatus,
+        vocabulary: 'uncontrolled',
+      },
+      metadata: {
+        label: row.label,
+        description: row.description,
+        kind: row.kind,
+        cardId: row.cardId,
+        stepIds: [...(stepIdsByChain.get(row.id) ?? [])].sort(),
       },
     }
     nodes.push(node)
@@ -1382,6 +1610,7 @@ function splitRefs(
   const cardIds: string[] = []
   const claimIds: string[] = []
   const inferenceStepIds: string[] = []
+  const chainIds: string[] = []
   const collectionIds: string[] = []
   const mechanismIds: string[] = []
   const conceptIds: string[] = []
@@ -1398,6 +1627,9 @@ function splitRefs(
         break
       case 'inference_step':
         inferenceStepIds.push(ref.id)
+        break
+      case 'argument_chain':
+        chainIds.push(ref.id)
         break
       case 'collection':
         collectionIds.push(ref.id)
@@ -1420,6 +1652,7 @@ function splitRefs(
     cardIds,
     claimIds,
     inferenceStepIds,
+    chainIds,
     collectionIds,
     mechanismIds,
     conceptIds,

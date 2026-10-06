@@ -45,6 +45,7 @@ import {
   toCytoscapePresentation,
 } from '../../trope-cards/src/graph/cytoscape-adapter.ts'
 import {
+  ARGUMENT_VIEW_NAME,
   DEFAULT_DEPTH,
   DEFAULT_VIEW_NAME,
   HARD_MAX_DEPTH,
@@ -241,6 +242,7 @@ const Graph = () => {
                 projection={filteredProjection ?? projection}
                 selection={visibleSelection}
                 onNavigateCard={(slug) => navigateToCard(slug)}
+                onRefocus={(id) => refocusEntity(id)}
               />
             </div>
           </div>
@@ -252,6 +254,19 @@ const Graph = () => {
   const navigateToCard = (slug: string) => {
     setSelection(null)
     updateParam('focus', slug)
+  }
+
+  // Refocusing onto a claim or an argument chain moves to the argument view — the
+  // only registered view whose focusTypes accepts both — and both keys land in one
+  // search-params write: two sequential updates would build the second from a stale
+  // `searchParams` snapshot and silently drop the first. The type is not needed
+  // here: every refocusable node type lands in the same view.
+  const refocusEntity = (id: string) => {
+    setSelection(null)
+    const next = new URLSearchParams(searchParams)
+    next.set('focus', id)
+    next.set('view', ARGUMENT_VIEW_NAME)
+    setSearchParams(next)
   }
 
   const updateParam = (

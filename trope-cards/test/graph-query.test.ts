@@ -221,6 +221,22 @@ describe('relationship', () => {
     )
   })
 
+  it('accepts MEMBER_OF, the inference family word for step-to-chain membership', () => {
+    // Slice 2's new edge. Without it in the vocabulary a client could see MEMBER_OF edges
+    // it had no way to filter back to, and the unknown-word 400 would name a word the
+    // projection itself emits.
+    assert.deepEqual(
+      parseGraphQuery({ focus: 'card-1', relationship: 'MEMBER_OF' })
+        .includeEdgeTypes,
+      ['MEMBER_OF'],
+    )
+    assert.deepEqual(
+      parseGraphQuery({ focus: 'card-1', relationship: 'inference:MEMBER_OF' })
+        .includeEdgeTypes,
+      ['INFERENCE:MEMBER_OF'],
+    )
+  })
+
   it('normalises case, because relation words are enums', () => {
     assert.deepEqual(
       parseGraphQuery({ focus: 'card-1', relationship: 'supports' }).includeEdgeTypes,
@@ -321,6 +337,15 @@ describe('describeViews', () => {
     assert.equal(evidence.populated, false)
   })
 
+  it('reports argument as implemented and populated, now that chains are nodes', () => {
+    const described = describeViews(populated)
+    const argument = described.views.find((v) => v.name === 'argument')
+    assert.ok(argument, 'the argument view must be listed')
+    assert.equal(argument.status, 'implemented')
+    assert.deepEqual(argument.blockingGaps, [])
+    assert.equal(argument.populated, true)
+  })
+
   it('names the table behind each blocking gap, so the gap points at a corpus task', () => {
     const described = describeViews(populated)
     const evidence = described.views.find((v) => v.name.includes('evidence'))!
@@ -346,8 +371,9 @@ describe('describeViews', () => {
 
   it('describes the taxonomy view as accepting only the focus the projection resolves', () => {
     // `/api/graph/views` serves focusTypes as authoritative client metadata, so it must not
-    // advertise focus paths `projectGraph` cannot resolve: focus always goes through
-    // `findCardByRef`, and a mechanism/collection ref 404s with "no card matches this slug".
+    // advertise focus paths `projectGraph` cannot resolve: taxonomy declares only `card`,
+    // and a claim/chain uuid or a mechanism/collection ref 404s against it — focus resolution
+    // spans card, claim and argument chain, but `focusTypes` narrows what a view accepts.
     const taxonomy = describeViews(populated).views.find(
       (v) => v.name === 'taxonomy',
     )!

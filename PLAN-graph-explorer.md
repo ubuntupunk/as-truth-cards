@@ -61,7 +61,10 @@ authored focus path real so a researcher can move **Card → Claim** by refocusi
 
 - reader: resolve a uuid to a claim (or argument chain) when the view permits it;
 - `projectGraph`: start expansion from a non-card `NodeRef` per
-  `view.focusTypes`;
+  `view.focusTypes`; a step frontier also discovers the claims it premises and
+  concludes, so a chain focus shows the argument's claims instead of dead-ending
+  at its steps (Priority 4's CLAIM → STEP → CLAIM walk has to work from the
+  chain entry point too);
 - implement the `argument` view (status `designed` → `implemented`), promoting
   chains to nodes while the general view keeps them as step metadata;
 - UI: an inspector "Focus claim / Focus argument" action navigating to

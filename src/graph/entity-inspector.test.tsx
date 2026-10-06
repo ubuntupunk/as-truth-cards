@@ -13,7 +13,12 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { render } from 'preact-render-to-string'
-import { EntityInspector, findEdgeById, findNodeById } from './entity-inspector'
+import {
+  EntityInspector,
+  findEdgeById,
+  findNodeById,
+  type RefocusTarget,
+} from './entity-inspector'
 import {
   CARD_PROJECTION,
   FOCUS_CARD_NODE,
@@ -23,12 +28,14 @@ import {
 
 function renderInspector(
   selection: Parameters<typeof EntityInspector>[0]['selection'],
+  onRefocus?: (id: string, type: RefocusTarget) => void,
 ) {
   return render(
     <EntityInspector
       projection={CARD_PROJECTION}
       selection={selection}
       onNavigateCard={() => {}}
+      onRefocus={onRefocus}
     />,
   )
 }
@@ -220,5 +227,56 @@ describe('entity-inspector edges', () => {
     assert.equal(findNodeById(CARD_PROJECTION, 'nope'), null)
     // FOCUS_CARD_NODE is the fixture node: it must be the one the projection carries.
     assert.equal(findNodeById(CARD_PROJECTION, ID.focusCard), FOCUS_CARD_NODE)
+  })
+})
+
+describe('entity-inspector refocus action', () => {
+  const noOp = () => {}
+
+  it('offers to focus a claim and carries the id the handler needs', () => {
+    const html = renderInspector({ kind: 'node', id: ID.claimOne }, noOp)
+    assert.ok(html.includes('data-testid="focus-entity"'))
+    assert.ok(html.includes('data-entity-type="claim"'))
+    assert.ok(html.includes(`data-entity-id="${ID.claimOne}"`))
+    assert.ok(html.includes('Focus claim'))
+  })
+
+  it('offers to focus an argument chain', () => {
+    const html = renderInspector({ kind: 'node', id: ID.chainOne }, noOp)
+    assert.ok(html.includes('data-testid="focus-entity"'))
+    assert.ok(html.includes('data-entity-type="argument_chain"'))
+    assert.ok(html.includes(`data-entity-id="${ID.chainOne}"`))
+    assert.ok(html.includes('Focus argument'))
+  })
+
+  it('never offers refocus for a card or other non-refocusable node', () => {
+    const card = renderInspector({ kind: 'node', id: ID.focusCard }, noOp)
+    assert.ok(!card.includes('data-testid="focus-entity"'))
+    const step = renderInspector({ kind: 'node', id: ID.stepOne }, noOp)
+    assert.ok(!step.includes('data-testid="focus-entity"'))
+  })
+
+  it('omits the button when the page passed no handler', () => {
+    const html = renderInspector({ kind: 'node', id: ID.claimOne })
+    assert.ok(!html.includes('data-testid="focus-entity"'))
+  })
+
+  it('omits the button when the node is already the focus', () => {
+    const focused = {
+      ...CARD_PROJECTION,
+      nodes: CARD_PROJECTION.nodes.map((node) =>
+        node.id === ID.claimOne ? { ...node, isFocus: true } : node,
+      ),
+    }
+    const html = render(
+      <EntityInspector
+        projection={focused}
+        selection={{ kind: 'node', id: ID.claimOne }}
+        onNavigateCard={() => {}}
+        onRefocus={noOp}
+      />,
+    )
+    assert.ok(!html.includes('data-testid="focus-entity"'))
+    assert.ok(html.includes('focus node'))
   })
 })

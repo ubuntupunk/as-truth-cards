@@ -217,9 +217,29 @@ export type ClaimExpansion = {
   readonly conclusions: readonly InferenceConclusionRow[]
 }
 
+/** A step naming its chain through `inference_steps.argument_chain_id`, the direct path. */
+export type DeclaredChainLink = {
+  readonly stepId: string
+  readonly chainId: string
+}
+
 /** What an inference-step round discovers. */
 export type InferenceStepExpansion = {
   readonly stepRelations: readonly InferenceStepRelationRow[]
+  /** `inference_premises` rows where these steps take the premise: the claims they reason from. */
+  readonly premises: readonly InferencePremiseRow[]
+  /** `inference_conclusions` rows where these steps conclude: the claims they arrive at. */
+  readonly conclusions: readonly InferenceConclusionRow[]
+  /** `argument_chain_steps` join rows for these steps, the authored membership path. */
+  readonly chainMemberships: readonly ArgumentChainMembershipRow[]
+  /** Steps naming a chain directly, with no join row to carry `role` or `ordinal`. */
+  readonly declaredChainLinks: readonly DeclaredChainLink[]
+}
+
+/** What an argument-chain round discovers. */
+export type ArgumentChainExpansion = {
+  /** `argument_chain_steps` join rows for these chains, carrying the steps they order. */
+  readonly chainMemberships: readonly ArgumentChainMembershipRow[]
 }
 
 /** Every node reference the projection has discovered, ready to be hydrated with metadata. */
@@ -227,6 +247,7 @@ export type NodeRefSet = {
   readonly cardIds: readonly string[]
   readonly claimIds: readonly string[]
   readonly inferenceStepIds: readonly string[]
+  readonly chainIds: readonly string[]
   readonly collectionIds: readonly string[]
   readonly mechanismIds: readonly string[]
   readonly conceptIds: readonly string[]
@@ -286,16 +307,45 @@ export interface TropeGraphReader {
    */
   findCardByRef(ref: string): Promise<CardRow | undefined>
 
+  /**
+   * Resolve a `focus` reference to a claim.
+   *
+   * Claims carry no slug — uuid is their only canonical identity — so a
+   * non-uuid reference resolves to `undefined`.
+   *
+   * @param ref A claim uuid.
+   */
+  findClaimByRef(ref: string): Promise<ClaimRow | undefined>
+
+  /**
+   * Resolve a `focus` reference to an argument chain.
+   *
+   * Chains carry no slug either; like claims, they are addressed by uuid.
+   *
+   * @param ref An argument chain uuid.
+   */
+  findArgumentChainByRef(ref: string): Promise<ArgumentChainRow | undefined>
+
   /** Expand a round of card ids. */
   expandCards(cardIds: readonly string[]): Promise<CardExpansion>
 
   /** Expand a round of claim ids. */
   expandClaims(claimIds: readonly string[]): Promise<ClaimExpansion>
 
-  /** Expand a round of inference-step ids. */
+  /**
+   * Expand a round of inference-step ids.
+   *
+   * Returns the step-to-step relations, the premise and conclusion rows tying
+   * these steps to their claims (a step frontier must be able to discover the
+   * claims it reasons from and arrives at — otherwise a chain focus dead-ends
+   * at its steps), and both chain-membership paths.
+   */
   expandInferenceSteps(
     inferenceStepIds: readonly string[],
   ): Promise<InferenceStepExpansion>
+
+  /** Expand a round of argument-chain ids. */
+  expandChains(chainIds: readonly string[]): Promise<ArgumentChainExpansion>
 
   /** Hydrate every discovered node reference with its typed metadata rows. */
   hydrate(refs: NodeRefSet): Promise<NodeHydration>

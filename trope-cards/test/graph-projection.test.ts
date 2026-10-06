@@ -1007,6 +1007,230 @@ describe('focus resolution', () => {
       GraphFocusNotFoundError,
     )
   })
+
+  it('rejects a claim focus on a view that will not take one', async () => {
+    // The inverse of the case above: resolution succeeds (the claim exists) and the view's
+    // focusTypes is what refuses it, so the error distinguishes "nothing matches" from
+    // "something matches but this view refuses it".
+    await assert.rejects(
+      project(richCorpus(), { focus: 'claim-1', view }),
+      GraphFocusNotFoundError,
+    )
+  })
+
+  it('rejects a chain focus on a view that will not take one', async () => {
+    await assert.rejects(
+      project(richCorpus(), { focus: 'chain-1', view }),
+      GraphFocusNotFoundError,
+    )
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Claim and chain focus: the argument view's two non-card focus paths
+// ---------------------------------------------------------------------------
+
+describe('claim and chain focus', () => {
+  const argument = getGraphView('argument')!
+  assert.ok(argument, 'argument must be registered')
+
+  it('projects a claim as the focus, uuid-addressed with no slug', async () => {
+    const { result } = await project(richCorpus(), {
+      focus: 'claim-1',
+      view: argument,
+      depth: 2,
+    })
+    assert.deepEqual(result.focus, {
+      id: 'claim-1',
+      type: 'claim',
+      slug: null,
+    })
+    const focused = nodesOfType(result.nodes, 'claim').find((n) => n.isFocus)
+    assert.ok(focused, 'the focused claim must be emitted')
+    assert.equal(focused.depth, 0)
+    // A claim reaches its steps through authored premise and conclusion rows, and the
+    // chain through the steps' memberships one hop further on.
+    assert.ok(
+      endpoints(result.edges).includes('step-1 -> claim-1'),
+      'the premise step must be reachable from the claim focus',
+    )
+    const chainNodes = nodesOfType(result.nodes, 'argument_chain')
+    assert.equal(chainNodes.length, 1, 'the membership chain must be discovered')
+    assert.equal(chainNodes[0]?.depth, 2)
+  })
+
+  it('projects an argument chain as the focus with its member steps', async () => {
+    const { result } = await project(richCorpus(), {
+      focus: 'chain-1',
+      view: argument,
+      depth: 2,
+    })
+    assert.deepEqual(result.focus, {
+      id: 'chain-1',
+      type: 'argument_chain',
+      slug: null,
+    })
+    const focused = nodesOfType(result.nodes, 'argument_chain').find(
+      (n) => n.isFocus,
+    )
+    assert.ok(focused, 'the focused chain must be emitted')
+    assert.equal(focused.depth, 0)
+    // Membership edges are authored step -> chain even when the chain led the discovery,
+    // and the steps' premise/conclusion rows bring the claims composing the chain into the
+    // same projection: a chain focus must not dead-end at its steps (Priority 4's
+    // CLAIM -> STEP -> CLAIM structure has to be walkable from the chain entry point too).
+    assert.deepEqual(
+      endpoints(result.edges).sort(),
+      [
+        'step-1 -> chain-1',
+        'step-2 -> chain-1',
+        'claim-1 -> step-1',
+        'step-1 -> claim-1',
+        'step-2 -> claim-2',
+        'step-2 -> claim-3',
+      ].sort(),
+    )
+    assert.deepEqual(focused.metadata.stepIds, ['step-1', 'step-2'])
+    const claims = nodesOfType(result.nodes, 'claim')
+    assert.deepEqual(
+      claims.map((n) => [n.id, n.depth]).sort(),
+      [
+        ['claim-1', 2],
+        ['claim-2', 2],
+        ['claim-3', 2],
+      ],
+    )
+    assert.equal(focused.metadata.cardId, 'card-1')
+    assert.equal(focused.metadata.kind, 'PRIMARY_ARGUMENT')
+  })
+
+  it('reports membership role and ordinal on the MEMBER_OF edge', async () => {
+    const { result } = await project(richCorpus(), {
+      focus: 'claim-1',
+      view: argument,
+      depth: 2,
+    })
+    const member = result.edges.find(
+      (e) => e.from === 'step-1' && e.to === 'chain-1',
+    )
+    assert.ok(member, 'the membership edge must be emitted')
+    assert.equal(member.family, 'inference')
+    assert.deepEqual(member.type, { family: 'inference', value: 'MEMBER_OF' })
+    assert.equal(member.sourceTable, 'argument_chain_steps')
+    assert.deepEqual(member.attributes, {
+      role: 'MAIN',
+      ordinal: 0,
+      membershipSource: 'argument_chain_steps',
+    })
+  })
+
+  it('reports the direct attachment path with no role or ordinal', async () => {
+    // `inference_steps.argument_chain_id` with no `argument_chain_steps` row is the second
+    // attachment path; it carries no role or ordinal, so the edge says null rather than
+    // inventing values the schema never stored.
+    const corpus = richCorpus()
+    corpus.inferenceSteps = corpus.inferenceSteps.map((s) =>
+      s.id === 'step-1' ? { ...s, argumentChainId: 'chain-1' } : s,
+    )
+    corpus.chainMemberships = []
+    const { result } = await project(corpus, {
+      focus: 'card-1',
+      view: argument,
+      depth: 3,
+    })
+    const member = result.edges.find(
+      (e) => e.from === 'step-1' && e.to === 'chain-1',
+    )
+    assert.ok(member, 'the direct-path edge must be emitted')
+    assert.equal(member.sourceTable, 'inference_steps')
+    assert.deepEqual(member.attributes, {
+      role: null,
+      ordinal: null,
+      membershipSource: 'inference_steps_argument_chain_id',
+    })
+    const chainNode = nodesOfType(result.nodes, 'argument_chain')[0]
+    assert.ok(chainNode, 'the direct path must still emit the chain node')
+    assert.deepEqual(
+      chainNode.metadata.stepIds,
+      ['step-1'],
+      'the direct path must still list its step on the chain',
+    )
+  })
+
+  it('keeps one MEMBER_OF edge when both attachment paths name the same pair', async () => {
+    // Both paths report, neither silently preferred — but they are one edge between the
+    // same two nodes, and a duplicate id would double every degree it touches.
+    const corpus = richCorpus()
+    corpus.inferenceSteps = corpus.inferenceSteps.map((s) =>
+      s.id === 'step-1' ? { ...s, argumentChainId: 'chain-1' } : s,
+    )
+    const { result } = await project(corpus, {
+      focus: 'card-1',
+      view: argument,
+      depth: 3,
+    })
+    const stepOneEdges = result.edges.filter(
+      (e) => e.from === 'step-1' && e.to === 'chain-1',
+    )
+    assert.equal(stepOneEdges.length, 1, 'the two paths must collapse to one edge')
+    // The join row carries data the direct path lacks, so it is the one reported.
+    const only = stepOneEdges[0]
+    assert.ok(only)
+    assert.deepEqual(only.attributes, {
+      role: 'MAIN',
+      ordinal: 0,
+      membershipSource: 'argument_chain_steps',
+    })
+  })
+
+  it('gives a chain independent-inference status, not the epistemic enum', async () => {
+    const corpus = richCorpus()
+    corpus.argumentChains = [
+      chain({ id: 'chain-1', label: 'Primary case', epistemicStatus: 'provisional' }),
+    ]
+    const { result } = await project(corpus, {
+      focus: 'chain-1',
+      view: argument,
+      depth: 1,
+    })
+    const chainNode = nodesOfType(result.nodes, 'argument_chain')[0]
+    assert.ok(chainNode, 'the focused chain must be emitted')
+    assert.deepEqual(chainNode.status, {
+      source: 'independent_inference_status',
+      value: 'provisional',
+      vocabulary: 'uncontrolled',
+    })
+  })
+
+  it('emits chains as nodes in argument but not in v1, which keeps them as step metadata', async () => {
+    const { result: argumentProjection } = await project(richCorpus(), {
+      view: argument,
+      depth: 3,
+    })
+    assert.equal(
+      nodesOfType(argumentProjection.nodes, 'argument_chain').length,
+      1,
+      'argument declares argument_chain and must emit it',
+    )
+    const { result: v1Projection } = await project(richCorpus(), { depth: 3 })
+    assert.equal(
+      nodesOfType(v1Projection.nodes, 'argument_chain').length,
+      0,
+      'v1 does not declare argument_chain, so the node must not appear',
+    )
+    assert.equal(
+      v1Projection.edges.filter((e) => e.type.value === 'MEMBER_OF').length,
+      0,
+      'an edge whose endpoint the view does not emit must not survive',
+    )
+    const step = v1Projection.nodes.find(
+      (n) => n.id === 'step-1',
+    ) as InferenceStepNode
+    assert.equal(step.metadata.chains.length, 1, 'chain stays as step metadata in v1')
+    const firstChain = step.metadata.chains[0]
+    assert.ok(firstChain)
+    assert.equal(firstChain.id, 'chain-1')
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -1014,9 +1238,12 @@ describe('focus resolution', () => {
 // ---------------------------------------------------------------------------
 
 describe('view registry', () => {
-  it('declares v1 as the only implemented view', () => {
+  it('declares v1 and argument as the implemented views', () => {
     assert.equal(view.status, 'implemented')
     assert.equal(view.maxDepth, 3)
+    // Slice 2 promoted argument from `designed`: chains are first-class nodes there and
+    // claim/argument-chain focuses resolve, which is exactly what `implemented` claims.
+    assert.equal(getGraphView('argument')!.status, 'implemented')
   })
 
   it('states a scope reason for v1 Concept, not a data one', () => {

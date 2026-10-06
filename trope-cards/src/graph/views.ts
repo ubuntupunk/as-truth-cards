@@ -179,7 +179,7 @@ const ARGUMENT: GraphViewRule = {
     'Premise -> inference -> conclusion structure. Argument chains become first-class ' +
     'nodes here (issue #3 Q6) while remaining metadata on steps elsewhere, over the same ' +
     'canonical rows.',
-  status: 'designed',
+  status: 'implemented',
   focusTypes: ['card', 'claim', 'argument_chain'],
   nodeTypes: ['card', 'claim', 'inference_step', 'argument_chain'],
   edgeFamilies: ['domain', 'claim_relation', 'inference'],
@@ -256,6 +256,15 @@ export const GRAPH_VIEWS: ReadonlyMap<string, GraphViewRule> = new Map<
 
 /** The view used when `view` is omitted. */
 export const DEFAULT_VIEW_NAME = CARD_ARGUMENT_TAXONOMY.name
+
+/**
+ * The view that accepts claim and argument-chain focuses and emits chains as nodes.
+ *
+ * Refocusing the projection onto a claim or a chain moves here: it is the only
+ * registered view whose `focusTypes` contains both, so one constant names the
+ * destination for every refocus action the UI offers.
+ */
+export const ARGUMENT_VIEW_NAME = ARGUMENT.name
 
 /** Default `depth` when the parameter is omitted: the immediate neighbourhood. */
 export const DEFAULT_DEPTH = 1

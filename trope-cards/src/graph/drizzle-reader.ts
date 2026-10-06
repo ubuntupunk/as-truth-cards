@@ -47,6 +47,7 @@ import {
   relationships,
 } from '../db/schema/tropeGraph'
 import type {
+  ArgumentChainExpansion,
   ArgumentChainMembershipRow,
   ArgumentChainRow,
   CardCollectionRow,
@@ -264,6 +265,47 @@ export class DrizzleGraphReader implements TropeGraphReader {
   }
 
   /**
+   * Resolve a claim by uuid.
+   *
+   * Claims have no slug column, so a non-uuid reference cannot match anything
+   * and short-circuits rather than issuing a query a slug could satisfy.
+   *
+   * @param ref A claim uuid.
+   * @returns The claim row, or `undefined` when nothing matches.
+   */
+  async findClaimByRef(ref: string): Promise<ClaimRow | undefined> {
+    const value = ref.trim()
+    if (!UUID_PATTERN.test(value)) return undefined
+    const rows = await this.client
+      .select(claimColumns)
+      .from(claims)
+      .where(eq(claims.id, value))
+      .limit(1)
+    return rows[0]
+  }
+
+  /**
+   * Resolve an argument chain by uuid.
+   *
+   * Like claims, chains carry no slug: uuid is the only canonical identity.
+   *
+   * @param ref An argument chain uuid.
+   * @returns The chain row, or `undefined` when nothing matches.
+   */
+  async findArgumentChainByRef(
+    ref: string,
+  ): Promise<ArgumentChainRow | undefined> {
+    const value = ref.trim()
+    if (!UUID_PATTERN.test(value)) return undefined
+    const rows = await this.client
+      .select(chainColumns)
+      .from(argumentChains)
+      .where(eq(argumentChains.id, value))
+      .limit(1)
+    return rows[0]
+  }
+
+  /**
    * Discover everything one round of card ids touches.
    *
    * @param cardIds Cards on the current frontier.
@@ -430,18 +472,96 @@ export class DrizzleGraphReader implements TropeGraphReader {
   async expandInferenceSteps(
     inferenceStepIds: readonly string[],
   ): Promise<InferenceStepExpansion> {
-    if (inferenceStepIds.length === 0) return { stepRelations: [] }
+    if (inferenceStepIds.length === 0) {
+      return {
+        stepRelations: [],
+        premises: [],
+        conclusions: [],
+        chainMemberships: [],
+        declaredChainLinks: [],
+      }
+    }
     const ids = [...inferenceStepIds]
-    const stepRelations = await this.client
-      .select(stepRelationColumns)
-      .from(inferenceStepRelations)
-      .where(
-        or(
-          inArray(inferenceStepRelations.sourceInferenceStepId, ids),
-          inArray(inferenceStepRelations.targetInferenceStepId, ids),
+    const [
+      stepRelations,
+      premiseRows,
+      conclusionRows,
+      chainMemberships,
+      declared,
+    ] = await Promise.all([
+      this.client
+        .select(stepRelationColumns)
+        .from(inferenceStepRelations)
+        .where(
+          or(
+            inArray(inferenceStepRelations.sourceInferenceStepId, ids),
+            inArray(inferenceStepRelations.targetInferenceStepId, ids),
+          ),
         ),
+      this.client
+        .select(premiseColumns)
+        .from(inferencePremises)
+        .where(inArray(inferencePremises.inferenceStepId, ids)),
+      this.client
+        .select(conclusionColumns)
+        .from(inferenceConclusions)
+        .where(inArray(inferenceConclusions.inferenceStepId, ids)),
+      this.client
+        .select(chainMembershipColumns)
+        .from(argumentChainSteps)
+        .innerJoin(
+          argumentChains,
+          eq(argumentChainSteps.argumentChainId, argumentChains.id),
+        )
+        .where(inArray(argumentChainSteps.inferenceStepId, ids)),
+      this.client
+        .select({
+          stepId: inferenceSteps.id,
+          argumentChainId: inferenceSteps.argumentChainId,
+        })
+        .from(inferenceSteps)
+        .where(inArray(inferenceSteps.id, ids)),
+    ])
+    // The second attachment path: `inference_steps.argument_chain_id`, reported alongside
+    // the join rows rather than merged into them, so the projection can show both.
+    const declaredChainLinks = declared
+      .filter(
+        (row): row is { stepId: string; argumentChainId: string } =>
+          row.argumentChainId !== null,
       )
-    return { stepRelations }
+      .map((row) => ({ stepId: row.stepId, chainId: row.argumentChainId }))
+    return {
+      stepRelations,
+      premises: premiseRows,
+      conclusions: conclusionRows,
+      chainMemberships,
+      declaredChainLinks,
+    }
+  }
+
+  /**
+   * Discover everything one round of argument-chain ids touches.
+   *
+   * The join rows are the authored order of the chain: each one carries the
+   * step it places, so a chain frontier expands to its steps and the
+   * `MEMBER_OF` edges that pair them.
+   *
+   * @param chainIds Chains on the current frontier.
+   * @returns Their `argument_chain_steps` memberships.
+   */
+  async expandChains(
+    chainIds: readonly string[],
+  ): Promise<ArgumentChainExpansion> {
+    if (chainIds.length === 0) return { chainMemberships: [] }
+    const chainMemberships = await this.client
+      .select(chainMembershipColumns)
+      .from(argumentChainSteps)
+      .innerJoin(
+        argumentChains,
+        eq(argumentChainSteps.argumentChainId, argumentChains.id),
+      )
+      .where(inArray(argumentChainSteps.argumentChainId, [...chainIds]))
+    return { chainMemberships }
   }
 
   /**
@@ -507,6 +627,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
       membershipRows,
       premiseRows,
       conclusionRows,
+      chainMembershipRows,
     ] = await Promise.all([
       emptyIfNo(refs.collectionIds, () =>
         this.client
@@ -558,15 +679,40 @@ export class DrizzleGraphReader implements TropeGraphReader {
           .from(inferenceConclusions)
           .where(inArray(inferenceConclusions.inferenceStepId, stepIds)),
       ),
+      // A chain can be a discovered node in its own right (a chain-led focus, or a
+      // chain reached from a card), and its membership rows must then hydrate even
+      // when no step made it into the projection alongside it.
+      emptyIfNo(refs.chainIds, () =>
+        this.client
+          .select(chainMembershipColumns)
+          .from(argumentChainSteps)
+          .innerJoin(
+            argumentChains,
+            eq(argumentChainSteps.argumentChainId, argumentChains.id),
+          )
+          .where(inArray(argumentChainSteps.argumentChainId, refs.chainIds)),
+      ),
     ])
+
+    const mergedMembershipByKey = new Map<string, ArgumentChainMembershipRow>()
+    for (const row of [...membershipRows, ...chainMembershipRows]) {
+      mergedMembershipByKey.set(`${row.chainId}|${row.inferenceStepId}`, row)
+    }
+    const mergedMembershipRows = [...mergedMembershipByKey.values()]
 
     const directChainIds = dedupe(
       stepRows
         .map((step) => step.argumentChainId)
         .filter((id): id is string => id !== null),
     )
-    const membershipChainIds = dedupe(membershipRows.map((row) => row.chainId))
-    const allChainIds = dedupe([...directChainIds, ...membershipChainIds])
+    const membershipChainIds = dedupe(
+      mergedMembershipRows.map((row) => row.chainId),
+    )
+    const allChainIds = dedupe([
+      ...refs.chainIds,
+      ...directChainIds,
+      ...membershipChainIds,
+    ])
     const chainRows = await emptyIfNo<ArgumentChainRow>(allChainIds, () =>
       this.client
         .select(chainColumns)
@@ -584,7 +730,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
       claims: claimRows,
       inferenceSteps: stepRows,
       chains: chainRows,
-      chainMemberships: membershipRows,
+      chainMemberships: mergedMembershipRows,
       premises: premiseRows,
       conclusions: conclusionRows,
     }
