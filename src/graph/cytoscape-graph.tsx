@@ -137,6 +137,9 @@ export function CytoscapeGraph({
       wheelSensitivity: 0.2,
     })
     cyRef.current = cy
+    // Test affordance: the canvas has no per-node DOM for WebDriver to click, so
+    // browser smoke tests reach the instance through its container to emit taps.
+    ;(container as { __cy?: Core }).__cy = cy
 
     const onTapNode = (event: EventObjectNode) => {
       onSelectRef.current({ kind: 'node', id: event.target.id() })
@@ -160,6 +163,7 @@ export function CytoscapeGraph({
       cy.off('tap')
       cy.destroy()
       cyRef.current = null
+      delete (container as { __cy?: Core }).__cy
     }
   }, [presentation])
 

@@ -112,6 +112,48 @@ describe('GET /api/graph', () => {
     assert.match(String(body['error']), /no-such-card/)
   })
 
+  it('projects a claim focus in the argument view', async () => {
+    const { status, body } = await get(
+      origin,
+      '/api/graph?focus=claim-1&view=argument&depth=2',
+    )
+    assert.equal(status, 200)
+    assert.deepEqual(body['focus'], {
+      id: 'claim-1',
+      type: 'claim',
+      slug: null,
+    })
+    const nodes = body['nodes'] as { id: string; isFocus: boolean }[]
+    assert.ok(
+      nodes.some((n) => n.id === 'claim-1' && n.isFocus),
+      'the focused claim must carry isFocus',
+    )
+  })
+
+  it('projects a chain focus in the argument view, emitting the chain node', async () => {
+    const { status, body } = await get(
+      origin,
+      '/api/graph?focus=chain-1&view=argument&depth=2',
+    )
+    assert.equal(status, 200)
+    const focus = body['focus'] as { type: string }
+    assert.equal(focus.type, 'argument_chain')
+    const nodes = body['nodes'] as { id: string; type: string }[]
+    assert.ok(
+      nodes.some((n) => n.type === 'argument_chain' && n.id === 'chain-1'),
+      'the focused chain must be emitted as a node',
+    )
+  })
+
+  it('is 404 for a claim focus on a view that takes only cards', async () => {
+    // The default view is card-only, so a claim uuid resolves and is then refused — the
+    // route must surface that as the same 404 as an unresolvable focus, not a 200 with
+    // an empty graph.
+    const { status, body } = await get(origin, '/api/graph?focus=claim-1')
+    assert.equal(status, 404)
+    assert.match(String(body['error']), /claim-1/)
+  })
+
   it('is 404 for a focus the view will not accept', async () => {
     // `taxonomy` takes card focuses, so this asserts the error path is reachable rather than
     // that a particular view rejects a card.
@@ -238,6 +280,10 @@ describe('GET /api/graph/views', () => {
     assert.ok(views.length >= 5, 'all five designed views must be listed')
     const v1 = views.find((v) => v.name === 'card-argument-taxonomy')
     assert.equal(v1?.status, 'implemented')
+    // Slice 2 promoted argument from `designed`: chains are nodes there and its focus
+    // paths resolve, so the API must stop advertising it as a design-only view.
+    const argument = views.find((v) => v.name === 'argument')
+    assert.equal(argument?.status, 'implemented')
     assert.ok('population' in body, 'the row counts travel with the view list')
   })
 

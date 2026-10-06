@@ -68,6 +68,7 @@ const EDGE_TYPE_VALUES = [
   // inference
   'PREMISE_OF',
   'CONCLUDES',
+  'MEMBER_OF',
   'ALTERNATIVE_TO',
   'DEPENDS_ON',
   'REFINES',
@@ -167,13 +168,18 @@ export function parseGraphQuery(
   }
 }
 
-/** `focus` is required and is either a card uuid or a kebab-case slug (Q7). */
+/**
+ * `focus` is required: a card slug, or a uuid naming a card, claim or argument chain (Q7).
+ *
+ * Claims and argument chains carry no slug, so only the card table answers to a slug;
+ * every other type must be addressed by its canonical uuid.
+ */
 function parseFocus(raw: unknown): string {
   if (raw === undefined || raw === null || raw === '') {
     throw new GraphQueryError(
       400,
-      'focus is required: pass a card uuid, or a card slug such as ' +
-        '?focus=jesus-was-a-zionist',
+      'focus is required: pass a uuid for a card, claim or argument chain, or ' +
+        'a card slug such as ?focus=jesus-was-a-zionist',
     )
   }
   if (Array.isArray(raw)) {

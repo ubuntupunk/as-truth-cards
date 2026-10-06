@@ -1,4 +1,5 @@
 import type {
+  ArgumentChainExpansion,
   ArgumentChainMembershipRow,
   ArgumentChainRow,
   CardCollectionRow,
@@ -350,6 +351,16 @@ export class FakeGraphReader implements TropeGraphReader {
     return this.corpus.cards.find((c) => c.id === ref || c.slug === ref)
   }
 
+  async findClaimByRef(ref: string): Promise<ClaimRow | undefined> {
+    // Claims carry no slug — in the corpus or the schema — so uuid is the only identity.
+    return this.corpus.claims.find((c) => c.id === ref)
+  }
+
+  async findArgumentChainByRef(ref: string): Promise<ArgumentChainRow | undefined> {
+    // Like claims: uuid-only, and a non-matching reference short-circuits to undefined.
+    return this.corpus.argumentChains.find((c) => c.id === ref)
+  }
+
   async expandCards(cardIds: readonly string[]): Promise<CardExpansion> {
     this.calls.push(...cardIds)
     const ids = new Set(cardIds)
@@ -403,6 +414,30 @@ export class FakeGraphReader implements TropeGraphReader {
         (r) =>
           ids.has(r.sourceInferenceStepId) || ids.has(r.targetInferenceStepId),
       ),
+      premises: this.corpus.premises.filter((p) =>
+        ids.has(p.inferenceStepId),
+      ),
+      conclusions: this.corpus.conclusions.filter((c) =>
+        ids.has(c.inferenceStepId),
+      ),
+      chainMemberships: this.corpus.chainMemberships.filter((m) =>
+        ids.has(m.inferenceStepId),
+      ),
+      declaredChainLinks: this.corpus.inferenceSteps
+        .filter((s) => ids.has(s.id) && s.argumentChainId)
+        .map((s) => ({ stepId: s.id, chainId: s.argumentChainId as string })),
+    }
+  }
+
+  async expandChains(
+    chainIds: readonly string[],
+  ): Promise<ArgumentChainExpansion> {
+    this.calls.push(...chainIds)
+    const ids = new Set(chainIds)
+    return {
+      chainMemberships: this.corpus.chainMemberships.filter((m) =>
+        ids.has(m.chainId),
+      ),
     }
   }
 
@@ -413,10 +448,12 @@ export class FakeGraphReader implements TropeGraphReader {
     const collectionIds = new Set(refs.collectionIds)
     const mechanismIds = new Set(refs.mechanismIds)
     const conceptIds = new Set(refs.conceptIds)
-    // Chains are reached through membership on a discovered step, or through a step's own
-    // `argument_chain_id`. `NodeRefSet` carries no chain ids, so the fake resolves them here
-    // the same way the Drizzle reader does.
+    // Chains can now be discovered nodes in their own right (a chain-led focus, or a chain
+    // reached over a MEMBER_OF edge), and the same two attachment paths the Drizzle reader
+    // reads still apply as fallbacks for chains reached only through a step.
+    const refChainIds = new Set(refs.chainIds)
     const chainIds = new Set([
+      ...refChainIds,
       ...this.corpus.chainMemberships
         .filter((m) => stepIds.has(m.inferenceStepId))
         .map((m) => m.chainId),
@@ -440,8 +477,8 @@ export class FakeGraphReader implements TropeGraphReader {
       claims: this.corpus.claims.filter((c) => claimIds.has(c.id)),
       inferenceSteps: this.corpus.inferenceSteps.filter((s) => stepIds.has(s.id)),
       chains: this.corpus.argumentChains.filter((c) => chainIds.has(c.id)),
-      chainMemberships: this.corpus.chainMemberships.filter((m) =>
-        stepIds.has(m.inferenceStepId),
+      chainMemberships: this.corpus.chainMemberships.filter(
+        (m) => stepIds.has(m.inferenceStepId) || refChainIds.has(m.chainId),
       ),
       premises: this.corpus.premises.filter((p) => stepIds.has(p.inferenceStepId)),
       conclusions: this.corpus.conclusions.filter((c) =>
