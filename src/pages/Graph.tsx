@@ -350,6 +350,7 @@ const Graph = () => {
               searchPending={searchQuery.isPending}
               searchOpen={searchOpen}
               onSelectCard={onSelectCard}
+              onSearchClose={() => setSearchOpen(false)}
               views={views}
               viewsError={viewsQuery.error}
               view={params.view ?? DEFAULT_VIEW_NAME}

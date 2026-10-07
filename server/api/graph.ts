@@ -62,7 +62,6 @@ export function createGraphRouter(reader?: TropeGraphReader): Router {
       console.error('Error reading graph view population:', error);
       res.status(500).json({
         error: 'Failed to read graph view population',
-        detail: error instanceof Error ? error.message : String(error),
       });
     }
   });
@@ -91,7 +90,6 @@ export function createGraphRouter(reader?: TropeGraphReader): Router {
       console.error('Error searching cards:', error)
       res.status(500).json({
         error: 'Failed to search cards',
-        detail: error instanceof Error ? error.message : String(error),
       })
     }
   })
@@ -118,7 +116,6 @@ export function createGraphRouter(reader?: TropeGraphReader): Router {
       console.error('Error projecting graph:', error);
       res.status(500).json({
         error: 'Failed to project graph',
-        detail: error instanceof Error ? error.message : String(error),
       });
     }
   });
