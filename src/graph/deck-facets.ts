@@ -84,7 +84,7 @@ export const ONTOLOGY_TYPE_FACETS: readonly {
 export const SUIT_LABELS: Readonly<Record<string, string>> = {
   classic: 'Classic',
   'zionism-coded': 'Zionism-coded',
-  'south-africa': 'Regional',
+  'south-africa': 'South Africa',
   'fact-rebuttal': 'Reference',
   foundational: 'Foundational',
 }

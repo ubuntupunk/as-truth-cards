@@ -127,7 +127,7 @@ describe('FilteredEmptyState', () => {
     const html = render(<FilteredEmptyState filter={filter} onClear={noop} />)
     assert.ok(html.includes('narrowed the projection to nothing'))
     assert.ok(html.includes('Claims'))
-    assert.ok(html.includes('Regional'))
+    assert.ok(html.includes('South Africa'))
     assert.ok(html.includes('Clear facet filters'))
   })
 

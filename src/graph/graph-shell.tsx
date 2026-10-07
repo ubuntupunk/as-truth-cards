@@ -149,7 +149,7 @@ function GraphHeading() {
 /**
  * The research disclaimer — always visible above the workspace, so the
  * collection's status as research (rather than a verdict) never scrolls away.
- * The copy comes from the approved plan and claims exactly as much as the
+ * The copy is the approved Figma wording and claims exactly as much as the
  * graph data supports: nothing more.
  */
 function ResearchDisclaimer() {
@@ -161,7 +161,8 @@ function ResearchDisclaimer() {
       <span className="mr-1.5 font-semibold text-foreground">
         Research disclaimer
       </span>
-      This is a research collection, not itself a historical conclusion.
+      Illustrative research collection. Claims, source leads, and inferences are
+      unverified; no historical conclusions are established.
     </div>
   )
 }
