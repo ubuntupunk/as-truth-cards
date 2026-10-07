@@ -39,7 +39,7 @@
 
 services:
   - type: web
-    name: as-truth-cards
+    name: trope-cards
     runtime: node
     # `free` is deliberate and current, not an oversight. It is what the live service
     # (srv-d7372tfkijhs73dbihjg) actually runs on, and this file is kept in agreement with
@@ -141,6 +141,7 @@ services:
         generateValue: true
 
       # The public origin the browser uses, e.g. https://as-truth-cards.onrender.com.
+      # Renaming the service display name does not change this hostname or slug.
       # Better Auth validates the Origin header against it; production is same-origin, so
       # this must be the deployed URL and not a localhost value.
       - key: BETTER_AUTH_URL
