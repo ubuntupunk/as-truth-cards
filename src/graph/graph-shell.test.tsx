@@ -70,7 +70,7 @@ describe('graph-shell composition', () => {
     assert.ok(html.includes('Truth Cards'))
     assert.ok(
       html.includes(
-        'This is a research collection, not itself a historical conclusion.',
+        'Illustrative research collection. Claims, source leads, and inferences are unverified; no historical conclusions are established.',
       ),
     )
     assert.ok(html.includes('Research disclaimer'))

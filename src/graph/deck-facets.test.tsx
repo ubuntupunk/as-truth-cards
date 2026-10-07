@@ -74,7 +74,7 @@ describe('deriveFacets suit and axis groups', () => {
   it('derives suits from the union of card classifications, with mockup labels', () => {
     assert.deepEqual(facets.suits, [
       { slug: 'classic', label: 'Classic', count: 1 },
-      { slug: 'south-africa', label: 'Regional', count: 1 },
+      { slug: 'south-africa', label: 'South Africa', count: 1 },
     ])
   })
 

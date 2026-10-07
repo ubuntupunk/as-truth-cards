@@ -524,12 +524,15 @@ function AppearanceSwitcher({
 }
 
 /**
- * The "0 rows in the corpus" note under the view selector.
+ * The blocking-gaps note under the view selector.
  *
- * Distinguishes the two empty-looking states before anything is fetched: a
- * view whose backing tables have zero rows (empty projection — a corpus fact,
- * not a bug) versus a request that failed (which shows an error state
- * elsewhere). Renders the server's own `blockingGaps` strings verbatim.
+ * Tells the user why a view is data-blocked *before* anything is fetched:
+ * a declared node type whose backing table has no rows (a corpus fact, not a
+ * bug). The server's own `blockingGaps` strings name the empty table, so this
+ * note reports the specific blocking condition and never a blanket "0 rows
+ * in the corpus". It speaks only to backing-table gaps — evidence outside the
+ * current depth frontier and a claim with no attached evidence stay the
+ * inspector's per-claim story.
  *
  * @param descriptor The selected view's rule, including its `blockingGaps`.
  */
@@ -537,10 +540,10 @@ function ViewGapsNote({ descriptor }: { descriptor: GraphViewDescriptor }) {
   return (
     <p className="basis-full text-xs text-muted-foreground">
       <span className="font-medium text-amber-700 dark:text-amber-400">
-        0 rows in the corpus
+        This view is data-blocked
       </span>{' '}
-      — {descriptor.blockingGaps.join('; ')}. This view is data-blocked: an
-      empty projection, not a failed load.
+      — {descriptor.blockingGaps.join(' · ')} — an empty backing table, not a
+      failed load. Depth and per-claim gaps are reported in the inspector.
     </p>
   )
 }

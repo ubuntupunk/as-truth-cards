@@ -239,8 +239,13 @@ describe('graph-controls markup', () => {
         edgeColors={GRAPH_TREATMENT_TOKENS.atmospheric.edgeColors}
       />,
     )
-    assert.ok(html.includes('0 rows in the corpus'))
     assert.ok(html.includes('evidence_items has 0 rows'))
+    assert.ok(html.includes('This view is data-blocked'))
+    assert.ok(html.includes('— evidence_item:'))
+    assert.ok(html.includes('an empty backing table, not a failed load'))
+    assert.ok(
+      html.includes('Depth and per-claim gaps are reported in the inspector'),
+    )
   })
 })
 
@@ -259,7 +264,7 @@ describe('graph-controls facade groups', () => {
         'Interpretations',
         'Inferences',
         'Classic',
-        'Regional',
+        'South Africa',
         'Tactic',
         'Historical',
       ],
@@ -269,7 +274,7 @@ describe('graph-controls facade groups', () => {
       2,
     )
     assert.equal(
-      rows.find((row) => row.props.label === 'Regional')?.props.count,
+      rows.find((row) => row.props.label === 'South Africa')?.props.count,
       1,
     )
   })
@@ -333,7 +338,7 @@ describe('graph-controls facet wiring', () => {
 
     const afterSuit = build(filter)
     afterSuit.rows
-      .find((row) => row.props.label === 'Regional')
+      .find((row) => row.props.label === 'South Africa')
       ?.props.onClick()
     filter = afterSuit.changes[afterSuit.changes.length - 1]
     assert.deepEqual(filter, {
@@ -358,7 +363,7 @@ describe('graph-controls facet wiring', () => {
       suit: 'south-africa',
       axis: null,
     })
-    rows.find((row) => row.props.label === 'Regional')?.props.onClick()
+    rows.find((row) => row.props.label === 'South Africa')?.props.onClick()
     assert.deepEqual(changes, [{ type: null, suit: null, axis: null }])
   })
 
