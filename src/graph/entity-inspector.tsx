@@ -40,10 +40,17 @@
 
 import type {
   CardClassification,
+  CardNode,
   GraphEdge,
   GraphNode,
   GraphProjection,
 } from '../../trope-cards/src/graph/types.ts'
+import {
+  AXIS_LABELS,
+  AXIS_ORDER,
+  SUIT_DOT_COLORS,
+  SUIT_LABELS,
+} from './deck-facets'
 import type { GraphViewDescriptor } from './projection-guards'
 
 /** Selection state as the page sees it: presentation-only entity identity. */
@@ -460,6 +467,8 @@ function CardSections({
         </dl>
       </section>
 
+      <CardFrontVisuals projection={projection} node={node} />
+
       <AxesSection axes={classification.axes} />
       <FacetSection
         heading="Suits"
@@ -519,6 +528,162 @@ function AxesSection({ axes }: { axes: CardClassification['axes'] }) {
       </ol>
     </section>
   )
+}
+
+/**
+ * The card's visual badge layer, folded in from the deleted `CardFront` panel:
+ * tinted Suit badges, outline Axis pills in canonical order, and the
+ * Mechanisms &amp; concepts pills — the same fixed-vocabulary encoding rules
+ * the card front used. It sits above the ordered axis data rows, which keep
+ * the `data-testid="axis"` / `data-primary` / `data-ordinal` hooks.
+ *
+ * @param props.projection The loaded projection (names resolve through it).
+ * @param props.node The inspected card.
+ */
+function CardFrontVisuals({
+  projection,
+  node,
+}: {
+  projection: GraphProjection
+  node: CardNode
+}) {
+  const { mechanisms, concepts } = classificationPills(projection, node)
+  const hasPills = mechanisms.length > 0 || concepts.length > 0
+  return (
+    <>
+      {node.classification.suits.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {node.classification.suits.map((suit) => {
+            const color = SUIT_DOT_COLORS[suit] ?? '#94a3b8'
+            return (
+              <span
+                key={suit}
+                data-suit={suit}
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium text-foreground/80"
+                style={{ backgroundColor: `${color}1f` }}
+              >
+                <span
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: color }}
+                  aria-hidden="true"
+                />
+                {SUIT_LABELS[suit] ?? humanize(suit)}
+              </span>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {node.classification.axes.length > 0 ? (
+        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <span className="text-[13px] font-medium text-muted-foreground">
+            Axis
+          </span>
+          {axesInOrder(node).map((axis) => (
+            <span
+              key={axis}
+              data-axis={axis}
+              className="inline-flex items-center rounded-md border border-border px-2 py-0.5 text-xs text-foreground/80"
+            >
+              {AXIS_LABELS[axis]}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {hasPills ? (
+        <div className="mt-4 border-t pt-3" data-testid="mechanism-concepts">
+          <p className="mb-1.5 text-[13px] font-medium text-muted-foreground">
+            Mechanisms &amp; concepts
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              ...mechanisms.map((label) => ({
+                kind: 'mechanism' as const,
+                label,
+              })),
+              ...concepts.map((label) => ({ kind: 'concept' as const, label })),
+            ].map(({ kind, label }) => (
+              <span
+                key={`${kind}:${label}`}
+                data-pill={kind}
+                className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
+    </>
+  )
+}
+
+/**
+ * The mechanism and concept pill labels reachable from a card.
+ *
+ * A card's authored classification edges are the only place Mechanism and
+ * Concept *names* live (the classification bag carries slugs and ids only), so
+ * names are resolved through the projection's edges and nodes — the target
+ * node label, then the edge's authored `attributes.name`, then nothing.
+ *
+ * @param projection The loaded projection.
+ * @param card The inspected card node.
+ * @returns `{ mechanisms, concepts }` label lists, each sorted, de-duplicated.
+ */
+function classificationPills(
+  projection: GraphProjection,
+  card: CardNode,
+): { mechanisms: readonly string[]; concepts: readonly string[] } {
+  const byKind: Record<'mechanism' | 'concept', string[]> = {
+    mechanism: [],
+    concept: [],
+  }
+  for (const edge of projection.edges) {
+    if (edge.family !== 'classification' || edge.from !== card.id) continue
+    let kind: 'mechanism' | 'concept'
+    if (edge.type.value === 'HAS_MECHANISM') kind = 'mechanism'
+    else if (edge.type.value === 'HAS_CONCEPT') kind = 'concept'
+    else continue
+    const target = projection.nodes.find((node) => node.id === edge.to)
+    const authored =
+      typeof edge.attributes.name === 'string'
+        ? edge.attributes.name
+        : undefined
+    const label = target?.label ?? authored
+    if (label === undefined || label.trim() === '') continue
+    if (!byKind[kind].some((existing) => existing === label))
+      byKind[kind].push(label)
+  }
+  for (const kind of Object.keys(byKind) as ('mechanism' | 'concept')[]) {
+    byKind[kind].sort((a, b) => a.localeCompare(b))
+  }
+  return { mechanisms: byKind.mechanism, concepts: byKind.concept }
+}
+
+/**
+ * The card's axes in canonical presentation order.
+ *
+ * @param card The inspected card node.
+ * @returns The card's axe values, in `AXIS_ORDER`.
+ */
+function axesInOrder(card: CardNode): readonly string[] {
+  const present = new Set(card.classification.axes.map((axis) => axis.axis))
+  return AXIS_ORDER.filter((axis) => present.has(axis))
+}
+
+/**
+ * Convert a slug to a display label for values the fixture vocabulary does not
+ * cover (dash-to-space, capitalised).
+ *
+ * @param slug A kebab-case slug.
+ * @returns A humanised display string.
+ */
+function humanize(slug: string): string {
+  return slug
+    .split('-')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
 }
 
 /**

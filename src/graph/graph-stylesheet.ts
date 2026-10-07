@@ -13,13 +13,21 @@
  * | Class | Source | Style |
  * |---|---|---|
  * | `node` | base | ellipse 36px, label below with white halo |
- * | `.type-{nodeType}` | `node.type` | `background-color` from {@link NODE_TYPE_COLORS} |
+ * | `.type-{nodeType}` | `node.type` | `background-color` from the treatment's node palette |
  * | `.status-{source}` | `status.source` | `border-style` per vocabulary (see {@link STATUS_BORDER_STYLES}) |
  * | `.is-focus` | `isFocus` | amber ring, larger body, raised `z-index` |
  * | `edge` | base | bezier, arrow on `target` (authored direction), relation word as label |
- * | `.family-{family}` | `family` | `line-color`/`target-arrow-color` from {@link EDGE_FAMILY_COLORS} |
+ * | `.family-{family}` | `family` | `line-color`/`target-arrow-color` from the treatment's edge palette |
  * | `.traversal-bidirectional` | `traversal` | dashed line — *traversal* may walk against the arrow |
  * | `.selected` | presentation state (page) | translucent blue overlay |
+ *
+ * ## Appearance treatments
+ *
+ * `buildGraphStylesheet(treatment)` repaints the canvas from the treatment's
+ * node/edge palettes in `appearance.ts`; everything else (geometry, status
+ * borders, focus/selection, the relation-word labels) is identical across
+ * treatments. `GRAPH_STYLESHEET` is the atmospheric default, so removing the
+ * appearance system would not change the current canvas.
  *
  * ## What is deliberately absent
  *
@@ -50,44 +58,28 @@ import type {
   GraphNodeType,
   NodeStatus,
 } from '../../trope-cards/src/graph/types.ts'
+import { GRAPH_TREATMENT_TOKENS, type GraphTreatment } from './appearance.ts'
 
 /**
- * Fill colour per node type.
+ * Fill colour per node type (atmospheric palette).
  *
  * Twelve hues for twelve `GraphNodeType` members; typed as
  * `Record<GraphNodeType, …>` so adding a node type to the domain union
- * without choosing its colour is a compile error.
+ * without choosing its colour is a compile error. The value is the
+ * atmospheric treatment's palette so existing imports keep resolving while
+ * `buildGraphStylesheet` owns per-treatment repainting.
  */
-export const NODE_TYPE_COLORS: Record<GraphNodeType, string> = {
-  card: '#6d28d9',
-  claim: '#1d4ed8',
-  inference_step: '#0f766e',
-  argument_chain: '#0e7490',
-  collection: '#be185d',
-  mechanism: '#c2410c',
-  concept: '#15803d',
-  source: '#475569',
-  evidence_item: '#a16207',
-  case: '#b91c1c',
-  interpretation: '#7e22ce',
-  question: '#57534e',
-}
+export const NODE_TYPE_COLORS: Record<GraphNodeType, string> =
+  GRAPH_TREATMENT_TOKENS.atmospheric.nodeColors
 
 /**
- * Line/arrow colour per edge family.
+ * Line/arrow colour per edge family (atmospheric palette).
  *
  * The seven `EdgeFamily` members. Same compile-time guarantee as
  * {@link NODE_TYPE_COLORS}: a new family cannot ship unstyled.
  */
-export const EDGE_FAMILY_COLORS: Record<EdgeFamily, string> = {
-  domain: '#334155',
-  claim_relation: '#b45309',
-  inference: '#6d28d9',
-  card_relationship: '#0e7490',
-  classification: '#15803d',
-  source: '#0369a1',
-  evidence: '#be185d',
-}
+export const EDGE_FAMILY_COLORS: Record<EdgeFamily, string> =
+  GRAPH_TREATMENT_TOKENS.atmospheric.edgeColors
 
 /**
  * Border style per status *source* — never per status value.
@@ -109,7 +101,110 @@ export const STATUS_BORDER_STYLES: Record<NodeStatus['source'], Css.LineStyle> =
 const STATUS_NONE_BORDER = '#cbd5e1'
 
 /**
- * The stylesheet, as `cytoscape({ style })` consumes it.
+ * Build the Cytoscape stylesheet for one appearance treatment.
+ *
+ * Only the node/edge palettes vary per treatment — geometry, status borders,
+ * focus/selection, and edge labels are shared. Callers wanting the default
+ * canvas need no argument.
+ *
+ * @param treatment The appearance treatment; defaults to `'atmospheric'`.
+ * @returns The stylesheet, as `cytoscape({ style })` consumes it.
+ * @example
+ * ```ts
+ * const cy = cytoscape({
+ *   container,
+ *   elements,
+ *   style: buildGraphStylesheet(treatment),
+ * })
+ * ```
+ */
+export function buildGraphStylesheet(
+  treatment: GraphTreatment = 'atmospheric',
+): StylesheetJsonBlock[] {
+  const { nodeColors, edgeColors } = GRAPH_TREATMENT_TOKENS[treatment]
+  return [
+    // --- nodes: base -------------------------------------------------------
+    {
+      selector: 'node',
+      style: {
+        label: 'data(label)',
+        'text-valign': 'bottom',
+        'text-halign': 'center',
+        color: '#0f172a',
+        'font-size': 11,
+        'text-outline-color': '#ffffff',
+        'text-outline-width': 2,
+        'text-wrap': 'ellipsis',
+        'text-max-width': '140',
+        shape: 'ellipse',
+        width: 36,
+        height: 36,
+        'background-color': '#94a3b8',
+        'border-width': 2,
+        'border-style': 'solid',
+        'border-color': '#334155',
+      },
+    },
+    // --- nodes: one fill per type -----------------------------------------
+    ...nodeTypeRules(nodeColors),
+    // --- nodes: status vocabulary border ----------------------------------
+    ...statusRules(),
+    // --- nodes: focus marker (wins over .type-* at equal specificity) ------
+    {
+      selector: '.is-focus',
+      style: {
+        width: 48,
+        height: 48,
+        'border-width': 5,
+        'border-color': '#d97706',
+        'z-index': 10,
+      },
+    },
+    // --- edges: base -------------------------------------------------------
+    {
+      selector: 'edge',
+      style: {
+        label: 'data(relation)',
+        'font-size': 9,
+        color: '#0f172a',
+        'text-outline-color': '#ffffff',
+        'text-outline-width': 2,
+        'text-rotation': 'autorotate',
+        'curve-style': 'bezier',
+        'target-arrow-shape': 'triangle',
+        'arrow-scale': 0.9,
+        width: 1.6,
+        'line-color': '#94a3b8',
+        'target-arrow-color': '#94a3b8',
+        'line-style': 'solid',
+      },
+    },
+    // --- edges: one line colour per family --------------------------------
+    ...edgeFamilyRules(edgeColors),
+    // --- edges: walk rule != authored direction ---------------------------
+    {
+      selector: '.traversal-bidirectional',
+      style: {
+        // The arrow (authored direction) is unchanged; the dash says "traversal
+        // may also walk against this arrow". It is a walk rule, not a claim
+        // that the edge is weaker or unauthoritative.
+        'line-style': 'dashed',
+      },
+    },
+    // --- presentation state (page-owned, last so it wins) ------------------
+    {
+      selector: '.selected',
+      style: {
+        'overlay-color': '#2563eb',
+        'overlay-opacity': 0.18,
+        'overlay-padding': 6,
+      },
+    },
+  ]
+}
+
+/**
+ * The atmospheric stylesheet, as `cytoscape({ style })` consumes it.
  *
  * Order matters and is part of the contract: base selectors first, then
  * `.type-*`/`.family-*`, then `.status-*`, then the presentation-state rules
@@ -122,91 +217,16 @@ const STATUS_NONE_BORDER = '#cbd5e1'
  * const cy = cytoscape({ container, elements, style: GRAPH_STYLESHEET })
  * ```
  */
-export const GRAPH_STYLESHEET: StylesheetJsonBlock[] = [
-  // --- nodes: base -------------------------------------------------------
-  {
-    selector: 'node',
-    style: {
-      label: 'data(label)',
-      'text-valign': 'bottom',
-      'text-halign': 'center',
-      color: '#0f172a',
-      'font-size': 11,
-      'text-outline-color': '#ffffff',
-      'text-outline-width': 2,
-      'text-wrap': 'ellipsis',
-      'text-max-width': '140',
-      shape: 'ellipse',
-      width: 36,
-      height: 36,
-      'background-color': '#94a3b8',
-      'border-width': 2,
-      'border-style': 'solid',
-      'border-color': '#334155',
-    },
-  },
-  // --- nodes: one fill per type -----------------------------------------
-  ...nodeTypeRules(),
-  // --- nodes: status vocabulary border ----------------------------------
-  ...statusRules(),
-  // --- nodes: focus marker (wins over .type-* at equal specificity) ------
-  {
-    selector: '.is-focus',
-    style: {
-      width: 48,
-      height: 48,
-      'border-width': 5,
-      'border-color': '#d97706',
-      'z-index': 10,
-    },
-  },
-  // --- edges: base -------------------------------------------------------
-  {
-    selector: 'edge',
-    style: {
-      label: 'data(relation)',
-      'font-size': 9,
-      color: '#0f172a',
-      'text-outline-color': '#ffffff',
-      'text-outline-width': 2,
-      'text-rotation': 'autorotate',
-      'curve-style': 'bezier',
-      'target-arrow-shape': 'triangle',
-      'arrow-scale': 0.9,
-      width: 1.6,
-      'line-color': '#94a3b8',
-      'target-arrow-color': '#94a3b8',
-      'line-style': 'solid',
-    },
-  },
-  // --- edges: one line colour per family --------------------------------
-  ...edgeFamilyRules(),
-  // --- edges: walk rule != authored direction ---------------------------
-  {
-    selector: '.traversal-bidirectional',
-    style: {
-      // The arrow (authored direction) is unchanged; the dash says "traversal
-      // may also walk against this arrow". It is a walk rule, not a claim
-      // that the edge is weaker or unauthoritative.
-      'line-style': 'dashed',
-    },
-  },
-  // --- presentation state (page-owned, last so it wins) ------------------
-  {
-    selector: '.selected',
-    style: {
-      'overlay-color': '#2563eb',
-      'overlay-opacity': 0.18,
-      'overlay-padding': 6,
-    },
-  },
-]
+export const GRAPH_STYLESHEET: StylesheetJsonBlock[] =
+  buildGraphStylesheet('atmospheric')
 
 /** `.type-*` fill rules, in `GraphNodeType` declaration order. */
-function nodeTypeRules(): StylesheetJsonBlock[] {
-  return (Object.keys(NODE_TYPE_COLORS) as GraphNodeType[]).map((type) => ({
+function nodeTypeRules(
+  nodeColors: Record<GraphNodeType, string>,
+): StylesheetJsonBlock[] {
+  return (Object.keys(nodeColors) as GraphNodeType[]).map((type) => ({
     selector: `.type-${type}`,
-    style: { 'background-color': NODE_TYPE_COLORS[type] },
+    style: { 'background-color': nodeColors[type] },
   }))
 }
 
@@ -224,12 +244,14 @@ function statusRules(): StylesheetJsonBlock[] {
 }
 
 /** `.family-*` line/arrow rules, in `EdgeFamily` declaration order. */
-function edgeFamilyRules(): StylesheetJsonBlock[] {
-  return (Object.keys(EDGE_FAMILY_COLORS) as EdgeFamily[]).map((family) => ({
+function edgeFamilyRules(
+  edgeColors: Record<EdgeFamily, string>,
+): StylesheetJsonBlock[] {
+  return (Object.keys(edgeColors) as EdgeFamily[]).map((family) => ({
     selector: `.family-${family}`,
     style: {
-      'line-color': EDGE_FAMILY_COLORS[family],
-      'target-arrow-color': EDGE_FAMILY_COLORS[family],
+      'line-color': edgeColors[family],
+      'target-arrow-color': edgeColors[family],
     },
   }))
 }

@@ -1,210 +1,639 @@
-Next Phase Instructions
+# Graph Explorer — Implement the Current Figma UI
 
-Accept `3e9300f` / `4ac66d9` as the completed Cytoscape presentation-adapter phase. Do not reopen that implementation unless verification exposes a concrete regression.
+## Context
 
-Proceed with the next phase of Issue #3: **graph presentation/UI integration and richer entity views**, while preserving the canonical ontology and projection boundaries.
+`b66f2d2` successfully extends the canonical graph layer and the functional Graph UI with:
 
-### Objective
+- Claim → Source attribution
+- Claim → Evidence paths
+- Source / Evidence focus
+- Argument refocusing
+- Evidence view
+- corpus-derived data-blocked states
+- richer Entity Inspector semantics
+- expanded graph edge-family support
 
-Build the first useful presentation layer on top of the now-stable graph stack:
+**Do not undo or weaken that work.**
 
-`Postgres/Drizzle → domain projection → optional Graphology analysis → Cytoscape presentation → UI`
+The remaining task is to reconcile the **presentation of the Graph Explorer** with the current Figma designs.
 
-The UI must consume the existing domain graph contracts and Cytoscape adapter. It must not become another source of graph semantics.
+The authoritative visual reference is the current Figma file:
 
-### Canonical invariants
+https://www.figma.com/design/qmVMnfR9DpQFyYtaiSizYD
 
-1. **Postgres/Drizzle remains canonical.**
-2. The domain graph projection `{nodes, edges, meta}` remains the semantic contract.
-3. Graphology remains an ephemeral analysis layer.
-4. Cytoscape remains a presentation layer.
-5. `Card` is a projection/access mode, not the ontology's atomic truth.
-6. Claims remain distinct semantic units; evidence attaches to claims.
-7. Preserve:
-   - direct claim relations
-   - inference steps
-   - argument chains
-   - their directional semantics
+The file now contains three Graph Explorer treatments:
 
-8. Never flatten inference/argument structure into ordinary Card→Card relationships.
-9. Axis remains the four-value many-to-many classification:
-   - `TACTIC`
-   - `FACT_REBUTTAL`
-   - `THEOLOGICAL`
-   - `HISTORICAL`
+- Graph Explorer — Atmospheric
+- Graph Explorer — Editorial
+- Graph Explorer — Workspace
 
-10. Collection/Suit remains mutable convenience curation, not ontology.
-11. Locale remains first-class, many-to-many, and independent of Collection.
-12. Mechanism and Concept remain independent dimensions.
-13. Epistemic status remains independent and must not be rolled up across nodes.
-14. `primaryType` remains legacy/content-shape metadata, never an Axis.
-15. Do not infer semantic relationships from shared slugs, labels, Collections, Mechanisms, Axis, Locale, or presentation state.
-16. Do not solve the type-qualified `GraphNode.id` question in the UI. That remains the open graph-contract follow-up `as-truth-cards-2bq`.
+It also contains the broader Deck / Card Detail / Browse / Compose / Research Workspace designs. Use those designs as product context, but this issue is specifically about the Graph Explorer.
 
-### Scope
+---
 
-Build the minimum useful UI needed to expose the existing graph projections.
+# 1. Goal
+
+Implement the Graph Explorer UI represented by the current Figma designs while preserving the existing canonical graph architecture and all semantic functionality already implemented.
+
+The target is **not another graph-engineering phase**.
+
+The target is:
+
+> **Canonical graph data → existing projection → existing Cytoscape presentation → Figma-aligned Graph Explorer UI**
+
+The three Graph Explorer designs should be treated as **three visual treatments of one information architecture**, not three independently implemented screens.
+
+---
+
+# 2. Current Graph Explorer information architecture
+
+The Figma designs establish this structure:
+
+```text
+Global navigation
+    ↓
+Context / breadcrumb bar
+    ↓
+Graph Explorer heading
+    ↓
+Research/disclaimer context
+    ↓
+Graph controls
+    ↓
+┌───────────────────────────────┬──────────────────────┐
+│                               │                      │
+│       Focused graph           │   Entity Inspector   │
+│                               │                      │
+│                               │                      │
+└───────────────────────────────┴──────────────────────┘
+    ↓
+Classification / provenance / reasoning status
+```
+
+The central semantic distinction shown by the design is:
+
+> **Classification describes an entity. Provenance documents its origin. Reasoning connects claims.**
+
+Do not collapse these concepts in the implementation.
+
+---
+
+# 3. Do NOT carry forward the current Graph page composition unchanged
+
+The current `src/pages/Graph.tsx` has accumulated useful functionality from the earlier implementation, including:
+
+- `DeckNavigator`
+- facet filtering
+- `CardFront`
+- graph canvas
+- Entity Inspector
+- controls
+- dynamic legends
+- projection notices
+
+Those pieces should be evaluated against the Figma composition rather than treated as immutable layout.
+
+In particular, the current layout's:
+
+```text
+DeckNavigator | Graph | CardFront / Inspector
+```
+
+composition is **not the target Graph Explorer composition**.
+
+The Figma target is substantially simpler:
+
+```text
+controls
+    ↓
+graph canvas | inspector
+```
+
+Do not preserve a left-side Deck Navigator merely because it already exists.
+
+If facet filtering is still useful, expose it through the appropriate Graph Explorer control surface without allowing it to distort the primary graph/inspector composition.
+
+Likewise, do not retain `CardFront` as a separate permanent column if its information belongs in the inspector or surrounding card context in the Figma design.
+
+---
+
+# 4. Graph Explorer shell
+
+Implement the following hierarchy.
+
+## Global navigation
+
+Preserve the existing application header/navigation, but align it with the Figma product hierarchy:
+
+- Decks
+- Explorer
+- Graph
+- Research
+- Sources
+
+Graph should be visibly the current section.
+
+Do not create a second navigation system specifically for Graph.
+
+## Context bar
+
+Add the Graph Explorer context/breadcrumb treatment represented in Figma.
+
+It should establish that this is a research/graph workspace rather than an isolated graph visualization.
+
+## Page heading
+
+The Graph page should have the equivalent of:
+
+```text
+RELATIONSHIPS / GRAPH
+
+Graph Explorer
+
+Trace provenance and reasoning. Keep classification in view.
+```
+
+Use the exact wording from Figma where practical rather than inventing alternate marketing copy.
+
+## Research disclaimer
+
+Include the research-status/disclaimer treatment represented in the design.
+
+It should make clear that the displayed research collection does not itself establish historical conclusions.
+
+Do not invent stronger epistemic claims than the graph data supports.
+
+---
+
+# 5. Graph control strip
+
+The Figma design establishes a compact control area containing:
+
+### View
+
+Supported current views should remain driven by the server's view descriptors.
 
 At minimum:
 
-1. **Graph view**
-   - Consume the existing Cytoscape presentation adapter.
-   - Render nodes and directed edges.
-   - Use the supplied presentation classes only as styling hooks.
-   - Do not duplicate ontology logic in the component.
-   - Preserve focus, view, depth, warnings, and projection metadata.
+- Card / default graph view
+- Argument
+- Taxonomy
 
-2. **Node/entity inspection**
-   - Selecting a node should expose its domain identity and relevant metadata.
-   - A Card should expose its classification, Axis assignments, Collection/Suit associations, Locale associations, Mechanisms, Concepts, status, and relevant graph relationships where those already exist in the projection.
-   - Claims should remain visibly distinct from Cards.
-   - Sources/Evidence, inference steps, and argument-chain elements should remain distinguishable by node type.
-   - Do not invent fields merely to make the UI symmetrical.
+Evidence remains a real server view and must continue to work, even if it is presented as a secondary research mode rather than a primary visual option.
 
-3. **Projection/view controls**
-   - Support the existing `card-argument-taxonomy` and `taxonomy` projections.
-   - Expose depth/focus where the current API supports them.
-   - Do not hard-code ontology semantics into UI controls.
-   - If a projection does not contain a node type, the UI should represent that absence rather than fabricate one.
+Do not duplicate `views.ts` semantics in the client.
 
-4. **Graph states**
-   - Empty projection.
-   - Sparse projection.
-   - Projection containing warnings.
-   - Focused neighbourhood.
-   - Bounded/depth-capped projection.
-   - Unsupported/malformed API response should fail visibly and cleanly.
+### Focus
 
-5. **Determinism**
-   - Identical domain projection input must result in stable presentation.
-   - Avoid client-side mutation of canonical semantic data.
-   - Cytoscape interaction may alter presentation state, but must not imply persistence.
+Preserve:
 
-### Entity-view boundary
+- slug focus
+- UUID focus
+- current canonical identity behaviour
 
-Do not attempt to build a full graph editor.
+Do not add a card discovery/search endpoint in this issue.
 
-The initial interaction model should be:
+Manual/URL focus remains acceptable.
 
-`select node → inspect entity → navigate/expand existing projection`
+### Depth
 
-not:
+Preserve server-defined depth limits and current depth behaviour.
 
-`select node → edit ontology → persist graph`
+### Legend
 
-No write-back, drag-to-connect, relationship creation, deletion, or ontology editing in this phase.
+The legend should reflect the entities/edge families actually emitted by the selected view.
 
-If navigation to an existing Card/detail surface is useful, reuse the canonical card identity/slug rather than creating a second Card model.
+Do not hard-code a legend that claims the current graph contains entity types it does not contain.
 
-### API/data boundary
+---
 
-Prefer the existing graph API and projection contracts.
+# 6. Main graph workspace
 
-Do not introduce a parallel API response format merely because the UI would find it convenient.
+The graph and inspector should be presented as the central workspace.
 
-If the current projection contract is genuinely insufficient for a required presentation, stop and report the contract gap rather than inventing a UI-specific semantic field.
+Target relationship:
 
-Presentation-only state may exist in the UI layer, including:
+```text
+┌──────────────────────────────────────────────┬─────────────────────┐
+│                                              │                     │
+│              FOCUSED RELATIONSHIPS           │  ENTITY INSPECTOR   │
+│                                              │                     │
+│                 Cytoscape                    │                     │
+│                                              │                     │
+└──────────────────────────────────────────────┴─────────────────────┘
+```
 
-- selected node
-- zoom/pan
-- collapsed/expanded visual state
-- active stylesheet/view mode
-- transient interaction state
+The graph should remain Cytoscape-backed.
 
-None of these become ontology state.
+Do not replace Cytoscape.
 
-### Testing
+Do not introduce a second graph rendering system.
 
-Add focused UI/presentation tests for:
+Do not move semantic interpretation into Cytoscape.
 
-- projection → rendered graph
-- node selection
-- correct display of node types
-- Card classification
-- multi-valued Axis
-- multi-valued Locale
-- Collection/Suit versus Locale distinction
-- Concept versus Mechanism distinction
-- epistemic-status source preservation
-- directed edges
-- inference/argument edges remaining distinct from claim relations
-- projection warnings
-- empty/sparse graphs
-- focus/depth controls
-- navigation using canonical identity
-- no accidental ontology mutation
-- deterministic rendering/state for identical projection input
+---
 
-Do not weaken existing graph, Graphology, or Cytoscape adapter tests.
+# 7. Entity Inspector
 
-### Important test-quality requirement
+The Entity Inspector is a major part of the Figma design and should remain a semantic component, not a Cytoscape-properties dump.
 
-Watch for vacuous tests.
+It must continue to resolve entities against the **domain `GraphProjection`**, not Cytoscape internals.
 
-Fixtures must actually contain the relevant node/edge types before asserting their rendering or interaction semantics. In particular, do not repeat the earlier pattern where a default projection depth produced no inference edges and therefore allowed reasoning tests to pass against an empty reasoning layer.
+For a Card, the inspector should expose the equivalent of:
 
-### Styling
+### Identity
 
-Keep styling minimal and semantic:
-
+- title/name
 - node type
-- status
-- focus
-- edge family/relation
+- epistemic status
+- status vocabulary/source
 
-Use the classes already supplied by the adapter.
+### Axes
 
-Do not encode ontology semantics into arbitrary visual conventions without documenting the mapping.
+Show ordered Axis assignments.
 
-No design-system overhaul is required.
+Preserve the rule:
 
-### Explicit non-goals
+```text
+ordinal 0 = primary Axis
+```
 
-Do NOT:
+Do not derive Axis from `primaryType`.
 
-- redesign the ontology
-- add schema/migrations unless a concrete existing-contract defect makes one unavoidable
-- add new Claims, Concepts, Sources, Evidence, Cases, Interpretations, or Questions merely to make the UI richer
-- infer Concepts or claim relations
-- create geopolitical hierarchies
-- change Axis values
-- change Locale semantics
-- turn Collections into ontology
-- revive `public.cards` or Prisma as canonical
-- add graph persistence
-- add graph editing/write-back
-- modify deployment/auth
-- solve type-qualified GraphNode IDs in the presentation layer
-- introduce Graphology logic into React/UI components
-- replace the domain projection with Cytoscape-specific semantic structures
+### Classification
 
-### Verification
+Keep these distinct:
 
-Before reporting completion:
+- Mechanism
+- Concept
+- Locale
+- Collection/Suit
+- legacy `primaryType`, explicitly labelled legacy
 
-- run `pnpm run trope-graph:check`
-- run graph projection tests
-- run Graphology tests
-- run Cytoscape adapter tests
-- run all new UI/presentation tests
-- run root typecheck
-- run build
-- verify seed/idempotence remains clean
-- confirm no ontology counts changed unexpectedly
-- confirm no new semantic edges/entities were fabricated
+Do not infer one dimension from another.
+
+In particular:
+
+```text
+Mechanism ≠ Concept
+Collection/Suit ≠ Locale
+Axis ≠ primaryType
+```
+
+### Research links
+
+Expose available:
+
+- Claims
+- Sources
+- Evidence
+- Argument Chains
+
+Counts should come from the projection, not hard-coded fixtures.
+
+### Navigation
+
+Preserve:
+
+- Open card
+- Refocus to appropriate graph view for Claim / Argument Chain
+- Refocus to Evidence view for Source / Evidence where supported
+
+Do not introduce new focus semantics merely for visual convenience.
+
+---
+
+# 8. Provenance and reasoning must remain visibly distinct
+
+The Figma designs and `b66f2d2` now align around this structure:
+
+```text
+Card
+  └── Claim
+        ├── Source
+        ├── Evidence
+        └── Inference
+               └── Argument Chain
+```
+
+This is not equivalent to:
+
+```text
+Card
+  └── "related things"
+```
+
+The UI must preserve the distinctions.
+
+In particular:
+
+- `claim_sources` / `ATTRIBUTED_TO` is attribution/provenance.
+- `EvidenceItem` is evidence.
+- `claim_relation` is a direct claim relationship.
+- `inference` represents reasoning structure.
+- `argument_chain` represents the authored argument grouping.
+
+Do not visually collapse all of these into one generic “relationship” category.
+
+---
+
+# 9. Classification must remain independent
+
+The Graph Explorer should make it possible to understand a card through:
+
+```text
+Classification
+    Axis
+    Mechanism
+    Concept
+    Locale
+    Collection
+```
+
+and separately:
+
+```text
+Research structure
+    Claims
+    Sources
+    Evidence
+    Inference
+    Argument Chains
+```
+
+Do not turn classification facets into graph semantics.
+
+Do not derive graph edges from visual grouping.
+
+Do not turn Collections/Suits into an ontology category.
+
+---
+
+# 10. Atmospheric / Editorial / Workspace
+
+The three Figma Graph Explorer variants should share one component structure.
+
+Do not implement three copies of Graph Explorer.
+
+Instead establish presentation tokens/classes sufficient to support the three visual treatments.
+
+At minimum the implementation should make the following independently styleable:
+
+- page background
+- surface/panel treatment
+- graph canvas
+- inspector
+- borders
+- typography hierarchy
+- node/edge visual treatment
+- accent treatment
+- status treatment
+- controls
+- contextual/disclaimer surfaces
+
+If an appearance selector is implemented, it must be **presentation-only**.
+
+It must never alter:
+
+- graph semantics
+- projection rules
+- node types
+- edge families
+- focus semantics
+- epistemic status
+- ontology data
+
+The Figma designs are visual variants of the same Graph Explorer.
+
+---
+
+# 11. Responsive behaviour
+
+The Figma target is desktop-first, but the implementation must remain usable below desktop width.
+
+Use a sensible collapse:
+
+```text
+desktop:
+    graph | inspector
+
+narrow:
+    graph
+    inspector
+```
+
+Do not create a second mobile information architecture.
+
+The inspector can move below the graph or become a collapsible panel.
+
+---
+
+# 12. Preserve all current graph states
+
+The new visual shell must continue supporting:
+
+- no focus
+- loading
+- API error
+- malformed projection
+- empty projection
+- data-blocked view
+- sparse projection
+- warnings
+- depth notices
+- truncation notices
+- filtered-empty state if filtering remains exposed
+
+These states should receive the same visual language as the new Figma shell.
+
+Do not remove honest empty/data-blocked messaging simply to make the screen look complete.
+
+---
+
+# 13. Evidence state is especially important
+
+The corpus currently has evidence schema support but sparse/empty evidence data.
+
+The UI must therefore distinguish:
+
+1. Evidence infrastructure exists.
+2. The selected view supports evidence.
+3. The current corpus has no evidence rows.
+4. A particular claim has no attached evidence.
+
+Do not manufacture evidence merely to make the graph visually richer.
+
+The current `b66f2d2` `data_blocked` handling should be preserved.
+
+---
+
+# 14. Reuse the existing semantic components
+
+Before creating new components, inspect and reuse:
+
+- `EntityInspector`
+- `CytoscapeGraph`
+- graph stylesheet
+- projection guards
+- graph states
+- query-param handling
+- graph hooks
+- view descriptors
+- Cytoscape adapter
+
+Refactor them where necessary to match the Figma composition.
+
+Do not duplicate graph semantics in new UI components.
+
+---
+
+# 15. Figma is the visual specification
+
+Use the connected Figma file as the visual reference:
+
+https://www.figma.com/design/qmVMnfR9DpQFyYtaiSizYD
+
+Inspect the relevant Graph Explorer frames directly.
+
+Do not reconstruct the design from this issue text alone when Figma contains more precise information about:
+
+- spacing
+- typography
+- hierarchy
+- panel proportions
+- controls
+- node presentation
+- inspector structure
+- appearance variants
+
+The three Graph Explorer frames should be compared before implementation so that shared structure is identified rather than copied three times.
+
+---
+
+# 16. Testing
+
+Extend the existing UI tests rather than introducing a browser test framework solely for this task.
+
+Continue using:
+
+- `node:test`
+- `tsx`
+- `preact-render-to-string`
+
+Add tests for:
+
+### Layout/component composition
+
+Verify that the Graph page renders:
+
+- context/header
+- Graph Explorer heading
+- disclaimer
+- controls
+- graph workspace
+- inspector
+
+### Semantic inspector behaviour
+
+Verify that:
+
+- Axis remains distinct from legacy `primaryType`
+- Mechanism remains distinct from Concept
+- Collection remains distinct from Locale
+- Source remains distinct from Evidence
+- Claim relations remain distinct from inference edges
+- status source/vocabulary remains visible
+
+### Research paths
+
+Verify:
+
+```text
+Card → Claim
+Claim → Source
+Claim → Evidence
+Claim → Inference
+Inference → Argument Chain
+```
+
+where fixtures support those paths.
+
+### Empty/data-blocked states
+
+Verify the Figma-aligned UI does not fabricate evidence or research entities when the corpus is empty.
+
+### Appearance variants
+
+If appearance switching is implemented, verify it changes presentation only.
+
+---
+
+# 17. Verification
+
+Run:
+
+```text
+pnpm run trope-graph:check
+pnpm test
+pnpm run test:ui
+pnpm run typecheck
+pnpm run build
+```
+
+Also run the existing lint/format checks.
+
+Do not treat pre-existing baseline failures as introduced failures.
 
 Report:
 
-1. exact files changed
-2. UI/view architecture
-3. exact data flow from projection to UI
-4. which existing graph contracts were consumed
-5. tests added and total test counts
-6. verification results
-7. any genuine projection/API contract gaps
-8. any remaining limitations
+- new failures
+- pre-existing failures
+- graph count changes
+- schema drift
+- any changed projection semantics
 
-**Do not close Issue #3 yet.**
+---
 
-If the current domain projection/API cannot support a requested UI feature without inventing semantics, stop at that boundary and report the precise contract decision required instead of solving it implicitly in the UI.
+# 18. Non-goals
+
+Do **not**:
+
+- redesign the ontology
+- redesign the graph projection model
+- replace Cytoscape
+- replace Graphology
+- add automatic inference
+- fabricate evidence
+- add generic graph-query language
+- add type-qualified IDs
+- implement card discovery
+- revive `public.cards` as canonical
+- add unrelated deployment work
+- create separate implementations for Atmospheric / Editorial / Workspace
+- add Mechanism/Collection focus semantics unless already supported by the server
+- make the client a second implementation of `views.ts`
+
+`as-truth-cards-572` remains the card-discovery task.
+
+`as-truth-cards-2bq` remains the type-qualified graph-ID task.
+
+---
+
+# 19. Definition of Done
+
+This issue is complete when:
+
+1. The Graph Explorer visually follows the current Figma composition.
+2. The three Figma treatments share one semantic/component architecture.
+3. The current graph functionality from `b66f2d2` remains intact.
+4. The central workspace is graph + Entity Inspector rather than the previous multi-column composition.
+5. The inspector exposes classification separately from provenance/reasoning.
+6. Card → Claim → Source/Evidence → Inference/Argument navigation works.
+7. Evidence/data-blocked states remain honest.
+8. View/depth/focus remain server-driven.
+9. Cytoscape remains a thin presentation layer.
+10. No ontology or graph semantics are duplicated in UI code.
+11. UI tests cover the important semantic and state boundaries.
+12. Full verification passes apart from documented pre-existing failures.
+
+**Important:** Do not close the broader graph work merely because this UI issue is complete. At this point the substantive question is whether the Graph Explorer exposes the canonical research graph correctly and usefully; further graph capabilities should be driven by actual research workflows rather than by adding more visualization infrastructure.

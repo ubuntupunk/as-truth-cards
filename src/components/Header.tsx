@@ -3,6 +3,45 @@ import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
 import { ThemeToggle } from './ThemeToggle'
 
+/**
+ * The global navigation, aligned to the approved product hierarchy:
+ * Decks, Explorer, Graph, Research, Sources. Graph is visibly the current
+ * section while it is mounted. Explorer / Research / Sources have no route
+ * behind them yet, so they render as inert spans (never dead links) until
+ * their pages exist — the Graph page must not invent its own second nav.
+ */
+type NavEntry =
+  | { kind: 'link'; label: string; path: string }
+  | { kind: 'inert'; label: string }
+
+const NAV_ENTRIES: readonly NavEntry[] = [
+  { kind: 'link', label: 'Decks', path: '/' },
+  { kind: 'inert', label: 'Explorer' },
+  { kind: 'link', label: 'Graph', path: '/graph' },
+  { kind: 'inert', label: 'Research' },
+  { kind: 'inert', label: 'Sources' },
+]
+
+/**
+ * The shared nav link treatment (underline grows on hover and while current).
+ *
+ * @param props.active Whether the link is the current section.
+ */
+const NavLink = ({ label, active }: { label: string; active?: boolean }) => (
+  <span
+    className={cn(
+      'relative py-2 text-sm font-medium transition-colors',
+      active
+        ? 'text-foreground'
+        : 'text-muted-foreground hover:text-foreground',
+      'after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:origin-bottom-right after:scale-x-0 after:bg-foreground after:transition-transform after:duration-300 hover:after:origin-bottom-left hover:after:scale-x-100',
+      active ? 'after:scale-x-100' : '',
+    )}
+  >
+    {label}
+  </span>
+)
+
 const Header = () => {
   const location = useLocation()
   const isVisible = useDelayedVisibility(100)
@@ -21,27 +60,41 @@ const Header = () => {
         </Link>
 
         <div className="flex items-center space-x-4">
-          <nav className="flex space-x-8">
-            {[
-              { path: '/', label: 'Home' },
-              { path: '/about', label: 'About' },
-              { path: '/graph', label: 'Graph' },
-              { path: '/admin', label: 'Admin', protected: true },
-            ]
-              .filter((link) => !link.protected || isAdmin)
-              .map((link) => (
+          <nav className="flex space-x-8" aria-label="Global navigation">
+            {NAV_ENTRIES.map((entry) =>
+              entry.kind === 'link' ? (
                 <Link
-                  key={link.path}
-                  to={link.path}
-                  className={cn(
-                    'relative py-2 text-sm font-medium transition-colors hover-lift',
-                    'after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:origin-bottom-right after:scale-x-0 after:bg-foreground after:transition-transform after:duration-300 hover:after:origin-bottom-left hover:after:scale-x-100',
-                    location.pathname === link.path ? 'after:scale-x-100' : '',
-                  )}
+                  key={entry.label}
+                  to={entry.path}
+                  aria-current={
+                    location.pathname === entry.path ? 'page' : undefined
+                  }
+                  className="relative"
                 >
-                  {link.label}
+                  <NavLink
+                    label={entry.label}
+                    active={location.pathname === entry.path}
+                  />
                 </Link>
-              ))}
+              ) : (
+                <span
+                  key={entry.label}
+                  aria-disabled="true"
+                  className="cursor-not-allowed"
+                >
+                  <NavLink label={entry.label} />
+                </span>
+              ),
+            )}
+            {isAdmin ? (
+              <Link
+                to="/admin"
+                aria-current={isAdmin ? 'page' : undefined}
+                className="relative"
+              >
+                <NavLink label="Admin" active={isAdmin} />
+              </Link>
+            ) : null}
           </nav>
           <ThemeToggle />
         </div>

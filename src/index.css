@@ -24,6 +24,28 @@
     --input: 220 13% 91%;
     --ring: 224 71.4% 4.1%;
     --radius: 1rem;
+
+    /* Graph Explorer chrome (§10): atmospheric defaults so surfaces render
+       sanely before/without the shell. The shell overrides these inline from
+       appearance.ts per treatment. Consumed via tailwind's `graph-*` palette. */
+    --graph-page: 220 14.3% 95.9%;
+    --graph-surface: 0 0% 100%;
+    --graph-canvas: 220 14.3% 95.9%;
+    --graph-inspector: 0 0% 100%;
+    --graph-border: 220 13% 91%;
+    --graph-accent: 262 83.3% 57.8%;
+    --graph-accent-foreground: 0 0% 100%;
+    --graph-muted: 220 14.3% 95.9%;
+    --graph-muted-foreground: 220 8.9% 46.1%;
+    --graph-focus: 221.2 83.2% 53.3%;
+    --graph-status-ok: 160 84.1% 34.5%;
+    --graph-status-warn: 38 92.1% 50.2%;
+    --graph-status-none: 215 20% 60%;
+    --graph-controls: 0 0% 100%;
+    --graph-disclaimer: 224 71.4% 97%;
+    --graph-disclaimer-border: 224 50% 88%;
+    --graph-font-family: 'SF Pro Display', 'system-ui', 'Segoe UI', Roboto,
+      sans-serif;
   }
 
   .dark {
