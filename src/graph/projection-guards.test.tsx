@@ -13,6 +13,7 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   assertGraphProjection,
+  assertGraphSearchResponse,
   assertGraphViewsResponse,
   isRecord,
   ProjectionShapeError,
@@ -160,6 +161,73 @@ describe('assertGraphViewsResponse', () => {
       (error: unknown) =>
         error instanceof ProjectionShapeError &&
         error.path === 'population.taxonomy',
+    )
+  })
+})
+
+describe('assertGraphSearchResponse', () => {
+  const response = {
+    results: [
+      {
+        id: 'c1',
+        slug: 'blood-libel',
+        title: 'Blood Libel',
+        summary: null,
+        type: 'card',
+        rank: 1.5,
+      },
+      {
+        id: 'c2',
+        slug: 'zionist-as-slur',
+        title: 'Zionist-as-Slur',
+        summary: 'The word used as an insult.',
+        type: 'card',
+        rank: 0.333,
+      },
+    ],
+  }
+
+  it('accepts a valid response after a JSON round trip', () => {
+    assert.doesNotThrow(() => assertGraphSearchResponse(asWire(response)))
+  })
+
+  it('accepts a null summary', () => {
+    assert.doesNotThrow(() => assertGraphSearchResponse(asWire(response)))
+  })
+
+  it('rejects a body missing the results envelope', () => {
+    assert.throws(
+      () => assertGraphSearchResponse(asWire({ nope: true })),
+      (error: unknown) =>
+        error instanceof ProjectionShapeError && error.path === 'results',
+    )
+  })
+
+  it('rejects a result missing its rank', () => {
+    const body = {
+      results: [
+        {
+          id: 'c1',
+          slug: 'blood-libel',
+          title: 'Blood Libel',
+          summary: null,
+          type: 'card',
+        },
+      ],
+    }
+    assert.throws(
+      () => assertGraphSearchResponse(asWire(body)),
+      (error: unknown) =>
+        error instanceof ProjectionShapeError &&
+        error.path === 'results[0].rank',
+    )
+  })
+
+  it('rejects a non-array results field', () => {
+    assert.throws(
+      () => assertGraphSearchResponse(asWire({ results: 'nope' })),
+      (error: unknown) =>
+        error instanceof ProjectionShapeError && error.path === 'results',
     )
   })
 })

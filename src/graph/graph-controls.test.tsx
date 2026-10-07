@@ -417,6 +417,123 @@ describe('graph-controls appearance switcher', () => {
   })
 })
 
+describe('graph-controls focus typeahead', () => {
+  const results = [
+    {
+      id: 'c1',
+      slug: 'blood-libel',
+      title: 'Blood Libel',
+      summary: null,
+      type: 'card',
+      rank: 1.5,
+    },
+    {
+      id: 'c2',
+      slug: 'elders-of-zion',
+      title: 'Elders of Zion',
+      summary: null,
+      type: 'card',
+      rank: 0.5,
+    },
+  ]
+
+  function renderControls(
+    over: {
+      searchOpen?: boolean
+      searchPending?: boolean
+      searchResults?: typeof results
+    } = {},
+  ) {
+    return render(
+      <GraphControls
+        focusInput="blo"
+        onFocusInput={() => {}}
+        onSubmitFocus={() => {}}
+        views={VIEWS_RESPONSE}
+        viewsError={null}
+        view="card-argument-taxonomy"
+        onViewChange={() => {}}
+        maxDepth={3}
+        depth={2}
+        onDepthChange={() => {}}
+        descriptor={DESCRIPTOR}
+        facets={deriveFacets(CARD_PROJECTION)}
+        filter={NO_FACET_FILTER}
+        onFacetChange={() => {}}
+        onClearFacets={() => {}}
+        treatment="atmospheric"
+        onTreatmentChange={() => {}}
+        nodeColors={GRAPH_TREATMENT_TOKENS.atmospheric.nodeColors}
+        edgeColors={GRAPH_TREATMENT_TOKENS.atmospheric.edgeColors}
+        searchOpen={over.searchOpen ?? false}
+        searchPending={over.searchPending ?? false}
+        searchResults={over.searchResults ?? []}
+      />,
+    )
+  }
+
+  it('renders no suggestions when closed', () => {
+    const html = renderControls({ searchOpen: false, searchResults: results })
+    assert.ok(!html.includes('data-testid="focus-suggestions"'))
+  })
+
+  it('lists matching cards with title and slug when open', () => {
+    const html = renderControls({ searchOpen: true, searchResults: results })
+    assert.ok(html.includes('data-testid="focus-suggestions"'))
+    assert.ok(html.includes('>Blood Libel<'))
+    assert.ok(html.includes('data-slug="blood-libel"'))
+    assert.ok(html.includes('>Elders of Zion<'))
+  })
+
+  it('shows a searching state when a request is in flight', () => {
+    const html = renderControls({ searchOpen: true, searchPending: true })
+    assert.ok(html.includes('Searching…'))
+  })
+
+  it('shows an empty state when open with no matches', () => {
+    const html = renderControls({ searchOpen: true, searchResults: [] })
+    assert.ok(html.includes('No matching cards'))
+  })
+
+  it('reports the chosen card slug through onSelectCard', () => {
+    const picked: string[] = []
+    const tree = GraphControls({
+      focusInput: 'blo',
+      onFocusInput: () => {},
+      onSubmitFocus: () => {},
+      views: VIEWS_RESPONSE,
+      viewsError: null,
+      view: 'card-argument-taxonomy',
+      onViewChange: () => {},
+      maxDepth: 3,
+      depth: 2,
+      onDepthChange: () => {},
+      descriptor: DESCRIPTOR,
+      facets: deriveFacets(CARD_PROJECTION),
+      filter: NO_FACET_FILTER,
+      onFacetChange: () => {},
+      onClearFacets: () => {},
+      treatment: 'atmospheric',
+      onTreatmentChange: () => {},
+      nodeColors: GRAPH_TREATMENT_TOKENS.atmospheric.nodeColors,
+      edgeColors: GRAPH_TREATMENT_TOKENS.atmospheric.edgeColors,
+      searchOpen: true,
+      searchPending: false,
+      searchResults: results,
+      onSelectCard: (slug) => picked.push(slug),
+    })
+    const button = walk(
+      tree,
+      (vnode) =>
+        typeof vnode.type === 'string' &&
+        (vnode.props ?? {})['data-slug'] === 'blood-libel',
+    )[0]
+    assert.ok(button)
+    ;(button.props?.onClick as () => void)()
+    assert.deepEqual(picked, ['blood-libel'])
+  })
+})
+
 describe('graph-controls legend', () => {
   it('shows only the node types and edge families the descriptor emits', () => {
     const html = render(

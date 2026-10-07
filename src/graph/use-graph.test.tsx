@@ -22,6 +22,7 @@ import {
   GraphApiError,
   graphProjectionQueryKey,
   graphProjectionQueryOptions,
+  graphSearchQueryKey,
 } from './use-graph'
 
 /** Stand-in response shape; `fetchValidated` only reads ok/status/json(). */
@@ -191,6 +192,12 @@ describe('graphProjectionQueryKey', () => {
       graphProjectionQueryKey(noFocus),
       graphProjectionQueryKey(noFocus),
     )
+  })
+})
+
+describe('graphSearchQueryKey', () => {
+  it('is namespaced under graph/search and keyed by the trimmed term', () => {
+    assert.deepEqual(graphSearchQueryKey('blood'), ['graph', 'search', 'blood'])
   })
 })
 

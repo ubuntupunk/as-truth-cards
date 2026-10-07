@@ -8,6 +8,7 @@ import type {
   CardConceptRow,
   CardMechanismRow,
   CardRow,
+  CardSearchResult,
   ClaimExpansion,
   ClaimRelationRow,
   ClaimRow,
@@ -434,6 +435,37 @@ export class FakeGraphReader implements TropeGraphReader {
   async findEvidenceItemByRef(ref: string): Promise<EvidenceItemRow | undefined> {
     // Like sources: uuid-only.
     return this.corpus.evidenceItems.find((e) => e.id === ref)
+  }
+
+  async searchCards(query: string, limit: number): Promise<CardSearchResult[]> {
+    const term = query.trim().toLowerCase()
+    if (term.length === 0) return []
+    // A stand-in for the real reader's ranked FTS + trigram: title/slug are the strongest
+    // signal, summary next, core question weakest. Rank is the highest matching tier, so a
+    // title hit always sorts above a summary-only hit.
+    return this.corpus.cards
+      .map((card) => {
+        const fields = [
+          [card.title, 3],
+          [card.slug, 3],
+          [card.summary ?? '', 2],
+          [card.coreQuestion ?? '', 1],
+        ] as const
+        let rank = 0
+        for (const [value, weight] of fields) {
+          if (value.toLowerCase().includes(term)) rank = Math.max(rank, weight)
+        }
+        return {
+          id: card.id,
+          slug: card.slug,
+          title: card.title,
+          summary: card.summary,
+          rank,
+        }
+      })
+      .filter((result) => result.rank > 0)
+      .sort((a, b) => b.rank - a.rank || a.title.localeCompare(b.title))
+      .slice(0, limit)
   }
 
   async expandCards(cardIds: readonly string[]): Promise<CardExpansion> {

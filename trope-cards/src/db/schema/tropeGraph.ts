@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm'
 import {
+  customType,
   date,
   index,
   integer,
@@ -11,6 +13,20 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { tropeGraph } from './namespace'
+
+/**
+ * A PostgreSQL `tsvector` column for full-text search.
+ *
+ * `drizzle-orm` has no first-class `tsvector` type, so this maps the column to the
+ * database's `tsvector` type. The value is never read into or written from JavaScript
+ * directly — the search query runs through raw SQL — so the `data`/`driverData` strings
+ * exist only to satisfy the column's runtime shape.
+ */
+const tsvector = customType<{ data: string; driverData: string }>({
+  dataType() {
+    return 'tsvector'
+  },
+})
 
 export const cardType = tropeGraph.enum('card_type', [
   'TACTIC',
@@ -163,26 +179,40 @@ export const relationshipStatus = tropeGraph.enum('relationship_status', [
  * `card_axes.ordinal = 0`. Do not derive axis from this field, and do not expect the two
  * to agree.
  */
-export const cards = tropeGraph.table('cards', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  slug: text('slug').notNull().unique(),
-  title: text('title').notNull(),
-  summary: text('summary'),
-  primaryType: cardType('primary_type').notNull(),
-  epistemicStatus: epistemicStatus('epistemic_status').notNull(),
-  trigger: text('trigger'),
-  coreQuestion: text('core_question'),
-  mechanismSummary: text('mechanism_summary'),
-  counterTest: text('counter_test'),
-  editorialNotes: text('editorial_notes'),
-  createdAt: timestamp('created_at', { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  updatedAt: timestamp('updated_at', { withTimezone: true })
-    .defaultNow()
-    .notNull(),
-  publishedAt: timestamp('published_at', { withTimezone: true }),
-})
+export const cards = tropeGraph.table(
+  'cards',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    slug: text('slug').notNull().unique(),
+    title: text('title').notNull(),
+    summary: text('summary'),
+    primaryType: cardType('primary_type').notNull(),
+    epistemicStatus: epistemicStatus('epistemic_status').notNull(),
+    trigger: text('trigger'),
+    coreQuestion: text('core_question'),
+    mechanismSummary: text('mechanism_summary'),
+    counterTest: text('counter_test'),
+    editorialNotes: text('editorial_notes'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      sql`setweight(to_tsvector('english', coalesce(title, '')), 'A') || setweight(to_tsvector('english', replace(coalesce(slug, ''), '-', ' ')), 'B') || setweight(to_tsvector('english', coalesce(core_question, '') || ' ' || coalesce(summary, '')), 'C') || setweight(to_tsvector('english', coalesce(mechanism_summary, '')), 'D')`,
+    ),
+  },
+  (table) => [
+    index('cards_search_vector_gin_idx').using('gin', table.searchVector),
+    index('cards_title_trgm_idx').using(
+      'gin',
+      sql`${table.title} gin_trgm_ops`,
+    ),
+    index('cards_slug_trgm_idx').using('gin', sql`${table.slug} gin_trgm_ops`),
+  ],
+)
 
 export const collections = tropeGraph.table('collections', {
   id: uuid('id').defaultRandom().primaryKey(),

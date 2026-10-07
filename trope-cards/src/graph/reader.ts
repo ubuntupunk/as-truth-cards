@@ -43,6 +43,16 @@ export type CardRow = {
   readonly epistemicStatus: EpistemicStatusValue
 }
 
+/** A ranked card search hit, returned by {@link TropeGraphReader.searchCards}. */
+export type CardSearchResult = {
+  readonly id: string
+  readonly slug: string
+  readonly title: string
+  readonly summary: string | null
+  /** Rank, higher is better. Semantics are implementation-defined but monotonic. */
+  readonly rank: number
+}
+
 /** One `claims` row. */
 export type ClaimRow = {
   readonly id: string
@@ -447,6 +457,19 @@ export interface TropeGraphReader {
    * @param ref An evidence item uuid.
    */
   findEvidenceItemByRef(ref: string): Promise<EvidenceItemRow | undefined>
+
+  /**
+   * Search cards by a free-text query.
+   *
+   * Read-only discovery: returns ranked matches across title, slug, summary, core
+   * question and mechanism summary. This is a suggestion service — it never changes
+   * what `focus` resolves and never widens a projection. The caller bounds results
+   * with `limit`.
+   *
+   * @param query The user's search term.
+   * @param limit Maximum number of results to return.
+   */
+  searchCards(query: string, limit: number): Promise<CardSearchResult[]>
 
   /** Expand a round of card ids. */
   expandCards(cardIds: readonly string[]): Promise<CardExpansion>

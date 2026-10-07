@@ -34,6 +34,7 @@ import {
 } from './deck-facets'
 import { ViewsStatus } from './graph-states'
 import type {
+  CardSearchResult,
   GraphViewDescriptor,
   GraphViewsResponse,
 } from './projection-guards'
@@ -48,6 +49,10 @@ const ALL_TYPE: GraphNodeType | null = null
  * @param props.focusInput The controlled focus text (card slug or uuid).
  * @param props.onFocusInput Updates the focus text.
  * @param props.onSubmitFocus Autoloading form submit handler.
+ * @param props.searchResults Ranked card matches for the focus typeahead.
+ * @param props.searchPending Whether a search request is in flight.
+ * @param props.searchOpen Whether the suggestions dropdown is visible.
+ * @param props.onSelectCard Focuses the card chosen from the suggestions.
  * @param props.views The loaded view catalogue, or `undefined` while loading.
  * @param props.viewsError The views query's error, when the catalogue failed.
  * @param props.view The active view name (URL state).
@@ -86,6 +91,10 @@ export function GraphControls({
   onTreatmentChange,
   nodeColors,
   edgeColors,
+  searchResults = [],
+  searchPending = false,
+  searchOpen = false,
+  onSelectCard = () => {},
 }: {
   focusInput: string
   onFocusInput: (value: string) => void
@@ -106,6 +115,10 @@ export function GraphControls({
   onTreatmentChange: (next: GraphTreatment) => void
   nodeColors: Record<GraphNodeType, string>
   edgeColors: Record<EdgeFamily, string>
+  searchResults?: readonly CardSearchResult[]
+  searchPending?: boolean
+  searchOpen?: boolean
+  onSelectCard?: (slug: string) => void
 }) {
   const defaultView = view
   return (
@@ -114,16 +127,25 @@ export function GraphControls({
       className="flex flex-wrap items-end gap-4 rounded-xl border border-graph-border bg-graph-controls p-4"
     >
       <form className="flex items-end gap-2" onSubmit={onSubmitFocus}>
-        <label className="block text-xs font-medium text-muted-foreground">
-          Focus
-          <input
-            type="text"
-            value={focusInput}
-            onInput={(event) => onFocusInput(event.currentTarget.value)}
-            placeholder="card slug or uuid"
-            className="mt-1 h-9 w-56 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-graph-focus/30"
-          />
-        </label>
+        <div className="relative">
+          <label className="block text-xs font-medium text-muted-foreground">
+            Focus
+            <input
+              type="text"
+              value={focusInput}
+              onInput={(event) => onFocusInput(event.currentTarget.value)}
+              placeholder="card slug or uuid"
+              className="mt-1 h-9 w-56 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-graph-focus/30"
+            />
+          </label>
+          {searchOpen ? (
+            <FocusSuggestions
+              pending={searchPending}
+              results={searchResults}
+              onSelect={onSelectCard}
+            />
+          ) : null}
+        </div>
         <button
           type="submit"
           className="inline-flex h-9 items-center gap-1.5 rounded-md bg-graph-accent px-3 text-sm font-medium text-graph-accent-foreground hover:opacity-90"
@@ -165,6 +187,63 @@ export function GraphControls({
           edgeColors={edgeColors}
         />
       ) : null}
+    </div>
+  )
+}
+
+/**
+ * The focus typeahead suggestions.
+ *
+ * A native absolutely-positioned list rather than a Radix `Popover`: the graph
+ * layer deliberately avoids Radix components so `preact-render-to-string` can
+ * exercise the markup without a DOM — the same reason the facet filter uses a
+ * `<details>` disclosure instead of a Radix popover. `pending` and the empty
+ * state are separate rows so the three states (searching, no matches, matches)
+ * are each testable as a string.
+ *
+ * @param props.pending Whether a search request is in flight.
+ * @param props.results The ranked card matches, already bounded by the server.
+ * @param props.onSelect Reports the chosen card's slug.
+ */
+function FocusSuggestions({
+  pending,
+  results,
+  onSelect,
+}: {
+  pending: boolean
+  results: readonly CardSearchResult[]
+  onSelect: (slug: string) => void
+}) {
+  return (
+    <div
+      data-testid="focus-suggestions"
+      className="absolute left-0 top-full z-20 mt-1 w-72 rounded-xl border border-graph-border bg-graph-surface p-1 shadow-lg"
+    >
+      {pending ? (
+        <p className="px-2 py-1.5 text-sm text-muted-foreground">Searching…</p>
+      ) : results.length === 0 ? (
+        <p className="px-2 py-1.5 text-sm text-muted-foreground">
+          No matching cards
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-0.5">
+          {results.map((result) => (
+            <li key={result.id}>
+              <button
+                type="button"
+                data-slug={result.slug}
+                onClick={() => onSelect(result.slug)}
+                className="flex w-full flex-col items-start rounded-md px-2 py-1 text-left hover:bg-muted/60"
+              >
+                <span className="text-sm text-foreground">{result.title}</span>
+                <span className="text-xs text-muted-foreground">
+                  {result.slug}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

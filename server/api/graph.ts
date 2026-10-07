@@ -28,6 +28,7 @@ import {
   GraphQueryError,
   describeViews,
   parseGraphQuery,
+  parseSearchQuery,
 } from '../../trope-cards/src/graph/query.js';
 import type { TropeGraphReader } from '../../trope-cards/src/graph/reader.js';
 
@@ -65,6 +66,35 @@ export function createGraphRouter(reader?: TropeGraphReader): Router {
       });
     }
   });
+
+  graphRouter.get('/search', async (req, res) => {
+    try {
+      const { query, limit } = parseSearchQuery(
+        req.query as Record<string, unknown>,
+      )
+      const results = await port().searchCards(query, limit)
+      res.json({
+        results: results.map((card) => ({
+          id: card.id,
+          slug: card.slug,
+          title: card.title,
+          summary: card.summary,
+          type: 'card',
+          rank: card.rank,
+        })),
+      })
+    } catch (error) {
+      if (error instanceof GraphQueryError) {
+        res.status(error.status).json({ error: error.detail })
+        return
+      }
+      console.error('Error searching cards:', error)
+      res.status(500).json({
+        error: 'Failed to search cards',
+        detail: error instanceof Error ? error.message : String(error),
+      })
+    }
+  })
 
   graphRouter.get('/', async (req, res) => {
     try {

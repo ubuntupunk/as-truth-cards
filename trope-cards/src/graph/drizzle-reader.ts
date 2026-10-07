@@ -64,6 +64,7 @@ import type {
   CardLocaleRow,
   CardMechanismRow,
   CardRow,
+  CardSearchResult,
   ClaimExpansion,
   ClaimRelationRow,
   ClaimRow,
@@ -417,6 +418,51 @@ export class DrizzleGraphReader implements TropeGraphReader {
       .where(eq(evidenceItems.id, value))
       .limit(1)
     return rows[0]
+  }
+
+  /**
+   * Search cards by a free-text query (issue #8).
+   *
+   * Combines two mechanisms over the card's `search_vector` generated column:
+   * ranked full-text matching (`websearch_to_tsquery` + `ts_rank_cd`) for phrase
+   * queries, and trigram similarity on `title`/`slug` for partial-word typeahead.
+   * `rank` is the greatest of the three signals, so a title that only trigram-matches
+   * ("Zionism" → "Zionist-as-Slur") still sorts above an unrelated card.
+   *
+   * This depends on the `0010_card_search.sql` migration (pg_trgm + the generated
+   * column + its indexes). It never writes: the generated column is maintained by the
+   * seeder's upserts.
+   *
+   * @param query The user's search term.
+   * @param limit Maximum number of results to return.
+   */
+  async searchCards(query: string, limit: number): Promise<CardSearchResult[]> {
+    const term = query.trim()
+    const result = await this.client.execute<CardSearchRow>(sql`
+      SELECT
+        c.id,
+        c.slug,
+        c.title,
+        c.summary,
+        GREATEST(
+          ts_rank_cd(c.search_vector, websearch_to_tsquery('english', ${term})),
+          similarity(c.title, ${term}),
+          similarity(c.slug, ${term})
+        ) AS rank
+      FROM trope_graph.cards c
+      WHERE c.search_vector @@ websearch_to_tsquery('english', ${term})
+         OR c.title % ${term}
+         OR c.slug % ${term}
+      ORDER BY rank DESC, c.title ASC
+      LIMIT ${limit}
+    `)
+    return result.rows.map((row) => ({
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      summary: row.summary,
+      rank: Number(row.rank),
+    }))
   }
 
   /**
@@ -1012,6 +1058,15 @@ export class DrizzleGraphReader implements TropeGraphReader {
 
 /** The single `*_entity_type` discriminator this reader follows. The projection whitelists again. */
 const CARD_ENTITY_TYPE = 'CARD'
+
+/** Raw shape of the card search query. */
+type CardSearchRow = {
+  id: string
+  slug: string
+  title: string
+  summary: string | null
+  rank: number
+}
 
 /** Raw shape of the population query, with Postgres `::int` casts already applied. */
 type PopulationRow = {
