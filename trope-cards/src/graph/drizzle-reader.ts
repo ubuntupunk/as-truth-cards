@@ -423,11 +423,12 @@ export class DrizzleGraphReader implements TropeGraphReader {
   /**
    * Search cards by a free-text query (issue #8).
    *
-   * Combines two mechanisms over the card's `search_vector` generated column:
-   * ranked full-text matching (`websearch_to_tsquery` + `ts_rank_cd`) for phrase
-   * queries, and trigram similarity on `title`/`slug` for partial-word typeahead.
-   * `rank` is the greatest of the three signals, so a title that only trigram-matches
-   * ("Zionism" → "Zionist-as-Slur") still sorts above an unrelated card.
+   * Rank is **tiered**, not a mix of incomparable scores: exact title, exact slug,
+   * title prefix, slug prefix, full-text (`websearch_to_tsquery` + `ts_rank_cd`), then
+   * fuzzy `word_similarity` on `title`/`slug`. Prefix matching uses `starts_with` so a
+   * term is matched literally (no `%`/`_` wildcard interpretation), and fuzzy matching
+   * uses the `%>` operator (`word_similarity(term, column)`) rather than whole-string
+   * `similarity`, so a partial word finds the matching word inside a multi-word title.
    *
    * This depends on the `0010_card_search.sql` migration (pg_trgm + the generated
    * column + its indexes). It never writes: the generated column is maintained by the
@@ -438,21 +439,35 @@ export class DrizzleGraphReader implements TropeGraphReader {
    */
   async searchCards(query: string, limit: number): Promise<CardSearchResult[]> {
     const term = query.trim()
+    if (term.length === 0) return []
     const result = await this.client.execute<CardSearchRow>(sql`
+      WITH q AS (SELECT websearch_to_tsquery('english', ${term}) AS query)
       SELECT
         c.id,
         c.slug,
         c.title,
         c.summary,
-        GREATEST(
-          ts_rank_cd(c.search_vector, websearch_to_tsquery('english', ${term})),
-          similarity(c.title, ${term}),
-          similarity(c.slug, ${term})
+        (
+          CASE
+            WHEN lower(c.title) = lower(${term}) THEN 4::float8
+            WHEN lower(c.slug) = lower(${term}) THEN 3.5::float8
+            WHEN starts_with(lower(c.title), lower(${term})) THEN 3::float8
+            WHEN starts_with(lower(c.slug), lower(${term})) THEN 2.5::float8
+            WHEN c.search_vector @@ q.query
+              THEN 1::float8 + ts_rank_cd(c.search_vector, q.query, 32)::float8
+            ELSE greatest(
+              word_similarity(${term}, c.title),
+              word_similarity(${term}, c.slug)
+            )::float8
+          END
         ) AS rank
-      FROM trope_graph.cards c
-      WHERE c.search_vector @@ websearch_to_tsquery('english', ${term})
-         OR c.title % ${term}
-         OR c.slug % ${term}
+      FROM trope_graph.cards c, q
+      WHERE
+           starts_with(lower(c.title), lower(${term}))
+        OR starts_with(lower(c.slug), lower(${term}))
+        OR c.search_vector @@ q.query
+        OR c.title %> ${term}
+        OR c.slug %> ${term}
       ORDER BY rank DESC, c.title ASC
       LIMIT ${limit}
     `)

@@ -485,6 +485,23 @@ describe('graph-controls focus typeahead', () => {
     assert.ok(html.includes('>Elders of Zion<'))
   })
 
+  it('exposes the combobox and listbox ARIA contract when open', () => {
+    const html = renderControls({ searchOpen: true, searchResults: results })
+    assert.ok(html.includes('role="combobox"'))
+    assert.ok(html.includes('aria-expanded="true"'))
+    assert.ok(html.includes('aria-haspopup="listbox"'))
+    assert.ok(html.includes('aria-controls="focus-suggestions-list"'))
+    assert.ok(html.includes('id="focus-suggestions-list"'))
+    assert.ok(html.includes('role="listbox"'))
+    assert.ok(html.includes('role="option"'))
+  })
+
+  it('reports the combobox as collapsed when closed', () => {
+    const html = renderControls({ searchOpen: false, searchResults: results })
+    assert.ok(html.includes('role="combobox"'))
+    assert.ok(html.includes('aria-expanded="false"'))
+  })
+
   it('shows a searching state when a request is in flight', () => {
     const html = renderControls({ searchOpen: true, searchPending: true })
     assert.ok(html.includes('Searching…'))

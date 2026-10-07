@@ -53,6 +53,7 @@ const ALL_TYPE: GraphNodeType | null = null
  * @param props.searchPending Whether a search request is in flight.
  * @param props.searchOpen Whether the suggestions dropdown is visible.
  * @param props.onSelectCard Focuses the card chosen from the suggestions.
+ * @param props.onSearchClose Closes the suggestions on an Escape keypress.
  * @param props.views The loaded view catalogue, or `undefined` while loading.
  * @param props.viewsError The views query's error, when the catalogue failed.
  * @param props.view The active view name (URL state).
@@ -95,6 +96,7 @@ export function GraphControls({
   searchPending = false,
   searchOpen = false,
   onSelectCard = () => {},
+  onSearchClose = () => {},
 }: {
   focusInput: string
   onFocusInput: (value: string) => void
@@ -119,6 +121,7 @@ export function GraphControls({
   searchPending?: boolean
   searchOpen?: boolean
   onSelectCard?: (slug: string) => void
+  onSearchClose?: () => void
 }) {
   const defaultView = view
   return (
@@ -134,7 +137,15 @@ export function GraphControls({
               type="text"
               value={focusInput}
               onInput={(event) => onFocusInput(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Escape') onSearchClose()
+              }}
               placeholder="card slug or uuid"
+              role="combobox"
+              aria-expanded={searchOpen}
+              aria-haspopup="listbox"
+              aria-autocomplete="list"
+              aria-controls={searchOpen ? 'focus-suggestions-list' : undefined}
               className="mt-1 h-9 w-56 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-graph-focus/30"
             />
           </label>
@@ -226,23 +237,27 @@ function FocusSuggestions({
           No matching cards
         </p>
       ) : (
-        <ul className="flex flex-col gap-0.5">
+        <div
+          id="focus-suggestions-list"
+          role="listbox"
+          className="flex flex-col gap-0.5"
+        >
           {results.map((result) => (
-            <li key={result.id}>
-              <button
-                type="button"
-                data-slug={result.slug}
-                onClick={() => onSelect(result.slug)}
-                className="flex w-full flex-col items-start rounded-md px-2 py-1 text-left hover:bg-muted/60"
-              >
-                <span className="text-sm text-foreground">{result.title}</span>
-                <span className="text-xs text-muted-foreground">
-                  {result.slug}
-                </span>
-              </button>
-            </li>
+            <button
+              key={result.id}
+              type="button"
+              role="option"
+              data-slug={result.slug}
+              onClick={() => onSelect(result.slug)}
+              className="flex w-full flex-col items-start rounded-md px-2 py-1 text-left hover:bg-muted/60"
+            >
+              <span className="text-sm text-foreground">{result.title}</span>
+              <span className="text-xs text-muted-foreground">
+                {result.slug}
+              </span>
+            </button>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   )
