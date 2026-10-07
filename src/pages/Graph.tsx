@@ -1,12 +1,16 @@
 /**
- * The Graph page: the first presentation layer over `/api/graph`.
+ * The Graph page: the Graph Explorer over `/api/graph`.
  *
  * Orchestration only, and small on purpose. URL state (`focus`/`view`/`depth`)
  * is translated by `query-params.ts`, the two API reads live in
  * `use-graph.ts`, every screen state is `graph-states.tsx`, the semantic side
  * panel is `entity-inspector.tsx`, and the only canvas code is the thin
- * `cytoscape-graph.tsx` mount. This file wires them together and decides which
- * state is on screen — it computes no graph semantics itself.
+ * `cytoscape-graph.tsx` mount. The page chrome — heading, disclaimer, control
+ * strip, workspace, status strip — is composed through `GraphShell`, and the
+ * appearance treatments come from `appearance.ts`, applied by the shell's
+ * inline `--graph-*` variables plus the Cytoscape stylesheet rebuilt per
+ * treatment. This file wires them together and decides which state is on
+ * screen — it computes no graph semantics itself.
  *
  * State order (each case short-circuits the ones after it):
  *
@@ -24,18 +28,21 @@
  * reviewable and real, but not presentable — also lands in the malformed
  * state, via its own message.
  *
- * The navigator (`deck-navigator.tsx`) narrows the projection with
- * presentation-only facets — ontology type, Suit, Axis — keyed to the current
- * focus/view/depth scope, so a new request never inherits a stale filter. The
- * canvas and the inspector read the *filtered* projection; the notices, the
- * legend and the CardFront read the *original*, because corpus facts and the
- * focus card's own record are not facets of browsing. When the facets empty a
- * non-empty projection, {@link FilteredEmptyState} offers the escape hatch
- * while the navigator stays on screen.
+ * Facet filtering is presentation-only: the controls strip's popover narrows
+ * the projection by ontology type / Suit / Axis, keyed to the current
+ * focus/view/depth scope so a new request never inherits a stale filter. The
+ * canvas and the inspector read the *filtered* projection; the notices and the
+ * status strip read the *original*, because corpus facts (warnings,
+ * truncation) and what the corpus supports are not facets of browsing. When
+ * the facets empty a non-empty projection, {@link FilteredEmptyState} offers
+ * the escape hatch.
+ *
+ * The appearance switcher repaints the shell and canvas from the chosen
+ * treatment's tokens; it never touches the projection, focus, view, depth,
+ * selection, or any semantic readout.
  */
 
-import { Search } from 'lucide-react'
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useSearchParams } from 'react-router-dom'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
@@ -51,7 +58,12 @@ import {
   EVIDENCE_VIEW_NAME,
   HARD_MAX_DEPTH,
 } from '../../trope-cards/src/graph/views.ts'
-import { CardFront } from '../graph/card-front'
+import {
+  GRAPH_TREATMENT_STORAGE_KEY,
+  GRAPH_TREATMENT_TOKENS,
+  type GraphTreatment,
+  readGraphTreatment,
+} from '../graph/appearance'
 import { CytoscapeGraph } from '../graph/cytoscape-graph'
 import {
   applyFacetFilter,
@@ -60,12 +72,13 @@ import {
   type FacetFilter,
   NO_FACET_FILTER,
 } from '../graph/deck-facets'
-import { DeckNavigator } from '../graph/deck-navigator'
 import {
   EntityInspector,
   type InspectorSelection,
   type RefocusTarget,
 } from '../graph/entity-inspector'
+import { GraphControls } from '../graph/graph-controls'
+import { GraphShell } from '../graph/graph-shell'
 import {
   ApiErrorState,
   EmptyProjectionState,
@@ -74,21 +87,32 @@ import {
   MalformedState,
   NoFocusState,
   ProjectionNotices,
-  ViewsStatus,
 } from '../graph/graph-states'
-import { EDGE_FAMILY_COLORS, NODE_TYPE_COLORS } from '../graph/graph-stylesheet'
+import { GraphStatusStrip } from '../graph/graph-status'
+import { buildGraphStylesheet } from '../graph/graph-stylesheet'
 import { ProjectionShapeError } from '../graph/projection-guards'
-import {
-  clampDepth,
-  depthOptions,
-  parseGraphParams,
-} from '../graph/query-params'
+import { clampDepth, parseGraphParams } from '../graph/query-params'
 import { useGraphProjection, useGraphViews } from '../graph/use-graph'
+
+/**
+ * The persisted appearance treatment, or the default when storage is missing.
+ *
+ * @returns A valid {@link GraphTreatment}.
+ */
+function initialTreatment(): GraphTreatment {
+  try {
+    return readGraphTreatment(
+      typeof localStorage !== 'undefined' ? localStorage : null,
+    )
+  } catch {
+    return 'atmospheric'
+  }
+}
 
 /**
  * The Graph page.
  *
- * @returns The routed page: controls, legend, graph canvas and inspector, or
+ * @returns The routed page: shell, controls, graph canvas and inspector, or
  * the matching state component when there is no usable projection.
  */
 const Graph = () => {
@@ -96,10 +120,21 @@ const Graph = () => {
   const params = parseGraphParams(searchParams.toString())
   const [selection, setSelection] = useState<InspectorSelection>(null)
   const [focusInput, setFocusInput] = useState(params.focus ?? '')
+  const [treatment, setTreatment] = useState<GraphTreatment>(initialTreatment)
 
   useEffect(() => {
     setFocusInput(params.focus ?? '')
   }, [params.focus])
+
+  // Persist a treatment choice (best-effort: privacy mode just keeps it for
+  // the session). Persisting is presentation state and never touches the URL.
+  useEffect(() => {
+    try {
+      localStorage.setItem(GRAPH_TREATMENT_STORAGE_KEY, treatment)
+    } catch {
+      /* storage unavailable — the switcher still wins for this session */
+    }
+  }, [treatment])
 
   const viewsQuery = useGraphViews()
   const projectionQuery = useGraphProjection(params)
@@ -115,9 +150,9 @@ const Graph = () => {
 
   const projection = projectionQuery.data
 
-  // The navigator's facets are presentation-only and belong to the projection
-  // they were derived from: a new focus/view/depth loads a different corpus, so
-  // the filter is keyed to that scope and goes inert on change rather than
+  // The facet filter is presentation-only and belongs to the projection it was
+  // derived from: a new focus/view/depth loads a different corpus, so the
+  // filter is keyed to that scope and goes inert on change rather than
   // carrying a facet the new projection may not satisfy.
   const facetScope =
     String(params.focus) +
@@ -142,9 +177,9 @@ const Graph = () => {
       ? applyFacetFilter(projection, facetFilter)
       : undefined
 
-  // The canvas renders the filtered projection; notices and the CardFront read
-  // the original, because corpus facts (warnings, truncation) and the focus
-  // card's own record are not facets of browsing.
+  // The canvas renders the filtered projection; notices and the status strip
+  // read the original, because corpus facts (warnings, truncation) and what
+  // the corpus supports are not facets of browsing.
   const presentation = (() => {
     if (
       filteredProjection === undefined ||
@@ -159,16 +194,6 @@ const Graph = () => {
     }
   })()
 
-  // The CardFront shows the focus card from the original projection, so a
-  // facet filter never empties it.
-  const focusCard = (() => {
-    if (projection === undefined) return null
-    const node = projection.nodes.find(
-      (candidate) => candidate.id === projection.focus.id,
-    )
-    return node?.type === 'card' ? node : null
-  })()
-
   // A selection that the filter hid is shown as no selection: the inspector
   // would otherwise report a stale id as "missing" on a projection it is
   // merely filtered out of.
@@ -180,6 +205,12 @@ const Graph = () => {
         : filteredProjection.edges.some((edge) => edge.id === selection.id)
     return present ? selection : null
   })()
+
+  // Switching treatments repaints the canvas via a *new stylesheet identity*;
+  // `buildGraphStylesheet` returns a fresh array per call, so its output is
+  // memoized on `treatment` here — the memory is what tells CytoscapeGraph to
+  // rebuild rather than observe a no-op style prop object each render.
+  const stylesheet = useMemo(() => buildGraphStylesheet(treatment), [treatment])
 
   const renderProjectionArea = () => {
     if (params.focus === null) return <NoFocusState />
@@ -205,50 +236,39 @@ const Graph = () => {
     }
 
     return (
-      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <div className="lg:sticky lg:top-24 lg:self-start">
-          <DeckNavigator
-            facets={facets}
-            filter={facetFilter}
-            onChange={setFacetFilter}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="flex flex-col gap-3">
+          <ProjectionNotices
+            projection={projection}
+            requestedDepth={selectedDepth}
           />
-        </div>
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="flex flex-col gap-3">
-            <ProjectionNotices
-              projection={projection}
-              requestedDepth={selectedDepth}
+          {filteredProjection !== undefined &&
+          filteredProjection.nodes.length === 0 ? (
+            <FilteredEmptyState
+              filter={facetFilter}
+              onClear={() => setFacetFilter(NO_FACET_FILTER)}
             />
-            {filteredProjection !== undefined &&
-            filteredProjection.nodes.length === 0 ? (
-              <FilteredEmptyState
-                filter={facetFilter}
-                onClear={() => setFacetFilter(NO_FACET_FILTER)}
-              />
-            ) : (
-              <div className="h-[460px] md:h-[560px] overflow-hidden rounded-xl border bg-background">
-                {presentation ? (
-                  <CytoscapeGraph
-                    presentation={presentation}
-                    selectedId={visibleSelection?.id ?? null}
-                    onSelect={setSelection}
-                  />
-                ) : null}
-              </div>
-            )}
-          </div>
-          <div className="space-y-4">
-            <CardFront projection={projection} focusCard={focusCard} />
-            <div className="max-h-[560px] overflow-y-auto">
-              <EntityInspector
-                projection={filteredProjection ?? projection}
-                selection={visibleSelection}
-                onNavigateCard={(slug) => navigateToCard(slug)}
-                onRefocus={(id, type) => refocusEntity(id, type)}
-                descriptor={selectedDescriptor}
-              />
+          ) : (
+            <div className="h-[460px] md:h-[560px] overflow-hidden rounded-xl border border-graph-border bg-graph-canvas">
+              {presentation ? (
+                <CytoscapeGraph
+                  presentation={presentation}
+                  selectedId={visibleSelection?.id ?? null}
+                  onSelect={setSelection}
+                  style={stylesheet}
+                />
+              ) : null}
             </div>
-          </div>
+          )}
+        </div>
+        <div className="lg:sticky lg:top-24 lg:self-start">
+          <EntityInspector
+            projection={filteredProjection ?? projection}
+            selection={visibleSelection}
+            onNavigateCard={(slug) => navigateToCard(slug)}
+            onRefocus={(id, type) => refocusEntity(id, type)}
+            descriptor={selectedDescriptor}
+          />
         </div>
       </div>
     )
@@ -297,154 +317,48 @@ const Graph = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col bg-graph-page">
       <Header />
 
-      <main className="flex-grow pt-24 pb-16 px-4">
-        <section className="container mx-auto max-w-7xl space-y-6">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-medium tracking-tight">Graph</h1>
-            <p className="text-sm text-muted-foreground">
-              Explore how a card is built: classification, claims, reasoning and
-              relationships — over the same canonical data every view reads.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-end gap-4 rounded-xl border p-4">
-            <form className="flex items-end gap-2" onSubmit={onFocusSubmit}>
-              <label className="block text-xs font-medium text-muted-foreground">
-                Focus
-                <input
-                  type="text"
-                  value={focusInput}
-                  onInput={(event) => setFocusInput(event.currentTarget.value)}
-                  placeholder="card slug or uuid"
-                  className="mt-1 h-9 w-56 rounded-md border border-input bg-background px-2 text-sm outline-none ring-primary/30 focus:ring-2"
-                />
-              </label>
-              <button
-                type="submit"
-                className="inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                <Search className="h-4 w-4" aria-hidden="true" /> Expand
-              </button>
-            </form>
-
-            <label className="block text-xs font-medium text-muted-foreground">
-              View
-              <select
-                value={params.view ?? DEFAULT_VIEW_NAME}
-                onChange={(event) =>
-                  updateParam('view', event.currentTarget.value)
-                }
-                className="mt-1 h-9 min-w-52 rounded-md border border-input bg-background px-2 text-sm"
-              >
-                {views?.views.map((view) => (
-                  <option key={view.name} value={view.name}>
-                    {view.name}
-                    {view.status !== 'implemented' ? ` (${view.status})` : ''}
-                  </option>
-                ))}
-              </select>
-              <ViewsStatus error={viewsQuery.error ?? null} views={views} />
-            </label>
-
-            {selectedDescriptor &&
-            selectedDescriptor.blockingGaps.length > 0 ? (
-              <ViewGapsNote descriptor={selectedDescriptor} />
-            ) : null}
-
-            <label className="block text-xs font-medium text-muted-foreground">
-              Depth
-              <select
-                value={selectedDepth}
-                onChange={(event) =>
-                  updateParam('depth', event.currentTarget.value)
-                }
-                className="mt-1 h-9 rounded-md border border-input bg-background px-2 text-sm"
-              >
-                {depthOptions(maxDepth).map((depth) => (
-                  <option key={depth} value={depth}>
-                    {depth} hop{depth === 1 ? '' : 's'}
-                    {depth === DEFAULT_DEPTH ? ' (default)' : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            {selectedDescriptor ? (
-              <Legend descriptor={selectedDescriptor} />
-            ) : null}
-          </div>
-
-          <div>{renderProjectionArea()}</div>
-        </section>
-      </main>
+      <div className="flex-grow">
+        <GraphShell
+          treatment={treatment}
+          controls={
+            <GraphControls
+              focusInput={focusInput}
+              onFocusInput={setFocusInput}
+              onSubmitFocus={onFocusSubmit}
+              views={views}
+              viewsError={viewsQuery.error}
+              view={params.view ?? DEFAULT_VIEW_NAME}
+              onViewChange={(value) => updateParam('view', value)}
+              maxDepth={maxDepth}
+              depth={selectedDepth}
+              onDepthChange={(value) => updateParam('depth', String(value))}
+              descriptor={selectedDescriptor}
+              facets={facets}
+              filter={facetFilter}
+              onFacetChange={setFacetFilter}
+              onClearFacets={() => setFacetFilter(NO_FACET_FILTER)}
+              treatment={treatment}
+              onTreatmentChange={setTreatment}
+              nodeColors={GRAPH_TREATMENT_TOKENS[treatment].nodeColors}
+              edgeColors={GRAPH_TREATMENT_TOKENS[treatment].edgeColors}
+            />
+          }
+          workspace={<div>{renderProjectionArea()}</div>}
+          status={
+            <GraphStatusStrip
+              projection={projection ?? null}
+              descriptor={selectedDescriptor}
+            />
+          }
+        />
+      </div>
 
       <Footer />
     </div>
   )
 }
-
-/**
- * The "0 rows in the corpus" note under the view selector.
- *
- * Distinguishes the two empty-looking states before anything is fetched: a
- * view whose backing tables have zero rows (empty projection — a corpus
- * fact, not a bug) versus a request that failed (which shows an error state
- * elsewhere). The note renders the server's own `blockingGaps` strings, so
- * the table names and counts can never drift from the projection's opinion.
- *
- * @param descriptor The selected view's rule, including its `blockingGaps`.
- * @returns A one-line note spanning the controls row, or null-shaped markup.
- */
-const ViewGapsNote = ({ descriptor }: { descriptor: GraphViewDescriptor }) => (
-  <p className="basis-full text-xs text-muted-foreground">
-    <span className="font-medium text-amber-700 dark:text-amber-400">
-      0 rows in the corpus
-    </span>{' '}
-    — {descriptor.blockingGaps.join('; ')}. This view is data-blocked: an empty
-    projection, not a failed load.
-  </p>
-)
-
-/**
- * The colour legend, built from the same maps the stylesheet uses.
- *
- * Only shows what the selected view actually emits. Node types and edge
- * families outside the descriptor are omitted, so the legend never promises a
- * colour for a class the current view cannot draw.
- *
- * @param descriptor The selected view's rule.
- * @returns A compact swatch legend for node types and edge families.
- */
-const Legend = ({ descriptor }: { descriptor: GraphViewDescriptor }) => (
-  <div className="ml-auto max-w-sm space-y-1.5 text-xs text-muted-foreground">
-    <div className="flex flex-wrap gap-2">
-      {descriptor.nodeTypes.map((type) => (
-        <span key={type} className="inline-flex items-center gap-1">
-          <span
-            className="h-2.5 w-2.5 rounded-full"
-            style={{ backgroundColor: NODE_TYPE_COLORS[type] ?? '#94a3b8' }}
-            aria-hidden="true"
-          />
-          {type}
-        </span>
-      ))}
-    </div>
-    <div className="flex flex-wrap gap-2">
-      {descriptor.edgeFamilies.map((family) => (
-        <span key={family} className="inline-flex items-center gap-1">
-          <span
-            className="h-0.5 w-4 rounded"
-            style={{ backgroundColor: EDGE_FAMILY_COLORS[family] ?? '#94a3b8' }}
-            aria-hidden="true"
-          />
-          {family}
-        </span>
-      ))}
-    </div>
-  </div>
-)
 
 export default Graph

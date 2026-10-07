@@ -130,6 +130,44 @@ describe('entity-inspector card node', () => {
   })
 })
 
+describe('entity-inspector card-front fold', () => {
+  const html = renderInspector({ kind: 'node', id: ID.focusCard })
+
+  it('reproduces the card front badges from classification.suits', () => {
+    assert.ok(html.includes('data-suit="classic"'))
+    assert.ok(html.includes('data-suit="south-africa"'))
+    assert.ok(html.includes('#ef44441f'))
+    assert.ok(html.includes('#22d3ee1f'))
+  })
+
+  it('keeps axes in the authored order, TACTIC before HISTORICAL', () => {
+    assert.ok(
+      html.indexOf('data-axis="TACTIC"') <
+        html.indexOf('data-axis="HISTORICAL"'),
+    )
+  })
+
+  it('lists mechanisms before concepts inside the fold', () => {
+    const section = html.slice(html.indexOf('data-testid="mechanism-concepts"'))
+    assert.ok(section.includes('data-pill="mechanism"'))
+    assert.ok(section.includes('data-pill="concept"'))
+    assert.ok(
+      section.indexOf('data-pill="mechanism"') <
+        section.indexOf('data-pill="concept"'),
+    )
+    assert.ok(html.includes('Mechanisms &amp; concepts'))
+    assert.ok(html.includes('Recontextualization'))
+    assert.ok(html.includes('Modern recontextualization'))
+  })
+
+  it('keeps the card-front fold out when the card has no classification', () => {
+    const sparse = renderInspector({ kind: 'node', id: ID.cardTwo })
+    assert.ok(sparse.includes('data-axis="TACTIC"'))
+    assert.ok(!sparse.includes('data-suit='))
+    assert.ok(!sparse.includes('data-testid="mechanism-concepts"'))
+  })
+})
+
 describe('entity-inspector card taxonomy absence', () => {
   const html = renderInspector({ kind: 'node', id: ID.cardTwo })
 

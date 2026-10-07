@@ -16,7 +16,9 @@ import type {
   EdgeFamily,
   GraphNodeType,
 } from '../../trope-cards/src/graph/types.ts'
+import { GRAPH_TREATMENT_TOKENS, GRAPH_TREATMENTS } from './appearance'
 import {
+  buildGraphStylesheet,
   EDGE_FAMILY_COLORS,
   GRAPH_STYLESHEET,
   NODE_TYPE_COLORS,
@@ -147,5 +149,57 @@ describe('GRAPH_STYLESHEET vocabulary rules', () => {
   it('renders traversal direction separately from authored direction', () => {
     const style = styleOf('.traversal-bidirectional')
     assert.equal(style['line-style'], 'dashed')
+  })
+})
+
+describe('buildGraphStylesheet treatments', () => {
+  it('keeps the GRAPH_STYLESHEET export as the atmospheric baseline', () => {
+    for (const selector of selectors()) {
+      const baseline = GRAPH_STYLESHEET.find(
+        (rule) => rule.selector === selector,
+      )
+      const atmospheric = buildGraphStylesheet('atmospheric').find(
+        (rule) => rule.selector === selector,
+      )
+      assert.ok(atmospheric, `buildGraphStylesheet lost selector ${selector}`)
+      assert.deepEqual(
+        atmospheric,
+        baseline,
+        `atmospheric build must match the exported sheet for ${selector}`,
+      )
+    }
+  })
+
+  it('repaints every treatment through the same rule geometry', () => {
+    const baselineSelectors = selectors()
+    for (const treatment of GRAPH_TREATMENTS) {
+      const sheet = buildGraphStylesheet(treatment)
+      assert.deepEqual(
+        sheet.map((rule) => rule.selector),
+        baselineSelectors,
+        `${treatment} must not change the selector geometry`,
+      )
+      const card = sheet.find((rule) => rule.selector === '.type-card')
+      assert.ok(card)
+      const bag = 'style' in card ? card.style : card.css
+      const painted = bag?.['background-color']
+      assert.equal(
+        painted,
+        GRAPH_TREATMENT_TOKENS[treatment].nodeColors.card,
+        `${treatment} card fill must come from its token set`,
+      )
+    }
+  })
+
+  it('gives each treatment an observably different node palette', () => {
+    const colours = GRAPH_TREATMENTS.map(
+      (treatment) =>
+        (
+          buildGraphStylesheet(treatment).find(
+            (rule) => rule.selector === '.type-card',
+          ) as unknown as { style: Record<string, string> }
+        ).style['background-color'],
+    )
+    assert.equal(new Set(colours).size, GRAPH_TREATMENTS.length)
   })
 })

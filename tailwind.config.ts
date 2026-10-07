@@ -62,6 +62,26 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				/* Graph Explorer token-mapped surfaces (§10 chrome): each utility reads
+				   a --graph-* custom property the page sets per treatment. */
+				graph: {
+					page: 'hsl(var(--graph-page))',
+					surface: 'hsl(var(--graph-surface))',
+					canvas: 'hsl(var(--graph-canvas))',
+					inspector: 'hsl(var(--graph-inspector))',
+					border: 'hsl(var(--graph-border))',
+					accent: 'hsl(var(--graph-accent))',
+					'accent-foreground': 'hsl(var(--graph-accent-foreground))',
+					muted: 'hsl(var(--graph-muted))',
+					'muted-foreground': 'hsl(var(--graph-muted-foreground))',
+					focus: 'hsl(var(--graph-focus))',
+					'status-ok': 'hsl(var(--graph-status-ok))',
+					'status-warn': 'hsl(var(--graph-status-warn))',
+					'status-none': 'hsl(var(--graph-status-none))',
+					controls: 'hsl(var(--graph-controls))',
+					disclaimer: 'hsl(var(--graph-disclaimer))',
+					'disclaimer-border': 'hsl(var(--graph-disclaimer-border))'
 				}
 			},
 			fontFamily: {

@@ -6,20 +6,21 @@
  * receives an already-converted {@link CytoscapePresentation} and a selection
  * identity, and it emits only selection identities — the same `{ kind, id }`
  * shape the inspector consumes. It never reads `data()`, never recomputes a
- * field, never styles anything (the stylesheet is `GRAPH_STYLESHEET`), and
- * never decides graph semantics. Everything this phase can be tested for in
- * Node lives outside this file; what remains (create → bind taps → sync a CSS
- * class → destroy) is the untestable-by-node three percent, which is why the
- * plan pins it thin and leaves the rest of the page covered.
+ * field, and never decides graph semantics (the stylesheet is injected and
+ * defaults to {@link GRAPH_STYLESHEET}). Everything this phase can be tested
+ * for in Node lives outside this file; what remains (create → bind taps → sync
+ * a CSS class → destroy) is the untestable-by-node three percent, which is why
+ * the plan pins it thin and leaves the rest of the page covered.
  *
  * ## Lifecycle
  *
- * The core is recreated whenever the presentation instance changes (that is
- * once per projection fetch). Recreation is deliberate: Cytoscape mutates its
- * own `elements` array, and reusing one core across presentations risks stale
- * style/layout state the plan's determinism guarantee is about. The `selected`
- * class is then re-applied from the current `selectedId`, because a fresh core
- * has no class state.
+ * The core is recreated whenever the presentation instance or the stylesheet
+ * changes (once per projection fetch; once per appearance-treatment switch).
+ * Recreation is deliberate: Cytoscape mutates its own `elements` array, and
+ * reusing one core across presentations risks stale style/layout state the
+ * plan's determinism guarantee is about. The `selected` class is then
+ * re-applied from the current `selectedId`, because a fresh core has no class
+ * state.
  *
  * Selection is presentation state only — it paints a blue overlay and feeds
  * the inspector; it asserts nothing about the ontology.
@@ -32,9 +33,10 @@ import type {
   EventObjectEdge,
   EventObjectNode,
   LayoutOptions,
+  StylesheetJsonBlock,
 } from 'cytoscape'
 import cytoscape from 'cytoscape'
-import { useEffect, useRef } from 'preact/hooks'
+import { useCallback, useEffect, useRef } from 'preact/hooks'
 import type { CytoscapePresentation } from '../../trope-cards/src/graph/cytoscape-adapter.ts'
 import type { InspectorSelection } from './entity-inspector'
 import { GRAPH_STYLESHEET } from './graph-stylesheet'
@@ -94,6 +96,12 @@ export function applySelectionState(cy: Core, selectedId: string | null): void {
  * `null`. Rendered as the Cytoscape `.selected` overlay class only.
  * @param props.onSelect Fired with the canonical id of a tapped entity, or
  * `null` when the empty canvas is tapped.
+ * @param props.style The stylesheet to mount the core with; defaults to
+ * {@link GRAPH_STYLESHEET}. The core is recreated when it changes, so callers
+ * must pass a memoized instance (e.g. `buildGraphStylesheet(treatment)` held in
+ * a `useMemo`) — a fresh array on every render would rebuild the canvas each
+ * time. Repainting on treatment switch is deliberate: Cytoscape styles are
+ * set at mount, so changing them means a fresh core, with unchanged semantics.
  * @returns A `<div>` Cytoscape mounts into; sized by the page's CSS.
  * @example
  * ```tsx
@@ -101,6 +109,7 @@ export function applySelectionState(cy: Core, selectedId: string | null): void {
  *   presentation={presentation}
  *   selectedId={selection?.id ?? null}
  *   onSelect={setSelection}
+ *   style={stylesheet}
  * />
  * ```
  */
@@ -108,10 +117,12 @@ export function CytoscapeGraph({
   presentation,
   selectedId,
   onSelect,
+  style = GRAPH_STYLESHEET,
 }: {
   presentation: CytoscapePresentation
   selectedId: string | null
   onSelect: (selection: InspectorSelection) => void
+  style?: StylesheetJsonBlock[]
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const cyRef = useRef<Core | null>(null)
@@ -121,10 +132,14 @@ export function CytoscapeGraph({
   // dependencies (a selection change must not rebuild the canvas).
   const selectedIdRef = useRef(selectedId)
   selectedIdRef.current = selectedId
+  const styleRef = useRef(style)
+  styleRef.current = style
 
   // (Re)create the core from a fresh presentation. Deferred until the browser
-  // renders the container, since Cytoscape mounts into a real DOM node.
-  useEffect(() => {
+  // renders the container, since Cytoscape mounts into a real DOM node. The
+  // style instance is kept in a ref so only a genuine swap to a *new* stylesheet
+  // (a treatment change) rebuilds the core, not every parent render.
+  const rebuild = useCallback(() => {
     const container = containerRef.current
     if (container === null) return
     if (presentation.elements.length === 0) return
@@ -132,7 +147,7 @@ export function CytoscapeGraph({
     const cy = cytoscape({
       container,
       elements: presentation.elements,
-      style: GRAPH_STYLESHEET,
+      style: styleRef.current,
       layout: layoutOptionsFor(presentation),
       wheelSensitivity: 0.2,
     })
@@ -166,6 +181,8 @@ export function CytoscapeGraph({
       delete (container as { __cy?: Core }).__cy
     }
   }, [presentation])
+
+  useEffect(() => rebuild(), [rebuild])
 
   // Keep the overlay in step with selection state, including across a fresh
   // core from the effect above.
