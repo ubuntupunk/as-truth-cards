@@ -192,7 +192,7 @@ const Admin = () => {
               <div className="mb-8">
                 <h1 className="text-3xl font-bold mb-2">Admin Panel</h1>
                 <p className="text-muted-foreground">
-                  Manage the Truth Cards content from this panel.
+                  Manage the Trope Cards content from this panel.
                 </p>
               </div>
 

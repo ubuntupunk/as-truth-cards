@@ -15,7 +15,7 @@ const Footer = () => {
       <div className="container mx-auto">
         <div className="border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-muted-foreground mb-4 md:mb-0">
-            © {new Date().getFullYear()} Truth Cards. Educational purposes only.
+            © {new Date().getFullYear()} Trope Cards. Educational purposes only.
           </p>
 
           <div className="flex space-x-6">

@@ -115,7 +115,7 @@ function GraphContextBar() {
       data-testid="graph-context-bar"
       className="mt-6 flex items-center gap-2 text-xs text-graph-muted-foreground"
     >
-      <span>Truth Cards</span>
+      <span>Trope Cards</span>
       <BreadcrumbSeparator />
       <span>Research</span>
       <BreadcrumbSeparator />

@@ -15,7 +15,7 @@ rather than guessed. Section 10 lists the decisions that need an architect's rul
 
 ## 1. Executive summary
 
-`trope-cards/` is a new, self-contained **knowledge-graph subsystem** for the Truth Cards
+`trope-cards/` is a new, self-contained **knowledge-graph subsystem** for the Trope Cards
 platform. It models *how* antisemitic tropes work — mechanisms, concepts, claims, inferences,
 argument chains, and evidence — rather than simply displaying them as flat cards.
 

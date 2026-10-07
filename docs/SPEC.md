@@ -1,6 +1,6 @@
 # Technical Specification
 
-## Truth Cards - AntiSemitism Education Platform
+## Trope Cards - AntiSemitism Education Platform
 
 ---
 
@@ -10,7 +10,7 @@
 
 **Header**
 - Fixed position, `z-50`, glass effect background
-- Logo/Title: "Truth Cards" (left-aligned)
+- Logo/Title: "Trope Cards" (left-aligned)
 - Nav: Home | About | Admin (protected)
 - Theme toggle (right-aligned)
 

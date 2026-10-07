@@ -67,7 +67,7 @@ describe('graph-shell composition', () => {
 
   it('establishes the workspace as research with its disclaimer', () => {
     const html = renderShell()
-    assert.ok(html.includes('Truth Cards'))
+    assert.ok(html.includes('Trope Cards'))
     assert.ok(
       html.includes(
         'Illustrative research collection. Claims, source leads, and inferences are unverified; no historical conclusions are established.',

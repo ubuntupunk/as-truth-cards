@@ -1,4 +1,4 @@
-# React Card Deck Application
+# Trope Cards
 
 [![GitHub](https://img.shields.io/badge/GitHub-ubuntupunk/as--truth--cards-blue)](https://github.com/ubuntupunk/as-truth-cards)
 [![License](https://img.shields.io/badge/License-GPL-green.svg)](LICENSE)
@@ -7,61 +7,129 @@
     <img src="https://raw.githubusercontent.com/pedromxavier/flag-badges/main/badges/ZA.svg" alt="made in za">
 </a>
 
-## Project info
+Research and education tool for antisemitic tropes: interactive **Trope Cards**, an admin
+surface for managing the host deck, and a **Graph Explorer** over a structured claim ontology.
 
-A Preact/React card deck application built with TypeScript and Vite, served in production by an
-Express server that also exposes the API, including the read-only `/api/graph` projection.
+> The GitHub repository and Render service are still named `as-truth-cards`; this document
+> uses the product name **Trope Cards**.
 
-## How can I edit this code?
+## What this repo is
 
-There are several ways of editing your application.
+| Surface | Route | Role |
+|---|---|---|
+| Card deck | `/` | Flip cards (myth → truth); optional Israel/Palestine stack filter |
+| Graph Explorer | `/graph` | Cytoscape view of depth-bounded projections from `trope_graph` |
+| Admin | `/admin` | Manage host deck cards (Better Auth–protected) |
+| About | `/about` | Project context |
 
-**Use your preferred IDE**
+The SPA is Vite + Preact (`preact/compat`). An Express process serves `/api/*` and, in
+production, the built bundle from `dist/`. Production host is **Render** (`render.yaml`).
+Vercel is not a deployment target.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes.
+### Dual database layer
 
-The only requirement is having Node.js & pnpm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+One PostgreSQL database (Neon in production) holds two schemas during the transition:
 
-Follow these steps:
+| Schema | ORM | Owns | Status |
+|---|---|---|---|
+| `public` | Prisma | Host deck (`cards`), interactions, Better Auth tables | Transitional; `/api/cards` and `/api/interactions` still depend on it |
+| `trope_graph` | Drizzle (`trope-cards/`) | Claims, relations, taxonomy, graph seed corpus | Canonical ontology; projected read-only via `/api/graph` |
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+`trope_graph.cards` is not `public.cards`. The application never writes to `trope_graph` while
+serving traffic — migrate and seed are explicit deploy/authoring steps.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## Repository layout
 
-# Step 3: Install the necessary dependencies. pnpm, because the repo is locked
-# with pnpm-lock.yaml and the production deploy installs with pnpm too.
-pnpm install
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-pnpm run dev
+```text
+src/                 Vite SPA (pages, CardDeck, Graph Explorer under src/graph/)
+server/              Express entry, Better Auth, /api/cards|interactions|graph
+trope-cards/         Trope Graph schema, migrations, seed, projection, validators
+prisma/              Host schema migrations (public)
+docs/                Product/spec notes and phase reports
+render.yaml          Canonical Render Blueprint
 ```
 
-**Edit a file directly in GitHub**
+Graph subsystem details live in [`trope-cards/README.md`](trope-cards/README.md) and
+[`trope-cards/docs/`](trope-cards/docs/).
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Stack
 
-**Use GitHub Codespaces**
+- **Frontend:** Vite, Preact, React Router, TanStack Query, Tailwind, shadcn/ui, Cytoscape
+- **Backend:** Express, Better Auth, TypeScript (strict)
+- **Data:** PostgreSQL — Prisma (`public`) + Drizzle (`trope_graph`)
+- **Tooling:** pnpm, Biome (lint/format), Node test runner via `tsx`, optional `just`
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Requires Node.js `>=20 <25` and pnpm.
 
-## What technologies are used for this project?
+## Local development
 
-- Vite + Preact (React-compatible via `preact/compat`)
-- TypeScript
-- Express
-- shadcn-ui
-- Tailwind CSS
-- Drizzle ORM + PostgreSQL for `trope_graph` (canonical ontology)
-- Prisma + Neon for `public` (transitional host deck)
+```sh
+git clone https://github.com/ubuntupunk/as-truth-cards.git
+cd as-truth-cards
+pnpm install
+cp .env.example .env   # then fill DATABASE_URL and BETTER_AUTH_*
+```
+
+Run the full stack (Vite on `:8080`, Express on `:3001`; Vite proxies `/api` to Express):
+
+```sh
+just dev
+# or: pnpm run dev:all
+```
+
+Web-only: `pnpm run dev`. API-only: `pnpm run server:dev`.
+
+Local env differs from production — see `.env.example`. `BETTER_AUTH_URL` must be the
+origin the browser uses (`http://localhost:8080` in dev).
+
+### Database (local)
+
+Host deck (Prisma):
+
+```sh
+pnpm run db:migrate:deploy
+pnpm run db:seed
+```
+
+Trope Graph (local Postgres recommended; write paths refuse non-loopback hosts by default):
+
+```sh
+createdb trope_cards_dev
+export TROPE_GRAPH_DATABASE_URL=postgresql:///trope_cards_dev
+pnpm run trope-graph:migrate
+pnpm run trope-graph:seed
+pnpm run trope-graph:check   # validate + verify + test + drift
+```
+
+See [`trope-cards/README.md`](trope-cards/README.md) for safety rules and corpus workflow.
+
+### Common scripts
+
+| Command | Purpose |
+|---|---|
+| `pnpm run dev:all` | Vite + Express together |
+| `pnpm run build` | `prisma generate` + Vite production build → `dist/` |
+| `pnpm run start` | Production Express (serves `dist/` when `NODE_ENV=production`) |
+| `pnpm run test` | Server + graph + UI graph tests |
+| `pnpm run test:server` / `test:ui` / `trope-graph:test` | Subsystem tests |
+| `pnpm run lint` / `format` | Biome check / write |
+| `pnpm run typecheck` / `typecheck:graph` | Host / graph TypeScript |
+| `pnpm run db:migrate:deploy` | Apply Prisma migrations |
+| `pnpm run trope-graph:migrate` | Apply Drizzle graph migrations |
+| `pnpm run trope-graph:seed` | Load authored corpus into `trope_graph` |
+
+`just` wraps the same scripts with env wiring — run `just` with no args for the recipe list.
+
+## API sketch
+
+| Path | Notes |
+|---|---|
+| `GET /health` | `{"status":"ok"}` — registered before the SPA catch-all |
+| `/api/auth/*` | Better Auth (mounted before `express.json()`) |
+| `/api/cards` | Host deck CRUD (Prisma) |
+| `/api/interactions` | Card ratings / interactions (Prisma) |
+| `GET /api/graph` | Depth-bounded projection from `trope_graph` |
+| `GET /api/graph/views` | Available views and population hints |
 
 ## Deployment
 
@@ -98,8 +166,8 @@ then promotes the build anyway, reporting success. **A green deploy on the free 
 only that the build succeeded and the process started.** It says nothing about the schema.
 
 When migrating by hand is required — after any commit touching `prisma/migrations/`,
-`trope-cards/src/db/migrations/`, or anything the seeder reads under `trope-cards/src/db/seed/`
-— run all three, in order:
+`trope-cards/drizzle/`, or anything the seeder reads under `trope-cards/src/db/seed/` — run
+all three, in order:
 
 ```sh
 pnpm run db:migrate:deploy
@@ -181,3 +249,6 @@ The graph layer (`trope_graph`, Drizzle) is canonical for the ontology. The host
 routes still depend on Prisma. Both schemas coexist in one database during the transition,
 which is why a single `DATABASE_URL` covers both. Prisma must stay in the deployment until
 those routes move to the graph layer.
+
+Nav placeholders (Explorer, Research, Sources) are inert until their pages exist; Decks and
+Graph are live.

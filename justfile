@@ -1,4 +1,4 @@
-# Common tasks for as-truth-cards.
+# Common tasks for Trope Cards (repo: as-truth-cards).
 #
 # Run `just` with no arguments to list every recipe.
 #

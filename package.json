@@ -1,5 +1,6 @@
 {
   "name": "as-truth-cards",
+  "description": "Trope Cards — research cards and graph explorer for antisemitic tropes",
   "private": true,
   "version": "0.0.0",
   "type": "module",
