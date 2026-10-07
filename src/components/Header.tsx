@@ -56,7 +56,7 @@ const Header = () => {
     >
       <div className="container mx-auto flex justify-between items-center">
         <Link to="/" className="text-2xl font-medium tracking-tight hover-lift">
-          Truth Cards
+          Trope Cards
         </Link>
 
         <div className="flex items-center space-x-4">

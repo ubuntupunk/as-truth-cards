@@ -27,7 +27,7 @@
  *
  * ## The appearance selector is presentation-only
  *
- * `localStorage['as-truth-cards:graph-treatment']` remembers a choice so the
+ * `localStorage['trope-cards:graph-treatment']` remembers a choice so the
  * selector is a *working* control, but switching a treatment must never change
  * the projection, focus, view, depth, selection, or any semantic readout.
  * Tests pin this by rendering the shell's status/states under two treatments
@@ -50,7 +50,7 @@ export const GRAPH_TREATMENTS: readonly GraphTreatment[] = [
 ]
 
 /** LocalStorage key for the persisted appearance choice. */
-export const GRAPH_TREATMENT_STORAGE_KEY = 'as-truth-cards:graph-treatment'
+export const GRAPH_TREATMENT_STORAGE_KEY = 'trope-cards:graph-treatment'
 
 /**
  * The chrome surfaces of one treatment, as HSL triplets for `--graph-*` CSS

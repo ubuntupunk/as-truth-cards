@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD)
 
-## Truth Cards - AntiSemitism Education Platform
+## Trope Cards - AntiSemitism Education Platform
 
 ---
 

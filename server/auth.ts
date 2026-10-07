@@ -25,7 +25,7 @@ assertAuthSecretConfigured()
  * the user row so there is no second profile table to keep in sync.
  */
 export const auth = betterAuth({
-  appName: 'As Truth Cards',
+  appName: 'Trope Cards',
 
   database: prismaAdapter(prisma, {
     provider: 'postgresql',
