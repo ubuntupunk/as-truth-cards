@@ -5,6 +5,7 @@ import {
   GraphQueryError,
   describeViews,
   parseGraphQuery,
+  parseSearchQuery,
 } from '../src/graph/query'
 import {
   DEFAULT_DEPTH,
@@ -287,6 +288,71 @@ describe('relationship', () => {
       authored.includeEdgeTypes?.[0],
       'CARD_RELATIONSHIP:SUPPORTS',
       'the two families must not normalise to the same key',
+    )
+  })
+})
+
+describe('parseSearchQuery', () => {
+  it('trims the term and preserves inner spacing and case', () => {
+    const parsed = parseSearchQuery({ q: '  Blood Libel  ' })
+    assert.equal(parsed.query, 'Blood Libel')
+  })
+
+  it('defaults the limit to 10', () => {
+    assert.equal(parseSearchQuery({ q: 'zion' }).limit, 10)
+  })
+
+  it('clamps a large limit to the result cap instead of rejecting it', () => {
+    assert.equal(parseSearchQuery({ q: 'zion', limit: '500' }).limit, 50)
+  })
+
+  it('rejects a missing term', () => {
+    assert.throws(
+      () => parseSearchQuery({}),
+      (error: unknown) =>
+        error instanceof GraphQueryError && error.status === 400,
+    )
+  })
+
+  it('rejects an empty or single-character term', () => {
+    for (const q of ['', '  ', 'x']) {
+      assert.throws(
+        () => parseSearchQuery({ q }),
+        (error: unknown) =>
+          error instanceof GraphQueryError && error.status === 400,
+      )
+    }
+  })
+
+  it('rejects a repeated term instead of picking one', () => {
+    assert.throws(
+      () => parseSearchQuery({ q: ['blood', 'libel'] }),
+      (error: unknown) =>
+        error instanceof GraphQueryError && error.status === 400,
+    )
+  })
+
+  it('rejects an over-long term', () => {
+    assert.throws(
+      () => parseSearchQuery({ q: 'a'.repeat(201) }),
+      (error: unknown) =>
+        error instanceof GraphQueryError && error.status === 400,
+    )
+  })
+
+  it('rejects a control-character-bearing term', () => {
+    assert.throws(
+      () => parseSearchQuery({ q: 'blood\u0000libel' }),
+      (error: unknown) =>
+        error instanceof GraphQueryError && error.status === 400,
+    )
+  })
+
+  it('rejects a non-integer limit', () => {
+    assert.throws(
+      () => parseSearchQuery({ q: 'zion', limit: 'many' }),
+      (error: unknown) =>
+        error instanceof GraphQueryError && error.status === 400,
     )
   })
 })

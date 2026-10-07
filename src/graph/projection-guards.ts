@@ -205,6 +205,56 @@ export function assertGraphViewsResponse(
   }
 }
 
+/**
+ * One card search hit as `/api/graph/search` reports it.
+ *
+ * `type` is always `"card"` today, but the contract is widenable: a future
+ * slice may return claims, sources or concepts in the same list, keyed by
+ * `type`, so the guard accepts any non-empty string rather than pinning it.
+ */
+export type CardSearchResult = {
+  readonly id: string
+  readonly slug: string
+  readonly title: string
+  readonly summary: string | null
+  readonly type: string
+  readonly rank: number
+}
+
+/** The `GET /api/graph/search` body. */
+export type GraphSearchResponse = {
+  readonly results: readonly CardSearchResult[]
+}
+
+/**
+ * Assert that a decoded JSON body is a `GraphSearchResponse`.
+ *
+ * @param value The decoded body.
+ * @throws {ProjectionShapeError} If the `results` envelope or any result field
+ * is missing or of the wrong primitive type.
+ * @example
+ * ```ts
+ * const body: unknown = await res.json()
+ * assertGraphSearchResponse(body) // narrows to GraphSearchResponse
+ * ```
+ */
+export function assertGraphSearchResponse(
+  value: unknown,
+): asserts value is GraphSearchResponse {
+  const root = asRecord(value, '')
+  const results = asArray(root.results, 'results')
+  for (let index = 0; index < results.length; index++) {
+    const path = `results[${index}]`
+    const result = asRecord(results[index], path)
+    asString(result.id, `${path}.id`)
+    asString(result.slug, `${path}.slug`)
+    asString(result.title, `${path}.title`)
+    asNullableString(result.summary, `${path}.summary`)
+    asString(result.type, `${path}.type`)
+    asNumber(result.rank, `${path}.rank`)
+  }
+}
+
 /** Presence-level node check; vocabulary membership is the adapter's job. */
 function assertNode(value: unknown, path: string): void {
   const node = asRecord(value, path)

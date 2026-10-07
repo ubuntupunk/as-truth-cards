@@ -17,10 +17,13 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
+import { useEffect, useState } from 'preact/hooks'
 import type { GraphProjection } from '../../trope-cards/src/graph/types.ts'
 import {
   assertGraphProjection,
+  assertGraphSearchResponse,
   assertGraphViewsResponse,
+  type GraphSearchResponse,
   type GraphViewsResponse,
   isRecord,
   ProjectionShapeError,
@@ -183,4 +186,59 @@ export function graphProjectionQueryOptions(params: GraphParams) {
  */
 export function useGraphProjection(params: GraphParams) {
   return useQuery(graphProjectionQueryOptions(params))
+}
+
+/**
+ * Debounce a value, returning the previous value until `delay` ms pass without
+ * an update. Used to avoid firing a card-search request on every keystroke.
+ *
+ * @param value The fast-changing value.
+ * @param delay Quiet period in milliseconds before the value is released.
+ * @returns The debounced value.
+ */
+export function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+
+  return debounced
+}
+
+/** React Query key for one card-search term. */
+export function graphSearchQueryKey(term: string): readonly unknown[] {
+  return ['graph', 'search', term]
+}
+
+/**
+ * Debounced card search for the focus typeahead.
+ *
+ * The query is disabled until the trimmed term is at least two characters
+ * (matching the server's minimum), and the term is debounced so a fast typist
+ * produces one request rather than one per keystroke. `retry: false` keeps a
+ * transient 400/500 from turning into a spinner while react-query retries a
+ * request that will not succeed.
+ *
+ * @param query The raw focus input text.
+ * @returns A TanStack Query result whose `data` is a validated
+ * {@link GraphSearchResponse} once loaded.
+ */
+export function useCardSearch(query: string) {
+  const term = query.trim()
+  const debounced = useDebouncedValue(term, 250)
+
+  return useQuery<GraphSearchResponse>({
+    queryKey: graphSearchQueryKey(debounced),
+    queryFn: () =>
+      fetchValidated(
+        `/api/graph/search?q=${encodeURIComponent(debounced)}`,
+        assertGraphSearchResponse,
+      ),
+    enabled: debounced.length >= 2,
+    retry: false,
+    staleTime: 30_000,
+    placeholderData: (previous) => previous,
+  })
 }

@@ -92,7 +92,11 @@ import { GraphStatusStrip } from '../graph/graph-status'
 import { buildGraphStylesheet } from '../graph/graph-stylesheet'
 import { ProjectionShapeError } from '../graph/projection-guards'
 import { clampDepth, parseGraphParams } from '../graph/query-params'
-import { useGraphProjection, useGraphViews } from '../graph/use-graph'
+import {
+  useCardSearch,
+  useGraphProjection,
+  useGraphViews,
+} from '../graph/use-graph'
 
 /**
  * The persisted appearance treatment, or the default when storage is missing.
@@ -121,6 +125,7 @@ const Graph = () => {
   const [selection, setSelection] = useState<InspectorSelection>(null)
   const [focusInput, setFocusInput] = useState(params.focus ?? '')
   const [treatment, setTreatment] = useState<GraphTreatment>(initialTreatment)
+  const [searchOpen, setSearchOpen] = useState(false)
 
   useEffect(() => {
     setFocusInput(params.focus ?? '')
@@ -138,6 +143,8 @@ const Graph = () => {
 
   const viewsQuery = useGraphViews()
   const projectionQuery = useGraphProjection(params)
+  const searchQuery = useCardSearch(focusInput)
+  const searchResults = searchQuery.data?.results ?? []
 
   const views = viewsQuery.data
   const selectedDescriptor =
@@ -313,7 +320,18 @@ const Graph = () => {
     const value = focusInput.trim()
     if (value.length === 0) return
     setSelection(null)
+    setSearchOpen(false)
     updateParam('focus', value)
+  }
+
+  const onFocusInput = (value: string) => {
+    setFocusInput(value)
+    setSearchOpen(value.trim().length >= 2)
+  }
+
+  const onSelectCard = (slug: string) => {
+    setSearchOpen(false)
+    navigateToCard(slug)
   }
 
   return (
@@ -326,8 +344,12 @@ const Graph = () => {
           controls={
             <GraphControls
               focusInput={focusInput}
-              onFocusInput={setFocusInput}
+              onFocusInput={onFocusInput}
               onSubmitFocus={onFocusSubmit}
+              searchResults={searchResults}
+              searchPending={searchQuery.isPending}
+              searchOpen={searchOpen}
+              onSelectCard={onSelectCard}
               views={views}
               viewsError={viewsQuery.error}
               view={params.view ?? DEFAULT_VIEW_NAME}

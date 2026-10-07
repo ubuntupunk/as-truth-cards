@@ -5,7 +5,7 @@ import { after, before, describe, it } from 'node:test'
 import express from 'express'
 
 import { createGraphRouter } from '../../server/api/graph'
-import { FakeGraphReader, emptyCorpus, richCorpus } from './helpers/fake-graph-reader'
+import { FakeGraphReader, card, emptyCorpus, richCorpus } from './helpers/fake-graph-reader'
 import type { FakeCorpus } from './helpers/fake-graph-reader'
 
 /**
@@ -349,6 +349,86 @@ describe('GET /api/graph/views', () => {
     for (const view of blocked) {
       assert.ok(view.status !== 'implemented' || view.blockingGaps.length > 0)
     }
+  })
+})
+
+describe('GET /api/graph/search', () => {
+  let origin = ''
+  let close: () => Promise<void> = async () => {}
+
+  before(async () => {
+    const corpus: FakeCorpus = {
+      ...emptyCorpus(),
+      cards: [
+        card({ id: 'c1', slug: 'blood-libel', title: 'Blood Libel', summary: 'A medieval accusation.' }),
+        card({ id: 'c2', slug: 'zionist-as-slur', title: 'Zionist-as-Slur', summary: 'The word used as an insult.' }),
+        card({ id: 'c3', slug: 'elders-of-zion', title: 'Elders of Zion', summary: 'A forged document.' }),
+        card({ id: 'c4', slug: 'unrelated-essay', title: 'Unrelated Card', summary: 'An essay about the libel trope.' }),
+      ],
+    }
+    const server = await serve(corpus)
+    origin = server.origin
+    close = server.close
+  })
+
+  after(async () => {
+    await close()
+  })
+
+  it('returns ranked card matches for a phrase query', async () => {
+    const { status, body } = await get(origin, '/api/graph/search?q=blood%20libel')
+    assert.equal(status, 200)
+    const results = body['results'] as { id: string; type: string }[]
+    assert.ok(results.length >= 1)
+    assert.equal(results[0]?.id, 'c1')
+    assert.equal(results[0]?.type, 'card')
+  })
+
+  it('matches a partial word by prefix', async () => {
+    const { body } = await get(origin, '/api/graph/search?q=Zionis')
+    const results = body['results'] as { id: string }[]
+    assert.ok(results.some((r) => r.id === 'c2'), 'prefix must match a title')
+  })
+
+  it('orders title matches above summary-only matches', async () => {
+    const { body } = await get(origin, '/api/graph/search?q=libel')
+    const results = body['results'] as { id: string }[]
+    const titleIndex = results.findIndex((r) => r.id === 'c1')
+    const summaryIndex = results.findIndex((r) => r.id === 'c4')
+    assert.ok(titleIndex >= 0 && summaryIndex >= 0)
+    assert.ok(titleIndex < summaryIndex)
+  })
+
+  it('stamps every result with type "card" and a numeric rank', async () => {
+    const { body } = await get(origin, '/api/graph/search?q=zion')
+    const results = body['results'] as { type: string; rank: unknown; slug: string }[]
+    assert.ok(results.length >= 1)
+    for (const r of results) {
+      assert.equal(r.type, 'card')
+      assert.equal(typeof r.rank, 'number')
+      assert.ok(r.slug.length > 0)
+    }
+  })
+
+  it('returns an empty list for no matches, not an error', async () => {
+    const { status, body } = await get(origin, '/api/graph/search?q=zzzz')
+    assert.equal(status, 200)
+    assert.deepEqual(body['results'], [])
+  })
+
+  it('is 400 when q is missing', async () => {
+    const { status } = await get(origin, '/api/graph/search')
+    assert.equal(status, 400)
+  })
+
+  it('is 400 when q is a single character', async () => {
+    const { status } = await get(origin, '/api/graph/search?q=x')
+    assert.equal(status, 400)
+  })
+
+  it('is 400 when q is repeated', async () => {
+    const { status } = await get(origin, '/api/graph/search?q=a&q=b')
+    assert.equal(status, 400)
   })
 })
 

@@ -424,6 +424,96 @@ function splitList(raw: unknown): string[] {
     .filter((value) => value.length > 0)
 }
 
+/** Maximum search-term length, so a pathological `q` cannot reach the database. */
+const SEARCH_QUERY_MAX_LENGTH = 200
+
+/** Default and hard-cap result counts for `GET /api/graph/search`. */
+const SEARCH_RESULTS_DEFAULT = 10
+const SEARCH_RESULTS_MAX = 50
+
+/** A parsed, validated search request. */
+export type ParsedSearchQuery = {
+  readonly query: string
+  readonly limit: number
+}
+
+/**
+ * Parse and validate `GET /api/graph/search`.
+ *
+ * Search is a *suggestion* service, separate from projection parsing: `focus` stays
+ * slug-or-uuid, and a search term never becomes a focus. Validation is therefore
+ * deliberately lenient on vocabulary but strict on shape — a term may contain spaces,
+ * punctuation and mixed case, but must be a single string of a bounded length and must
+ * not contain control characters. `limit` is clamped rather than rejected: a result
+ * cap is a UX knob, not a safety boundary.
+ *
+ * @param query Express-style query object.
+ * @returns The validated term and result cap.
+ * @throws {GraphQueryError} `400` for a missing, repeated, empty, too-short, too-long or
+ * control-character-bearing term.
+ * @example
+ * ```ts
+ * parseSearchQuery({ q: 'blood libel' }).query; // 'blood libel'
+ * parseSearchQuery({ q: 'x' }); // throws GraphQueryError(400)
+ * ```
+ */
+export function parseSearchQuery(
+  query: Record<string, unknown>,
+): ParsedSearchQuery {
+  const raw = query.q
+  if (raw === undefined || raw === null || raw === '') {
+    throw new GraphQueryError(
+      400,
+      'q is required: a search term such as ?q=blood libel',
+    )
+  }
+  if (Array.isArray(raw)) {
+    throw new GraphQueryError(400, 'q must be given exactly once')
+  }
+  const value = String(raw).trim()
+  if (value.length < 2) {
+    throw new GraphQueryError(400, 'q must be at least 2 characters')
+  }
+  if (value.length > SEARCH_QUERY_MAX_LENGTH) {
+    throw new GraphQueryError(
+      400,
+      `q must be at most ${SEARCH_QUERY_MAX_LENGTH} characters`,
+    )
+  }
+  // Control characters would reach `websearch_to_tsquery` and turn a malformed request
+  // into a database error. Rejecting them here keeps "malformed input" a 400, not a 500.
+  if (hasControlCharacter(value)) {
+    throw new GraphQueryError(400, 'q contains control characters')
+  }
+
+  const limit = parseSearchLimit(query.limit)
+  return { query: value, limit }
+}
+
+/** Whether a string contains a C0 control character or DEL. */
+function hasControlCharacter(value: string): boolean {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index)
+    if (code <= 0x1f || code === 0x7f) return true
+  }
+  return false
+}
+
+/** Parse the optional `limit`, defaulting to 10 and clamping to `[1, 50]`. */
+function parseSearchLimit(raw: unknown): number {
+  if (raw === undefined || raw === null || raw === '') {
+    return SEARCH_RESULTS_DEFAULT
+  }
+  if (Array.isArray(raw)) {
+    throw new GraphQueryError(400, 'limit must be given exactly once')
+  }
+  const value = Number(String(raw))
+  if (!Number.isInteger(value) || value < 1) {
+    throw new GraphQueryError(400, 'limit must be a positive whole number')
+  }
+  return Math.min(value, SEARCH_RESULTS_MAX)
+}
+
 /**
  * The `GET /api/graph/views` payload: every registered view, its adjacency rules, and the
  * current row counts behind it.
