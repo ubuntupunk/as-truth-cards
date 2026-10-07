@@ -10,8 +10,10 @@
 Research and education tool for antisemitic tropes: interactive **Trope Cards**, an admin
 surface for managing the host deck, and a **Graph Explorer** over a structured claim ontology.
 
-> The GitHub repository and Render service are still named `as-truth-cards`; this document
-> uses the product name **Trope Cards**.
+> The GitHub repository is still `as-truth-cards`. The Render **service** display name is
+> `trope-cards`; the public hostname remains `https://as-truth-cards.onrender.com`. The
+> Render **project** display name (“As Truth Cards”) is dashboard-only — rename it under
+> Project → Settings.
 
 ## What this repo is
 
