@@ -11,6 +11,12 @@ import type {
   ClaimExpansion,
   ClaimRelationRow,
   ClaimRow,
+  ClaimSourceRow,
+  EvidenceClaimRow,
+  EvidenceInferenceRow,
+  EvidenceItemExpansion,
+  EvidenceItemRow,
+  EvidenceSourceRow,
   InferenceConclusionRow,
   InferencePremiseRow,
   InferenceStepExpansion,
@@ -19,6 +25,8 @@ import type {
   NodeHydration,
   NodeRefSet,
   RelationshipRow,
+  SourceExpansion,
+  SourceRow,
   TropeGraphReader,
   ViewPopulation,
 } from '../../src/graph/reader'
@@ -180,6 +188,46 @@ export function claimRelation(
   }
 }
 
+/** A `sources` bibliography row. */
+export function source(over: Partial<SourceRow> & { id: string }): SourceRow {
+  return {
+    title: `Source ${over.id}`,
+    author: null,
+    publisher: null,
+    citation: null,
+    url: null,
+    sourceType: 'BOOK',
+    ...over,
+  }
+}
+
+/** A `claim_sources` attribution row: the claim is attributed to the source. */
+export function claimSource(
+  over: Partial<ClaimSourceRow> & { claimId: string; sourceId: string },
+): ClaimSourceRow {
+  return {
+    relationship: 'ATTRIBUTED_TO',
+    quoteOrExcerpt: null,
+    pageReference: null,
+    notes: null,
+    ...over,
+  }
+}
+
+/** An `evidence_items` row: a located, inspectable portion of a source. */
+export function evidenceItem(
+  over: Partial<EvidenceItemRow> & { id: string },
+): EvidenceItemRow {
+  return {
+    type: 'QUOTATION',
+    title: `Evidence ${over.id}`,
+    content: `Evidence ${over.id} content`,
+    locator: null,
+    evidenceStatus: 'PRIMARY',
+    ...over,
+  }
+}
+
 /** The corpus a fake reader serves. */
 export type FakeCorpus = {
   cards: CardRow[]
@@ -196,6 +244,12 @@ export type FakeCorpus = {
   premises: InferencePremiseRow[]
   conclusions: InferenceConclusionRow[]
   stepRelations: InferenceStepRelationRow[]
+  sources: SourceRow[]
+  claimSources: ClaimSourceRow[]
+  evidenceItems: EvidenceItemRow[]
+  evidenceClaims: EvidenceClaimRow[]
+  evidenceSources: EvidenceSourceRow[]
+  evidenceInferences: EvidenceInferenceRow[]
   population?: Partial<ViewPopulation>
 }
 
@@ -242,6 +296,12 @@ export function emptyCorpus(): FakeCorpus {
     premises: [],
     conclusions: [],
     stepRelations: [],
+    sources: [],
+    claimSources: [],
+    evidenceItems: [],
+    evidenceClaims: [],
+    evidenceSources: [],
+    evidenceInferences: [],
   }
 }
 
@@ -332,6 +392,11 @@ export function richCorpus(): FakeCorpus {
     claimRelations: [
       claimRelation({ id: 'cr-1', sourceClaimId: 'claim-1', targetClaimId: 'claim-2' }),
     ],
+    // A bibliography row with no attribution join rows: the sources table has rows, so a view
+    // declaring `source` reports no population gap, but nothing reaches this source in a
+    // projection until a `claim_sources` row points at it. Dedicated source tests build their
+    // own corpus rather than perturbing the node and edge counts every other test asserts.
+    sources: [source({ id: 'source-1' })],
   }
 }
 
@@ -359,6 +424,16 @@ export class FakeGraphReader implements TropeGraphReader {
   async findArgumentChainByRef(ref: string): Promise<ArgumentChainRow | undefined> {
     // Like claims: uuid-only, and a non-matching reference short-circuits to undefined.
     return this.corpus.argumentChains.find((c) => c.id === ref)
+  }
+
+  async findSourceByRef(ref: string): Promise<SourceRow | undefined> {
+    // Sources carry no slug — uuid is the only identity.
+    return this.corpus.sources.find((s) => s.id === ref)
+  }
+
+  async findEvidenceItemByRef(ref: string): Promise<EvidenceItemRow | undefined> {
+    // Like sources: uuid-only.
+    return this.corpus.evidenceItems.find((e) => e.id === ref)
   }
 
   async expandCards(cardIds: readonly string[]): Promise<CardExpansion> {
@@ -401,6 +476,10 @@ export class FakeGraphReader implements TropeGraphReader {
       inferenceSteps: this.corpus.inferenceSteps.filter((s) => stepIds.has(s.id)),
       premises,
       conclusions,
+      claimSources: this.corpus.claimSources.filter((cs) => ids.has(cs.claimId)),
+      evidenceClaims: this.corpus.evidenceClaims.filter((ec) =>
+        ids.has(ec.claimId),
+      ),
     }
   }
 
@@ -426,6 +505,9 @@ export class FakeGraphReader implements TropeGraphReader {
       declaredChainLinks: this.corpus.inferenceSteps
         .filter((s) => ids.has(s.id) && s.argumentChainId)
         .map((s) => ({ stepId: s.id, chainId: s.argumentChainId as string })),
+      evidenceInferences: this.corpus.evidenceInferences.filter((ei) =>
+        ids.has(ei.inferenceId),
+      ),
     }
   }
 
@@ -437,6 +519,37 @@ export class FakeGraphReader implements TropeGraphReader {
     return {
       chainMemberships: this.corpus.chainMemberships.filter((m) =>
         ids.has(m.chainId),
+      ),
+    }
+  }
+
+  async expandSources(sourceIds: readonly string[]): Promise<SourceExpansion> {
+    this.calls.push(...sourceIds)
+    const ids = new Set(sourceIds)
+    return {
+      claimSources: this.corpus.claimSources.filter((cs) =>
+        ids.has(cs.sourceId),
+      ),
+      evidenceSources: this.corpus.evidenceSources.filter((es) =>
+        ids.has(es.sourceId),
+      ),
+    }
+  }
+
+  async expandEvidenceItems(
+    evidenceIds: readonly string[],
+  ): Promise<EvidenceItemExpansion> {
+    this.calls.push(...evidenceIds)
+    const ids = new Set(evidenceIds)
+    return {
+      evidenceClaims: this.corpus.evidenceClaims.filter((ec) =>
+        ids.has(ec.evidenceId),
+      ),
+      evidenceSources: this.corpus.evidenceSources.filter((es) =>
+        ids.has(es.evidenceId),
+      ),
+      evidenceInferences: this.corpus.evidenceInferences.filter((ei) =>
+        ids.has(ei.evidenceId),
       ),
     }
   }
@@ -484,6 +597,12 @@ export class FakeGraphReader implements TropeGraphReader {
       conclusions: this.corpus.conclusions.filter((c) =>
         stepIds.has(c.inferenceStepId),
       ),
+      sources: this.corpus.sources.filter((s) =>
+        new Set(refs.sourceIds).has(s.id),
+      ),
+      evidenceItems: this.corpus.evidenceItems.filter((e) =>
+        new Set(refs.evidenceIds).has(e.id),
+      ),
     }
   }
 
@@ -502,13 +621,14 @@ export class FakeGraphReader implements TropeGraphReader {
       cardLocales: this.corpus.cardLocales.length,
       concepts: 0,
       cardConcepts: 0,
-      sources: 0,
-      evidenceItems: 0,
+      sources: this.corpus.sources.length,
+      evidenceItems: this.corpus.evidenceItems.length,
       cases: 0,
       interpretations: 0,
       questions: 0,
       argumentChains: this.corpus.argumentChains.length,
       claimRelations: this.corpus.claimRelations.length,
+      claimSources: this.corpus.claimSources.length,
       ...over,
     }
   }

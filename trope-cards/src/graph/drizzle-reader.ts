@@ -33,18 +33,26 @@ import {
   inferenceSteps,
 } from '../db/schema/claimDecomposition'
 import {
+  evidenceClaims,
+  evidenceInferences,
+  evidenceItems,
+  evidenceSources,
+} from '../db/schema/evidenceLayer'
+import {
   cardAxes,
   cardCollections,
   cardConcepts,
   cardLocales,
   cardMechanisms,
   cards,
+  claimSources,
   claims,
   collections,
   concepts,
   locales,
   mechanisms,
   relationships,
+  sources,
 } from '../db/schema/tropeGraph'
 import type {
   ArgumentChainExpansion,
@@ -59,6 +67,12 @@ import type {
   ClaimExpansion,
   ClaimRelationRow,
   ClaimRow,
+  ClaimSourceRow,
+  EvidenceClaimRow,
+  EvidenceInferenceRow,
+  EvidenceItemExpansion,
+  EvidenceItemRow,
+  EvidenceSourceRow,
   InferenceConclusionRow,
   InferencePremiseRow,
   InferenceStepExpansion,
@@ -67,6 +81,8 @@ import type {
   NodeHydration,
   NodeRefSet,
   RelationshipRow,
+  SourceExpansion,
+  SourceRow,
   TropeGraphReader,
   ViewPopulation,
 } from './reader'
@@ -217,6 +233,63 @@ const stepRelationColumns = {
   description: inferenceStepRelations.description,
 }
 
+/** The columns the projection reads from `sources`. */
+const sourceColumns = {
+  id: sources.id,
+  title: sources.title,
+  author: sources.author,
+  publisher: sources.publisher,
+  citation: sources.citation,
+  url: sources.url,
+  // pgEnum discriminator, returned verbatim (Q5).
+  sourceType: sources.sourceType,
+}
+
+/** The columns the projection reads from `claim_sources`. */
+const claimSourceColumns = {
+  claimId: claimSources.claimId,
+  sourceId: claimSources.sourceId,
+  // Free `text` NOT NULL: whatever is stored is what the projection labels (Q5).
+  relationship: claimSources.relationship,
+  quoteOrExcerpt: claimSources.quoteOrExcerpt,
+  pageReference: claimSources.pageReference,
+  notes: claimSources.notes,
+}
+
+/** The columns the projection reads from `evidence_items`. */
+const evidenceItemColumns = {
+  id: evidenceItems.id,
+  type: evidenceItems.type,
+  title: evidenceItems.title,
+  content: evidenceItems.content,
+  locator: evidenceItems.locator,
+  // Free `text`, independent of claim/step status (Q4).
+  evidenceStatus: evidenceItems.evidenceStatus,
+}
+
+/** The columns the projection reads from `evidence_claims`. */
+const evidenceClaimColumns = {
+  evidenceId: evidenceClaims.evidenceId,
+  claimId: evidenceClaims.claimId,
+  relation: evidenceClaims.relation,
+  strength: evidenceClaims.strength,
+  notes: evidenceClaims.notes,
+}
+
+/** The columns the projection reads from `evidence_sources`. */
+const evidenceSourceColumns = {
+  evidenceId: evidenceSources.evidenceId,
+  sourceId: evidenceSources.sourceId,
+  relation: evidenceSources.relation,
+}
+
+/** The columns the projection reads from `evidence_inferences`. */
+const evidenceInferenceColumns = {
+  evidenceId: evidenceInferences.evidenceId,
+  inferenceId: evidenceInferences.inferenceId,
+  relation: evidenceInferences.relation,
+}
+
 /** Whether a focus reference is a uuid rather than a slug (Q7). */
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -301,6 +374,47 @@ export class DrizzleGraphReader implements TropeGraphReader {
       .select(chainColumns)
       .from(argumentChains)
       .where(eq(argumentChains.id, value))
+      .limit(1)
+    return rows[0]
+  }
+
+  /**
+   * Resolve a source by uuid.
+   *
+   * Sources carry no slug, so — like claims and chains — a non-uuid reference
+   * short-circuits rather than issuing a query nothing could satisfy.
+   *
+   * @param ref A source uuid.
+   * @returns The source row, or `undefined` when nothing matches.
+   */
+  async findSourceByRef(ref: string): Promise<SourceRow | undefined> {
+    const value = ref.trim()
+    if (!UUID_PATTERN.test(value)) return undefined
+    const rows = await this.client
+      .select(sourceColumns)
+      .from(sources)
+      .where(eq(sources.id, value))
+      .limit(1)
+    return rows[0]
+  }
+
+  /**
+   * Resolve an evidence item by uuid.
+   *
+   * Evidence items carry no slug; uuid is their only identity.
+   *
+   * @param ref An evidence item uuid.
+   * @returns The evidence item row, or `undefined` when nothing matches.
+   */
+  async findEvidenceItemByRef(
+    ref: string,
+  ): Promise<EvidenceItemRow | undefined> {
+    const value = ref.trim()
+    if (!UUID_PATTERN.test(value)) return undefined
+    const rows = await this.client
+      .select(evidenceItemColumns)
+      .from(evidenceItems)
+      .where(eq(evidenceItems.id, value))
       .limit(1)
     return rows[0]
   }
@@ -420,11 +534,19 @@ export class DrizzleGraphReader implements TropeGraphReader {
         inferenceSteps: [],
         premises: [],
         conclusions: [],
+        claimSources: [],
+        evidenceClaims: [],
       }
     }
     const ids = [...claimIds]
 
-    const [relationRows, premiseRows, conclusionRows] = await Promise.all([
+    const [
+      relationRows,
+      premiseRows,
+      conclusionRows,
+      claimSourceRows,
+      evidenceClaimRows,
+    ] = await Promise.all([
       this.client
         .select(claimRelationColumns)
         .from(claimRelations)
@@ -442,6 +564,14 @@ export class DrizzleGraphReader implements TropeGraphReader {
         .select(conclusionColumns)
         .from(inferenceConclusions)
         .where(inArray(inferenceConclusions.claimId, ids)),
+      this.client
+        .select(claimSourceColumns)
+        .from(claimSources)
+        .where(inArray(claimSources.claimId, ids)),
+      this.client
+        .select(evidenceClaimColumns)
+        .from(evidenceClaims)
+        .where(inArray(evidenceClaims.claimId, ids)),
     ])
 
     const stepIds = dedupe([
@@ -461,6 +591,8 @@ export class DrizzleGraphReader implements TropeGraphReader {
       inferenceSteps: stepRows,
       premises: premiseRows,
       conclusions: conclusionRows,
+      claimSources: claimSourceRows,
+      evidenceClaims: evidenceClaimRows,
     }
   }
 
@@ -479,6 +611,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
         conclusions: [],
         chainMemberships: [],
         declaredChainLinks: [],
+        evidenceInferences: [],
       }
     }
     const ids = [...inferenceStepIds]
@@ -488,6 +621,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
       conclusionRows,
       chainMemberships,
       declared,
+      evidenceInferenceRows,
     ] = await Promise.all([
       this.client
         .select(stepRelationColumns)
@@ -521,6 +655,10 @@ export class DrizzleGraphReader implements TropeGraphReader {
         })
         .from(inferenceSteps)
         .where(inArray(inferenceSteps.id, ids)),
+      this.client
+        .select(evidenceInferenceColumns)
+        .from(evidenceInferences)
+        .where(inArray(evidenceInferences.inferenceId, ids)),
     ])
     // The second attachment path: `inference_steps.argument_chain_id`, reported alongside
     // the join rows rather than merged into them, so the projection can show both.
@@ -536,6 +674,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
       conclusions: conclusionRows,
       chainMemberships,
       declaredChainLinks,
+      evidenceInferences: evidenceInferenceRows,
     }
   }
 
@@ -562,6 +701,72 @@ export class DrizzleGraphReader implements TropeGraphReader {
       )
       .where(inArray(argumentChainSteps.argumentChainId, [...chainIds]))
     return { chainMemberships }
+  }
+
+  /**
+   * Discover everything one round of source ids touches.
+   *
+   * A source's adjacency is entirely its join rows: `claim_sources` names the
+   * claims attributed to it, `evidence_sources` the items derived from it.
+   * Nothing in `sources` itself is an edge.
+   *
+   * @param sourceIds Sources on the current frontier.
+   */
+  async expandSources(sourceIds: readonly string[]): Promise<SourceExpansion> {
+    if (sourceIds.length === 0) return { claimSources: [], evidenceSources: [] }
+    const ids = [...sourceIds]
+    const [claimSourceRows, evidenceSourceRows] = await Promise.all([
+      this.client
+        .select(claimSourceColumns)
+        .from(claimSources)
+        .where(inArray(claimSources.sourceId, ids)),
+      this.client
+        .select(evidenceSourceColumns)
+        .from(evidenceSources)
+        .where(inArray(evidenceSources.sourceId, ids)),
+    ])
+    return {
+      claimSources: claimSourceRows,
+      evidenceSources: evidenceSourceRows,
+    }
+  }
+
+  /**
+   * Discover everything one round of evidence-item ids touches.
+   *
+   * The `evidence_*` layer has 0 rows in the corpus today; these queries are
+   * the live contract that starts returning data the moment evidence is seeded,
+   * with no projection change required.
+   *
+   * @param evidenceIds Evidence items on the current frontier.
+   */
+  async expandEvidenceItems(
+    evidenceIds: readonly string[],
+  ): Promise<EvidenceItemExpansion> {
+    if (evidenceIds.length === 0) {
+      return { evidenceClaims: [], evidenceSources: [], evidenceInferences: [] }
+    }
+    const ids = [...evidenceIds]
+    const [evidenceClaimRows, evidenceSourceRows, evidenceInferenceRows] =
+      await Promise.all([
+        this.client
+          .select(evidenceClaimColumns)
+          .from(evidenceClaims)
+          .where(inArray(evidenceClaims.evidenceId, ids)),
+        this.client
+          .select(evidenceSourceColumns)
+          .from(evidenceSources)
+          .where(inArray(evidenceSources.evidenceId, ids)),
+        this.client
+          .select(evidenceInferenceColumns)
+          .from(evidenceInferences)
+          .where(inArray(evidenceInferences.evidenceId, ids)),
+      ])
+    return {
+      evidenceClaims: evidenceClaimRows,
+      evidenceSources: evidenceSourceRows,
+      evidenceInferences: evidenceInferenceRows,
+    }
   }
 
   /**
@@ -628,6 +833,8 @@ export class DrizzleGraphReader implements TropeGraphReader {
       premiseRows,
       conclusionRows,
       chainMembershipRows,
+      sourceRows,
+      evidenceItemRows,
     ] = await Promise.all([
       emptyIfNo(refs.collectionIds, () =>
         this.client
@@ -692,6 +899,18 @@ export class DrizzleGraphReader implements TropeGraphReader {
           )
           .where(inArray(argumentChainSteps.argumentChainId, refs.chainIds)),
       ),
+      emptyIfNo(refs.sourceIds, () =>
+        this.client
+          .select(sourceColumns)
+          .from(sources)
+          .where(inArray(sources.id, refs.sourceIds)),
+      ),
+      emptyIfNo(refs.evidenceIds, () =>
+        this.client
+          .select(evidenceItemColumns)
+          .from(evidenceItems)
+          .where(inArray(evidenceItems.id, refs.evidenceIds)),
+      ),
     ])
 
     const mergedMembershipByKey = new Map<string, ArgumentChainMembershipRow>()
@@ -733,6 +952,8 @@ export class DrizzleGraphReader implements TropeGraphReader {
       chainMemberships: mergedMembershipRows,
       premises: premiseRows,
       conclusions: conclusionRows,
+      sources: sourceRows,
+      evidenceItems: evidenceItemRows,
     }
   }
 
@@ -761,6 +982,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
         (SELECT count(*) FROM trope_graph.questions)::int       AS questions,
         (SELECT count(*) FROM trope_graph.argument_chains)::int AS argument_chains,
         (SELECT count(*) FROM trope_graph.claim_relations)::int AS claim_relations,
+        (SELECT count(*) FROM trope_graph.claim_sources)::int  AS claim_sources,
         (SELECT count(*) FROM trope_graph.locales)::int         AS locales,
         (SELECT count(*) FROM trope_graph.card_locales)::int    AS card_locales
     `)
@@ -781,6 +1003,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
       questions: num(row?.questions),
       argumentChains: num(row?.argument_chains),
       claimRelations: num(row?.claim_relations),
+      claimSources: num(row?.claim_sources),
       locales: num(row?.locales),
       cardLocales: num(row?.card_locales),
     }
@@ -807,6 +1030,7 @@ type PopulationRow = {
   questions: number
   argument_chains: number
   claim_relations: number
+  claim_sources: number
   locales: number
   card_locales: number
 }
@@ -931,6 +1155,36 @@ export type SelectedRowChecks = [
   Awaited<
     ReturnType<DrizzleGraphReader['expandInferenceSteps']>
   >['stepRelations'][number] extends InferenceStepRelationRow
+    ? true
+    : never,
+  Awaited<
+    ReturnType<DrizzleGraphReader['hydrate']>
+  >['sources'][number] extends SourceRow
+    ? true
+    : never,
+  Awaited<
+    ReturnType<DrizzleGraphReader['hydrate']>
+  >['evidenceItems'][number] extends EvidenceItemRow
+    ? true
+    : never,
+  Awaited<
+    ReturnType<DrizzleGraphReader['expandClaims']>
+  >['claimSources'][number] extends ClaimSourceRow
+    ? true
+    : never,
+  Awaited<
+    ReturnType<DrizzleGraphReader['expandClaims']>
+  >['evidenceClaims'][number] extends EvidenceClaimRow
+    ? true
+    : never,
+  Awaited<
+    ReturnType<DrizzleGraphReader['expandSources']>
+  >['evidenceSources'][number] extends EvidenceSourceRow
+    ? true
+    : never,
+  Awaited<
+    ReturnType<DrizzleGraphReader['expandInferenceSteps']>
+  >['evidenceInferences'][number] extends EvidenceInferenceRow
     ? true
     : never,
 ]

@@ -76,7 +76,7 @@ export const NODE_TYPE_COLORS: Record<GraphNodeType, string> = {
 /**
  * Line/arrow colour per edge family.
  *
- * The five `EdgeFamily` members. Same compile-time guarantee as
+ * The seven `EdgeFamily` members. Same compile-time guarantee as
  * {@link NODE_TYPE_COLORS}: a new family cannot ship unstyled.
  */
 export const EDGE_FAMILY_COLORS: Record<EdgeFamily, string> = {
@@ -85,6 +85,8 @@ export const EDGE_FAMILY_COLORS: Record<EdgeFamily, string> = {
   inference: '#6d28d9',
   card_relationship: '#0e7490',
   classification: '#15803d',
+  source: '#0369a1',
+  evidence: '#be185d',
 }
 
 /**

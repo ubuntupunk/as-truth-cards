@@ -249,6 +249,8 @@ const SUPPORTED_EDGE_FAMILIES: ReadonlySet<string> = new Set<EdgeFamily>([
   'inference',
   'card_relationship',
   'classification',
+  'source',
+  'evidence',
 ])
 
 /**

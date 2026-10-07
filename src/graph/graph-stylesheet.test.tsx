@@ -56,8 +56,8 @@ describe('GRAPH_STYLESHEET structure', () => {
     const families = Object.keys(EDGE_FAMILY_COLORS) as EdgeFamily[]
     assert.equal(
       families.length,
-      5,
-      'the domain should have five edge families',
+      7,
+      'the domain should have seven edge families: five original plus source and evidence',
     )
     for (const family of families) {
       const hits = list.filter((selector) => selector === `.family-${family}`)

@@ -328,7 +328,14 @@ export type TaxonomyNodeMetadata = {
   readonly definition: string | null
 }
 
-/** Source nodes exist in the model; `sources` has 0 rows, so no view emits one yet. */
+/**
+ * A bibliographic source: the publication a claim was read from.
+ *
+ * Projected from `sources`. Sources carry no truth claim of their own — a bibliography
+ * entry is not an assertion — which is why {@link SourceNode} has `status: 'none'`, and
+ * why a source reaches the graph only through an authored `claim_sources` attribution
+ * row (family `'source'`) or an `evidence_sources` derivation row (family `'evidence'`).
+ */
 export type SourceNodeMetadata = {
   readonly title: string
   readonly author: string | null
@@ -338,7 +345,14 @@ export type SourceNodeMetadata = {
   readonly sourceType: string | null
 }
 
-/** Evidence nodes exist in the model; the whole `evidence_*` layer is schema-only today. */
+/**
+ * A located passage, data point, or documentary feature a claim or step rests on.
+ *
+ * Projected from `evidence_items`. The whole `evidence_*` layer is currently unpopulated
+ * (0 rows), so no view emits one until evidence rows exist — see `view.blockingGaps`
+ * and the UI's "0 rows in the corpus" signal, which is how an unpopulated layer stays
+ * distinguishable from a failed load.
+ */
 export type EvidenceItemNodeMetadata = {
   readonly evidenceType: string
   readonly locator: string | null
@@ -496,8 +510,8 @@ export type GraphNode =
  *
  * `SUPPORTS` alone appears as a `claim_relation_type`, a `relationship_type`, an
  * `evidence_claims.relation` string and an `inference_premise_role`-adjacent concept. The
- * design doc's §4.1 table lists five such vocabularies; the families below name the four
- * that participate in a v1 projection.
+ * design doc's §4.1 table lists the vocabularies; the families below name the seven that
+ * participate in a v1 projection.
  */
 export type EdgeFamily =
   /** `claims.card_id`: a card asserts a claim. The only assertion-direction edge in v1. */
@@ -510,6 +524,25 @@ export type EdgeFamily =
   | 'card_relationship'
   /** `card_collections`, `card_mechanisms`: browse/analytical facets, semantically not argument edges. */
   | 'classification'
+  /**
+   * `claim_sources`: an authored citation of a source by a claim.
+   *
+   * Deliberately its own family rather than a member of `'evidence'` or
+   * `'claim_relation'`: an attribution says *where a claim was read*, not what any
+   * passage supports. This is the edge Priority 2 forbids rendering as "supports" —
+   * `Claim --ATTRIBUTED_TO--> Source` and `Evidence --SUPPORTS--> Claim` are unrelated
+   * vocabularies with unrelated endpoints, and only the family keeps them apart.
+   */
+  | 'source'
+  /**
+   * `evidence_claims`, `evidence_sources`, `evidence_inferences`: the evidential layer.
+   *
+   * One family across the three evidence tables because their relation words do not
+   * collide with each other (`SUPPORTS`/`CHALLENGES`/… vs `DERIVED_FROM` vs `USED_BY`)
+   * and {@link GraphEdge.sourceTable} always names the exact table; splitting them would
+   * multiply families without adding a distinction a consumer can act on.
+   */
+  | 'evidence'
 
 /**
  * The edge `type`, keyed by the family that produced it.
@@ -557,6 +590,32 @@ export type GraphEdgeType =
    * `GraphEdge.attributes.relationship`.
    */
   | { readonly family: 'classification'; readonly value: 'HAS_CONCEPT' }
+  /**
+   * A claim cites a source: `claim_sources`.
+   *
+   * `value` is open `string` because the column is uncontrolled `text`, not an enum —
+   * the schema derives vocabulary unions from `pgEnum` declarations (see the module
+   * header), and restating a literal union for a text column would let an editor insert
+   * a value the type claims cannot exist. The documented vocabulary is `ATTRIBUTED_TO`
+   * (the only value the seed emits); `claim_sources.relationship` may also carry intent
+   * words such as `INFORMS` or `CRITIQUES`. Never rendered as support: attribution is
+   * provenance, not evidence.
+   *
+   * Authoring detail rides in `attributes`: `quoteOrExcerpt`, `pageReference`, `notes`.
+   */
+  | { readonly family: 'source'; readonly value: string }
+  /**
+   * The evidential relation asserted between an evidence item and a claim, a source, or
+   * a reasoning step: `evidence_claims`, `evidence_sources`, `evidence_inferences`.
+   *
+   * Also open `string` for the same reason. Documented vocabularies (docs/EVIDENCE_LAYER.md):
+   * `evidence_claims.relation` — SUPPORTS, CHALLENGES, QUALIFIES, CONTEXTUALISES,
+   * ILLUSTRATES, REPORTS, ATTRIBUTES (they assert what the editor claims the passage
+   * does; they do not by themselves make the claim true); `evidence_sources.relation` —
+   * DERIVED_FROM; `evidence_inferences.relation` — USED_BY. `GraphEdge.sourceTable`
+   * names which of the three tables produced the row.
+   */
+  | { readonly family: 'evidence'; readonly value: string }
 
 /**
  * A resolved edge.

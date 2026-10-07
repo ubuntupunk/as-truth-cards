@@ -28,6 +28,7 @@ import {
   HARD_MAX_DEPTH,
   HARD_MAX_NODES,
   isGraphView,
+  viewBlockingGaps,
 } from './views'
 
 /** Every node type a filter may name, taken from the model rather than restated. */
@@ -46,7 +47,7 @@ const NODE_TYPES = [
   'question',
 ] as const satisfies readonly GraphNodeType[]
 
-/** Every relation word a filter may name, across all five vocabularies. */
+/** Every relation word a filter may name, across the model's seven edge vocabularies. */
 const EDGE_TYPE_VALUES = [
   // domain
   'ASSERTS',
@@ -65,6 +66,7 @@ const EDGE_TYPE_VALUES = [
   // classification
   'IN_SUIT',
   'HAS_MECHANISM',
+  'HAS_CONCEPT',
   // inference
   'PREMISE_OF',
   'CONCLUDES',
@@ -72,6 +74,18 @@ const EDGE_TYPE_VALUES = [
   'ALTERNATIVE_TO',
   'DEPENDS_ON',
   'REFINES',
+  // claim_sources.relationship (free text; seed vocabulary ATTRIBUTED_TO)
+  'ATTRIBUTED_TO',
+  'INFORMS',
+  'CRITIQUES',
+  // evidence_claims.relation
+  'ILLUSTRATES',
+  'REPORTS',
+  'ATTRIBUTES',
+  // evidence_sources.relation (default DERIVED_FROM)
+  'DERIVED_FROM',
+  // evidence_inferences.relation (default USED_BY)
+  'USED_BY',
 ] as const
 
 /** Edge families a filter may qualify a relation word with. */
@@ -81,6 +95,8 @@ const EDGE_FAMILIES = [
   'inference',
   'card_relationship',
   'classification',
+  'source',
+  'evidence',
 ] as const
 
 /** A parsed, validated projection request. */
@@ -169,17 +185,18 @@ export function parseGraphQuery(
 }
 
 /**
- * `focus` is required: a card slug, or a uuid naming a card, claim or argument chain (Q7).
+ * `focus` is required: a card slug, or a uuid naming a card, claim, argument chain,
+ * source or evidence item (Q7).
  *
- * Claims and argument chains carry no slug, so only the card table answers to a slug;
- * every other type must be addressed by its canonical uuid.
+ * Only the card table answers to a slug; every other type must be addressed by its
+ * canonical uuid.
  */
 function parseFocus(raw: unknown): string {
   if (raw === undefined || raw === null || raw === '') {
     throw new GraphQueryError(
       400,
-      'focus is required: pass a uuid for a card, claim or argument chain, or ' +
-        'a card slug such as ?focus=jesus-was-a-zionist',
+      'focus is required: pass a uuid for a card, claim, argument chain, source or ' +
+        'evidence item, or a card slug such as ?focus=jesus-was-a-zionist',
     )
   }
   if (Array.isArray(raw)) {
@@ -439,7 +456,7 @@ export function describeViews(
   population: typeof population
 } {
   const views = [...GRAPH_VIEWS.values()].map((view) => {
-    const gaps = blockingGaps(view, population)
+    const gaps = viewBlockingGaps(view, population)
     return {
       name: view.name,
       description: view.description,
@@ -456,39 +473,6 @@ export function describeViews(
   })
 
   return { views, population }
-}
-
-/**
- * Which of a view's declared node types have no rows behind them.
- *
- * The reason strings name the table, so a `blockingGap` points at the corpus task that would
- * close it rather than at the projection that would have to change.
- */
-function blockingGaps(
-  view: GraphViewRule,
-  population: Awaited<
-    ReturnType<import('./reader').TropeGraphReader['readPopulation']>
-  >,
-): string[] {
-  const gaps: string[] = []
-  const check = (type: GraphNodeType, count: number, table: string): void => {
-    if (!view.nodeTypes.includes(type)) return
-    if (count > 0) return
-    gaps.push(`${type}: trope_graph.${table} has 0 rows`)
-  }
-  check('card', population.cards, 'cards')
-  check('claim', population.claims, 'claims')
-  check('inference_step', population.inferenceSteps, 'inference_steps')
-  check('argument_chain', population.argumentChains, 'argument_chains')
-  check('collection', population.collections, 'collections')
-  check('mechanism', population.mechanisms, 'mechanisms')
-  check('concept', population.cardConcepts, 'card_concepts')
-  check('source', population.sources, 'sources')
-  check('evidence_item', population.evidenceItems, 'evidence_items')
-  check('case', population.cases, 'cases')
-  check('interpretation', population.interpretations, 'interpretations')
-  check('question', population.questions, 'questions')
-  return gaps
 }
 
 /** The relation words a view can traverse, for documentation and client-side validation. */

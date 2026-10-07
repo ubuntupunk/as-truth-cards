@@ -32,8 +32,11 @@ import {
   card,
   claim,
   claimRelation,
+  claimSource,
   emptyCorpus,
+  evidenceItem,
   richCorpus,
+  source,
 } from './helpers/fake-graph-reader'
 import type { FakeCorpus } from './helpers/fake-graph-reader'
 
@@ -335,6 +338,73 @@ describe('projection -> Cytoscape', () => {
       assert.equal(element.data.family, edge.family)
       assert.equal(element.data.sourceTable, edge.sourceTable)
     }
+  })
+
+  it('presents source and evidence edges, keeping family, relation and source table distinct', async () => {
+    // Slice-3 regression: the adapter's whitelist used to know five edge families, so an
+    // attribution or evidence edge passed the projection guard and then threw here as
+    // "unsupported family", flipping the whole view to Malformed. The two new families must
+    // survive lossless and never be confused with each other or with `claim_relation`.
+    const corpus = emptyCorpus()
+    corpus.cards = [card({ id: 'card-1', slug: 'jesus-was-a-zionist' })]
+    corpus.claims = [
+      claim({
+        id: 'claim-1',
+        cardId: 'card-1',
+        statement: 'The source contains a claim.',
+      }),
+    ]
+    corpus.sources = [source({ id: 'source-1', title: 'The Source' })]
+    corpus.claimSources = [
+      claimSource({ claimId: 'claim-1', sourceId: 'source-1' }),
+    ]
+    corpus.evidenceItems = [evidenceItem({ id: 'ev-1' })]
+    corpus.evidenceClaims = [
+      {
+        evidenceId: 'ev-1',
+        claimId: 'claim-1',
+        relation: 'SUPPORTS',
+        strength: 'STRONG',
+        notes: null,
+      },
+    ]
+    corpus.evidenceSources = [
+      { evidenceId: 'ev-1', sourceId: 'source-1', relation: 'DERIVED_FROM' },
+    ]
+    const evidenceView = getGraphView('evidence')!
+    const projection = await projectGraph(new FakeGraphReader(corpus), {
+      focus: 'claim-1',
+      view: evidenceView,
+      depth: 2,
+      maxNodes: DEFAULT_MAX_NODES,
+    })
+    const { elements } = toCytoscapePresentation(projection)
+
+    const sourceEdge = edgeElements(elements).find((e) => e.data.family === 'source')
+    assert.ok(sourceEdge, 'the claim -> source attribution must survive the adapter')
+    assert.equal(sourceEdge.data.relation, 'ATTRIBUTED_TO')
+    assert.equal(sourceEdge.data.sourceTable, 'claim_sources')
+
+    const evidenceEdges = edgeElements(elements).filter(
+      (e) => e.data.family === 'evidence',
+    )
+    assert.equal(
+      evidenceEdges.length,
+      2,
+      'SUPPORTS (evidence_claims) and DERIVED_FROM (evidence_sources)',
+    )
+    const supports = evidenceEdges.find((e) => e.data.relation === 'SUPPORTS')
+    assert.ok(supports, 'the evidence SUPPORTS edge must survive')
+    assert.equal(supports.data.sourceTable, 'evidence_claims')
+    assert.equal(supports.data.projectionAttributes.strength, 'STRONG')
+    assert.ok(
+      evidenceEdges.some((e) => e.data.relation === 'DERIVED_FROM'),
+      'the evidence -> source edge must survive',
+    )
+
+    const cy = cytoscape({ headless: true, elements })
+    assert.equal(cy.nodes().length, projection.nodes.length)
+    assert.equal(cy.edges().length, projection.edges.length)
   })
 
   it('keeps HAS_CONCEPT distinct from HAS_MECHANISM, as separate relations and separate edges', async () => {

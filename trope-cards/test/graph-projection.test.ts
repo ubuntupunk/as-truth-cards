@@ -25,13 +25,16 @@ import {
   card,
   chain,
   claim,
+  claimSource,
   conceptLink,
   emptyCorpus,
+  evidenceItem,
   link,
   localeLink,
   membership,
   relationship,
   richCorpus,
+  source,
   step,
 } from './helpers/fake-graph-reader'
 import type { FakeCorpus } from './helpers/fake-graph-reader'
@@ -548,6 +551,10 @@ describe('invariant 6: the projection introduces no second ontology', () => {
       'card_collections',
       'card_mechanisms',
       'card_concepts',
+      'claim_sources',
+      'evidence_claims',
+      'evidence_sources',
+      'evidence_inferences',
     ])
     for (const edge of result.edges) {
       assert.ok(
@@ -1230,6 +1237,345 @@ describe('claim and chain focus', () => {
     const firstChain = step.metadata.chains[0]
     assert.ok(firstChain)
     assert.equal(firstChain.id, 'chain-1')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Slice 3: source attribution (claim_sources) and the evidence layer
+// ---------------------------------------------------------------------------
+
+/** richCorpus plus one authored attribution: `claim-1` is read from `source-1`. */
+function attributedCorpus(): FakeCorpus {
+  const corpus = richCorpus()
+  corpus.sources = [
+    source({
+      id: 'source-1',
+      title: 'Pilgrims and Patriots',
+      author: 'Sarah Rachel',
+      publisher: 'University of Cape Town Press',
+      citation: 'Rachel, S. (1990). Pilgrims and Patriots.',
+      url: 'https://example.org/pilgrims',
+    }),
+  ]
+  corpus.claimSources = [
+    claimSource({
+      claimId: 'claim-1',
+      sourceId: 'source-1',
+      quoteOrExcerpt: 'a quotation the claim was read from',
+      pageReference: 'p. 12',
+    }),
+  ]
+  return corpus
+}
+
+/** An attributed corpus that also carries one complete evidence path. */
+function evidenceCorpus(): FakeCorpus {
+  const corpus = attributedCorpus()
+  corpus.evidenceItems = [evidenceItem({ id: 'ev-1' })]
+  corpus.evidenceClaims = [
+    { evidenceId: 'ev-1', claimId: 'claim-1', relation: 'SUPPORTS', strength: 'STRONG', notes: null },
+  ]
+  corpus.evidenceSources = [
+    { evidenceId: 'ev-1', sourceId: 'source-1', relation: 'DERIVED_FROM' },
+  ]
+  corpus.evidenceInferences = [
+    { evidenceId: 'ev-1', inferenceId: 'step-1', relation: 'USED_BY' },
+  ]
+  return corpus
+}
+
+describe('slice 3: source attribution is projected as authored, never as support', () => {
+  it('emits claim -> source from claim_sources, direction never reversed', async () => {
+    const { result } = await project(attributedCorpus(), { depth: 3 })
+    const sourceEdges = result.edges.filter((e) => e.family === 'source')
+    assert.equal(sourceEdges.length, 1, 'exactly one authored attribution exists')
+    const edge = sourceEdges[0]
+    assert.ok(edge)
+    assert.equal(edge.type.value, 'ATTRIBUTED_TO')
+    assert.equal(edge.from, 'claim-1')
+    assert.equal(edge.to, 'source-1')
+    assert.equal(edge.sourceTable, 'claim_sources')
+    assert.equal(
+      edge.id,
+      buildEdgeId('source', 'claim-1', 'ATTRIBUTED_TO', 'source-1'),
+    )
+  })
+
+  it('never labels an attribution with a support vocabulary, and carries only the authored columns', async () => {
+    const { result } = await project(attributedCorpus(), { depth: 3 })
+    const edge = result.edges.find((e) => e.family === 'source')!
+    assert.equal(edge.type.value, 'ATTRIBUTED_TO')
+    assert.notEqual(edge.type.value, 'SUPPORTS')
+    assert.deepEqual(edge.attributes, {
+      quoteOrExcerpt: 'a quotation the claim was read from',
+      pageReference: 'p. 12',
+      notes: null,
+    })
+    assert.equal(edge.traversal, 'bidirectional')
+  })
+
+  it('gives the source node status none — a bibliography entry asserts nothing', async () => {
+    const { result } = await project(attributedCorpus(), { depth: 3 })
+    const sources = nodesOfType(result.nodes, 'source')
+    assert.equal(sources.length, 1)
+    const node = sources[0]
+    assert.ok(node)
+    assert.equal(node.id, 'source-1')
+    assert.equal(node.label, 'Pilgrims and Patriots')
+    assert.deepEqual(node.status, { source: 'none', value: null })
+    assert.equal(node.isFocus, false)
+    assert.ok(node.depth >= 1, 'the source sits at least one hop from the card focus')
+  })
+
+  it('carries the source metadata verbatim, with no description invented for it', async () => {
+    const { result } = await project(attributedCorpus(), { depth: 3 })
+    const node = nodesOfType(result.nodes, 'source')[0]
+    assert.ok(node)
+    assert.deepEqual(node.metadata, {
+      title: 'Pilgrims and Patriots',
+      author: 'Sarah Rachel',
+      publisher: 'University of Cape Town Press',
+      citation: 'Rachel, S. (1990). Pilgrims and Patriots.',
+      url: 'https://example.org/pilgrims',
+      sourceType: 'BOOK',
+    })
+  })
+
+  it('emits one attribution edge when both frontiers discover the same row', async () => {
+    // Depth 3 walks claim -> source -> claim, so the `claim_sources` row is discovered from
+    // the claim frontier and again from the source frontier. The edge id is byte-identical,
+    // so the edges map folds the two into one rather than duplicating the attribution.
+    const { result } = await project(attributedCorpus(), { depth: 3 })
+    const sourceEdges = result.edges.filter((e) => e.family === 'source')
+    assert.equal(sourceEdges.length, 1)
+    const ids = result.edges.map((e) => e.id)
+    assert.equal(new Set(ids).size, ids.length, 'no duplicate edge id may survive')
+  })
+
+  it('does not traverse attribution in taxonomy, which follows classification only', async () => {
+    const taxonomy = getGraphView('taxonomy')!
+    const { result } = await project(attributedCorpus(), {
+      view: taxonomy,
+      depth: 3,
+    })
+    assert.equal(
+      result.edges.filter((e) => e.family === 'source').length,
+      0,
+      'taxonomy declares no source family',
+    )
+    assert.equal(nodesOfType(result.nodes, 'source').length, 0)
+  })
+
+  it('drops attribution in identity-retrojection, which excludes source by scope', async () => {
+    const identity = getGraphView('identity-retrojection')!
+    const { result } = await project(attributedCorpus(), {
+      view: identity,
+      depth: 3,
+    })
+    assert.equal(
+      result.edges.filter((e) => e.family === 'source').length,
+      0,
+      'the identity view neither traverses nor emits source',
+    )
+    assert.equal(nodesOfType(result.nodes, 'source').length, 0)
+  })
+})
+
+describe('slice 3: a source can be the focus where the view accepts one', () => {
+  it('resolves a source uuid as focus in the evidence view and reaches its claims', async () => {
+    const evidenceView = getGraphView('evidence')!
+    const { result } = await project(attributedCorpus(), {
+      focus: 'source-1',
+      view: evidenceView,
+      depth: 2,
+    })
+    assert.deepEqual(result.focus, {
+      id: 'source-1',
+      type: 'source',
+      slug: null,
+    })
+    const focusNodes = result.nodes.filter((n) => n.isFocus)
+    assert.equal(focusNodes.length, 1)
+    const focusNode = focusNodes[0]
+    assert.ok(focusNode)
+    assert.equal(focusNode.type, 'source')
+    assert.equal(focusNode.depth, 0)
+    // The source frontier discovers the claim it attributes, through the same row.
+    assert.ok(
+      result.nodes.some((n) => n.type === 'claim' && n.id === 'claim-1'),
+      'the attributed claim must be reachable from the source side',
+    )
+    const edge = result.edges.find((e) => e.family === 'source')
+    assert.ok(edge)
+    assert.equal(edge.from, 'claim-1')
+    assert.equal(edge.to, 'source-1')
+  })
+
+  it('refuses a source focus in the default view rather than silently re-focusing', async () => {
+    const reader = new FakeGraphReader(attributedCorpus())
+    await assert.rejects(
+      projectGraph(reader, {
+        focus: 'source-1',
+        view,
+        depth: 1,
+        maxNodes: DEFAULT_MAX_NODES,
+      }),
+      (err: unknown) => {
+        assert.ok(err instanceof GraphFocusNotFoundError)
+        assert.match(err.message, /does not accept a source as a focus/)
+        return true
+      },
+    )
+  })
+
+  it('404s an unknown source uuid the same way an unknown card does', async () => {
+    const evidenceView = getGraphView('evidence')!
+    const reader = new FakeGraphReader(attributedCorpus())
+    await assert.rejects(
+      projectGraph(reader, {
+        focus: 'no-such-source',
+        view: evidenceView,
+        depth: 1,
+        maxNodes: DEFAULT_MAX_NODES,
+      }),
+      (err: unknown) => {
+        assert.ok(err instanceof GraphFocusNotFoundError)
+        assert.match(err.message, /no card, claim, argument chain, source or evidence item/)
+        return true
+      },
+    )
+  })
+})
+
+describe('slice 3: evidence items project on their own family, with their own status', () => {
+  it('emits evidence -> claim from evidence_claims, never as a claim relation', async () => {
+    const evidenceView = getGraphView('evidence')!
+    const { result } = await project(evidenceCorpus(), {
+      focus: 'claim-1',
+      view: evidenceView,
+      depth: 2,
+    })
+    const edge = result.edges.find((e) => e.sourceTable === 'evidence_claims')
+    assert.ok(edge, 'the evidence_claims row must project')
+    assert.equal(edge.family, 'evidence')
+    assert.notEqual(edge.family, 'claim_relation')
+    assert.equal(edge.type.value, 'SUPPORTS')
+    assert.equal(edge.from, 'ev-1')
+    assert.equal(edge.to, 'claim-1')
+    assert.deepEqual(edge.attributes, { strength: 'STRONG', notes: null })
+  })
+
+  it('keeps evidence_claims.strength on the edge, never on the evidence node', async () => {
+    const evidenceView = getGraphView('evidence')!
+    const { result } = await project(evidenceCorpus(), {
+      focus: 'claim-1',
+      view: evidenceView,
+      depth: 2,
+    })
+    const node = nodesOfType(result.nodes, 'evidence_item')[0]
+    assert.ok(node, 'the evidence item must be emitted')
+    assert.equal(node.metadata.strength, null)
+    const edge = result.edges.find((e) => e.sourceTable === 'evidence_claims')!
+    assert.equal(edge.attributes['strength'], 'STRONG')
+  })
+
+  it('gives an evidence item evidence_status, never the epistemic enum', async () => {
+    const evidenceView = getGraphView('evidence')!
+    const { result } = await project(evidenceCorpus(), {
+      focus: 'claim-1',
+      view: evidenceView,
+      depth: 2,
+    })
+    const node = nodesOfType(result.nodes, 'evidence_item')[0]
+    assert.ok(node)
+    assert.deepEqual(node.status, {
+      source: 'evidence_status',
+      value: 'PRIMARY',
+      vocabulary: 'uncontrolled',
+    })
+    assert.equal(node.metadata.evidenceType, 'QUOTATION')
+    assert.equal(node.metadata.locator, null)
+    assert.equal(node.metadata.quoteOrExcerpt, 'Evidence ev-1 content')
+  })
+
+  it('emits evidence -> source and evidence -> step with their authored relations', async () => {
+    const evidenceView = getGraphView('evidence')!
+    const { result } = await project(evidenceCorpus(), {
+      focus: 'claim-1',
+      view: evidenceView,
+      depth: 3,
+    })
+    const derivation = result.edges.find(
+      (e) => e.sourceTable === 'evidence_sources',
+    )
+    assert.ok(derivation, 'evidence_sources must project')
+    assert.equal(derivation.from, 'ev-1')
+    assert.equal(derivation.to, 'source-1')
+    assert.equal(derivation.type.value, 'DERIVED_FROM')
+    const citation = result.edges.find(
+      (e) => e.sourceTable === 'evidence_inferences',
+    )
+    assert.ok(citation, 'evidence_inferences must project')
+    assert.equal(citation.from, 'ev-1')
+    assert.equal(citation.to, 'step-1')
+    assert.equal(citation.type.value, 'USED_BY')
+  })
+
+  it('does not traverse evidence rows in the default view', async () => {
+    const { result } = await project(evidenceCorpus(), { depth: 3 })
+    assert.equal(
+      result.edges.filter((e) => e.family === 'evidence').length,
+      0,
+      'v1 declares neither the evidence family nor the node type',
+    )
+    assert.equal(nodesOfType(result.nodes, 'evidence_item').length, 0)
+    // The source half still resolves in the default view: attribution is populated and
+    // declared, even in the same corpus that carries evidence rows.
+    assert.equal(result.edges.filter((e) => e.family === 'source').length, 1)
+  })
+})
+
+describe('slice 3: data-blocked warnings read the corpus, not the hydration', () => {
+  it('names the empty table behind the evidence view', async () => {
+    const evidenceView = getGraphView('evidence')!
+    const { result } = await project(richCorpus(), {
+      focus: 'claim-1',
+      view: evidenceView,
+      depth: 2,
+    })
+    const warning = result.meta.warnings.find((w) =>
+      w.includes('data-blocked'),
+    )
+    assert.ok(
+      warning,
+      `expected a data-blocked warning, got ${JSON.stringify(result.meta.warnings)}`,
+    )
+    assert.match(warning, /evidence_items has 0 rows/)
+    assert.match(warning, /empty projection, not an error/)
+  })
+
+  it('stays silent when the corpus has rows this focus merely did not reach', async () => {
+    // depth 0 hydrates only the focused claim: no evidence item is reached, but
+    // `evidence_items` has a row in the corpus, so there is nothing blocked to report.
+    const evidenceView = getGraphView('evidence')!
+    const { result } = await project(evidenceCorpus(), {
+      focus: 'claim-1',
+      view: evidenceView,
+      depth: 0,
+    })
+    assert.equal(nodesOfType(result.nodes, 'evidence_item').length, 0)
+    assert.ok(
+      !result.meta.warnings.some((w) => w.includes('data-blocked')),
+      `an unpopulated-hydration warning would misreport the corpus: ${JSON.stringify(result.meta.warnings)}`,
+    )
+  })
+
+  it('never warns about population on an implemented view', async () => {
+    const { result } = await project(attributedCorpus(), { depth: 3 })
+    assert.ok(
+      !result.meta.warnings.some((w) => w.includes('data-blocked')),
+      'implemented views have nothing blocked to report',
+    )
   })
 })
 

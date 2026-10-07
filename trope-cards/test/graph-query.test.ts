@@ -64,6 +64,10 @@ describe('focus', () => {
   it('requires focus', () => {
     const error = rejects({}, 400)
     assert.match(error.detail, /focus is required/)
+    // The parse error doubles as the vocabulary contract: a source or evidence uuid is a
+    // first-class focus, and the message must say so before any lookup happens.
+    assert.match(error.detail, /source/)
+    assert.match(error.detail, /evidence/)
   })
 
   it('rejects an empty focus rather than resolving it', () => {
@@ -193,8 +197,10 @@ describe('include', () => {
   it('refuses to widen the view', () => {
     // The dangerous case: asking for a node type the view cannot emit would either be silently
     // ignored, leaving the caller with a smaller graph than requested, or would require the
-    // projection to invent nodes it has no rows for.
-    const error = rejects({ focus: 'card-1', include: 'source' }, 400)
+    // projection to invent nodes it has no rows for. `evidence_item` is excluded by scope
+    // (empty evidence layer), so it is the widening request the default view still refuses —
+    // `source` no longer is: the default view emits attribution sources.
+    const error = rejects({ focus: 'card-1', include: 'evidence_item' }, 400)
     assert.match(error.detail, /cannot emit/)
     assert.match(error.detail, /narrows a view/)
   })
@@ -309,13 +315,16 @@ describe('describeViews', () => {
     cardConcepts: 0,
     locales: 1,
     cardLocales: 7,
-    sources: 0,
+    // The live corpus: 3 bibliography rows behind the 6 `claim_sources` attributions, so a
+    // view declaring `source` reports no gap. The evidence layer stays at 0 on purpose.
+    sources: 3,
     evidenceItems: 0,
     cases: 0,
     interpretations: 0,
     questions: 0,
     argumentChains: 2,
     claimRelations: 0,
+    claimSources: 6,
   }
 
   it('reports every registered view with its rules', () => {

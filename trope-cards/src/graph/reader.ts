@@ -192,6 +192,79 @@ export type ArgumentChainMembershipRow = {
   readonly kind: ArgumentChainKindValue
 }
 
+/**
+ * One `sources` row.
+ *
+ * A bibliographic object. Reaching one is never a property of this table —
+ * every source enters the projection through an authored join row
+ * (`claim_sources` or `evidence_sources`), so a row here alone implies nothing
+ * about graph membership.
+ */
+export type SourceRow = {
+  readonly id: string
+  readonly title: string
+  readonly author: string | null
+  readonly publisher: string | null
+  readonly citation: string | null
+  readonly url: string | null
+  /** pgEnum `source_type`, returned verbatim like other untrusted discriminators. */
+  readonly sourceType: string
+}
+
+/**
+ * One `claim_sources` row: a claim's authored attribution to a source.
+ *
+ * `relationship` is free `text` NOT NULL with no enum behind it; the seed only
+ * ever writes `ATTRIBUTED_TO` today, but the reader returns whatever is stored
+ * and the projection decides how to label an unrecognised value (Q5).
+ */
+export type ClaimSourceRow = {
+  readonly claimId: string
+  readonly sourceId: string
+  readonly relationship: string
+  readonly quoteOrExcerpt: string | null
+  readonly pageReference: string | null
+  readonly notes: string | null
+}
+
+/**
+ * One `evidence_items` row: a located, inspectable portion of a source.
+ *
+ * `evidenceStatus` is free text (default `PRIMARY`) describing this item only —
+ * deliberately never merged with claim or step status (Q4).
+ */
+export type EvidenceItemRow = {
+  readonly id: string
+  readonly type: string
+  readonly title: string
+  readonly content: string
+  readonly locator: string | null
+  readonly evidenceStatus: string
+}
+
+/** One `evidence_claims` row: the evidential relation asserted between an item and a claim. */
+export type EvidenceClaimRow = {
+  readonly evidenceId: string
+  readonly claimId: string
+  readonly relation: string
+  readonly strength: string
+  readonly notes: string | null
+}
+
+/** One `evidence_sources` row: where an evidence item was derived from. */
+export type EvidenceSourceRow = {
+  readonly evidenceId: string
+  readonly sourceId: string
+  readonly relation: string
+}
+
+/** One `evidence_inferences` row: an inference step citing an evidence item. */
+export type EvidenceInferenceRow = {
+  readonly evidenceId: string
+  readonly inferenceId: string
+  readonly relation: string
+}
+
 /** What a card round discovers. */
 export type CardExpansion = {
   readonly claims: readonly ClaimRow[]
@@ -215,6 +288,10 @@ export type ClaimExpansion = {
   readonly inferenceSteps: readonly InferenceStepRow[]
   readonly premises: readonly InferencePremiseRow[]
   readonly conclusions: readonly InferenceConclusionRow[]
+  /** `claim_sources` rows where these claims are attributed to a source. */
+  readonly claimSources: readonly ClaimSourceRow[]
+  /** `evidence_claims` rows where these claims are cited as evidence targets. */
+  readonly evidenceClaims: readonly EvidenceClaimRow[]
 }
 
 /** A step naming its chain through `inference_steps.argument_chain_id`, the direct path. */
@@ -234,12 +311,32 @@ export type InferenceStepExpansion = {
   readonly chainMemberships: readonly ArgumentChainMembershipRow[]
   /** Steps naming a chain directly, with no join row to carry `role` or `ordinal`. */
   readonly declaredChainLinks: readonly DeclaredChainLink[]
+  /** `evidence_inferences` rows citing these steps. 0 rows today (evidence layer). */
+  readonly evidenceInferences: readonly EvidenceInferenceRow[]
 }
 
 /** What an argument-chain round discovers. */
 export type ArgumentChainExpansion = {
   /** `argument_chain_steps` join rows for these chains, carrying the steps they order. */
   readonly chainMemberships: readonly ArgumentChainMembershipRow[]
+}
+
+/** What a source round discovers: join rows that name these sources as an endpoint. */
+export type SourceExpansion = {
+  /** `claim_sources` rows where these sources are cited by a claim. */
+  readonly claimSources: readonly ClaimSourceRow[]
+  /** `evidence_sources` rows where these sources are derived from. 0 rows today. */
+  readonly evidenceSources: readonly EvidenceSourceRow[]
+}
+
+/** What an evidence-item round discovers. 0 rows today: the `evidence_*` layer is unpopulated. */
+export type EvidenceItemExpansion = {
+  /** `evidence_claims` rows where these items cite a claim. */
+  readonly evidenceClaims: readonly EvidenceClaimRow[]
+  /** `evidence_sources` rows where these items were derived from a source. */
+  readonly evidenceSources: readonly EvidenceSourceRow[]
+  /** `evidence_inferences` rows where these items are cited by a step. */
+  readonly evidenceInferences: readonly EvidenceInferenceRow[]
 }
 
 /** Every node reference the projection has discovered, ready to be hydrated with metadata. */
@@ -251,6 +348,8 @@ export type NodeRefSet = {
   readonly collectionIds: readonly string[]
   readonly mechanismIds: readonly string[]
   readonly conceptIds: readonly string[]
+  readonly sourceIds: readonly string[]
+  readonly evidenceIds: readonly string[]
 }
 
 /** Hydrated rows for a set of node references. Absent ids simply have no row. */
@@ -267,6 +366,8 @@ export type NodeHydration = {
   readonly chainMemberships: readonly ArgumentChainMembershipRow[]
   readonly premises: readonly InferencePremiseRow[]
   readonly conclusions: readonly InferenceConclusionRow[]
+  readonly sources: readonly SourceRow[]
+  readonly evidenceItems: readonly EvidenceItemRow[]
 }
 
 /** Row counts backing `/api/graph/views`, so a view can report whether it has data. */
@@ -288,6 +389,8 @@ export type ViewPopulation = {
   readonly questions: number
   readonly argumentChains: number
   readonly claimRelations: number
+  /** `claim_sources` join rows — the source layer's live signal (6 rows seeded). */
+  readonly claimSources: number
 }
 
 /**
@@ -326,6 +429,25 @@ export interface TropeGraphReader {
    */
   findArgumentChainByRef(ref: string): Promise<ArgumentChainRow | undefined>
 
+  /**
+   * Resolve a `focus` reference to a source.
+   *
+   * Sources carry no slug; like claims they answer to their uuid alone, so a
+   * non-uuid reference resolves to `undefined`.
+   *
+   * @param ref A source uuid.
+   */
+  findSourceByRef(ref: string): Promise<SourceRow | undefined>
+
+  /**
+   * Resolve a `focus` reference to an evidence item.
+   *
+   * Evidence items carry no slug; uuid is their only identity.
+   *
+   * @param ref An evidence item uuid.
+   */
+  findEvidenceItemByRef(ref: string): Promise<EvidenceItemRow | undefined>
+
   /** Expand a round of card ids. */
   expandCards(cardIds: readonly string[]): Promise<CardExpansion>
 
@@ -338,7 +460,8 @@ export interface TropeGraphReader {
    * Returns the step-to-step relations, the premise and conclusion rows tying
    * these steps to their claims (a step frontier must be able to discover the
    * claims it reasons from and arrives at — otherwise a chain focus dead-ends
-   * at its steps), and both chain-membership paths.
+   * at its steps), both chain-membership paths, and any `evidence_inferences`
+   * rows citing these steps.
    */
   expandInferenceSteps(
     inferenceStepIds: readonly string[],
@@ -346,6 +469,19 @@ export interface TropeGraphReader {
 
   /** Expand a round of argument-chain ids. */
   expandChains(chainIds: readonly string[]): Promise<ArgumentChainExpansion>
+
+  /**
+   * Expand a round of source ids.
+   *
+   * Discovers the claims attributed to these sources and the evidence items
+   * derived from them — a source's adjacency is entirely its join rows.
+   */
+  expandSources(sourceIds: readonly string[]): Promise<SourceExpansion>
+
+  /** Expand a round of evidence-item ids. */
+  expandEvidenceItems(
+    evidenceIds: readonly string[],
+  ): Promise<EvidenceItemExpansion>
 
   /** Hydrate every discovered node reference with its typed metadata rows. */
   hydrate(refs: NodeRefSet): Promise<NodeHydration>

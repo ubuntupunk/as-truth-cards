@@ -79,6 +79,18 @@ and make the UI distinguish source-attribution / evidence / unsupported claim /
 missing evidence honestly (schema-empty layers stay disabled with a "0 rows in
 the corpus" signal, never fabricated).
 
+Status: COMPLETE (2026-10-07). Reader emits `source` edges from `claim_sources`
+and `evidence` edges from the three `evidence_*` join tables; new `evidence`
+view (`EVIDENCE_VIEW_NAME`) resolves claim/source/evidence_item focuses. UI
+adds ViewGapsNote, claim Provenance + Evidence sections with three distinct
+empty states, source-focus inspection. Corpus-based `populationWarnings` reuse
+the view gap list. Gates green: graph 329/0, server 19/0, ui 147/0, typecheck
+clean, build ✓, biome clean on changed files, lint unchanged (17 pre-existing,
+none in touched files). Browser smoke verified provenance, source focus,
+data-blocked note and refocus both directions. One live find: the Cytoscape
+adapter's edge-family whitelist knew 5 families and threw on the two new ones —
+extended to 7 and covered by a regression test.
+
 ## Encodings kept
 
 - Status is per node type; no rollups.
