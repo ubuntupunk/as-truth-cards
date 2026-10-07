@@ -154,6 +154,52 @@ describe('GET /api/graph', () => {
     assert.match(String(body['error']), /claim-1/)
   })
 
+  it('is 404 for a source focus on a view that does not accept a source', async () => {
+    // richCorpus carries source-1, so the source resolves; the default view then refuses
+    // it. The error must say the view rejects a source focus, not that the uuid is unknown.
+    const { status, body } = await get(origin, '/api/graph?focus=source-1')
+    assert.equal(status, 404)
+    assert.match(String(body['error']), /source-1/)
+    // `error` is the generic "could not be resolved"; `detail` carries the reason, which
+    // must say the *view* rejected the focus rather than implying the uuid is unknown.
+    assert.match(String(body['detail']), /does not accept a source as a focus/)
+  })
+
+  it('projects a source focus in the evidence view, which accepts one', async () => {
+    const { status, body } = await get(
+      origin,
+      '/api/graph?focus=source-1&view=evidence&depth=2',
+    )
+    assert.equal(status, 200)
+    assert.deepEqual(body['focus'], {
+      id: 'source-1',
+      type: 'source',
+      slug: null,
+    })
+    const nodes = body['nodes'] as { id: string; isFocus: boolean }[]
+    assert.ok(
+      nodes.some((n) => n.id === 'source-1' && n.isFocus),
+      'the focused source must carry isFocus',
+    )
+  })
+
+  it('reports the empty evidence table as a data-blocked warning, not a failure', async () => {
+    // richCorpus has zero evidence_items rows: the request must still be a 200 whose
+    // warnings name the empty table, so the UI can distinguish "no rows in the corpus"
+    // from "failed to load".
+    const { status, body } = await get(
+      origin,
+      '/api/graph?focus=claim-1&view=evidence',
+    )
+    assert.equal(status, 200)
+    const warnings = (body['meta'] as { warnings: string[] }).warnings
+    assert.ok(Array.isArray(warnings))
+    assert.ok(
+      warnings.some((w) => w.includes('evidence_items has 0 rows')),
+      `expected a corpus-based warning, got ${JSON.stringify(warnings)}`,
+    )
+  })
+
   it('is 404 for a focus the view will not accept', async () => {
     // `taxonomy` takes card focuses, so this asserts the error path is reachable rather than
     // that a particular view rejects a card.
@@ -190,7 +236,10 @@ describe('GET /api/graph', () => {
   })
 
   it('is 400 for an include that would widen the view', async () => {
-    const { status, body } = await get(origin, '/api/graph?focus=card-1&include=source')
+    const { status, body } = await get(
+      origin,
+      '/api/graph?focus=card-1&include=evidence_item',
+    )
     assert.equal(status, 400)
     assert.match(String(body['error']), /cannot emit/)
   })

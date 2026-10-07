@@ -48,6 +48,7 @@ import {
   ARGUMENT_VIEW_NAME,
   DEFAULT_DEPTH,
   DEFAULT_VIEW_NAME,
+  EVIDENCE_VIEW_NAME,
   HARD_MAX_DEPTH,
 } from '../../trope-cards/src/graph/views.ts'
 import { CardFront } from '../graph/card-front'
@@ -63,6 +64,7 @@ import { DeckNavigator } from '../graph/deck-navigator'
 import {
   EntityInspector,
   type InspectorSelection,
+  type RefocusTarget,
 } from '../graph/entity-inspector'
 import {
   ApiErrorState,
@@ -242,7 +244,8 @@ const Graph = () => {
                 projection={filteredProjection ?? projection}
                 selection={visibleSelection}
                 onNavigateCard={(slug) => navigateToCard(slug)}
-                onRefocus={(id) => refocusEntity(id)}
+                onRefocus={(id, type) => refocusEntity(id, type)}
+                descriptor={selectedDescriptor}
               />
             </div>
           </div>
@@ -256,16 +259,22 @@ const Graph = () => {
     updateParam('focus', slug)
   }
 
-  // Refocusing onto a claim or an argument chain moves to the argument view — the
-  // only registered view whose focusTypes accepts both — and both keys land in one
-  // search-params write: two sequential updates would build the second from a stale
-  // `searchParams` snapshot and silently drop the first. The type is not needed
-  // here: every refocusable node type lands in the same view.
-  const refocusEntity = (id: string) => {
+  // Refocusing moves `focus` and `view` together: a claim or argument chain goes
+  // to the argument view (the registered view whose focusTypes accepts both), a
+  // source or evidence item to the evidence view (the only one that accepts
+  // those), so no refocus button can hand the router a focus its view would 404.
+  // Both keys land in one search-params write: two sequential updates would build
+  // the second from a stale `searchParams` snapshot and silently drop the first.
+  const refocusEntity = (id: string, type: RefocusTarget) => {
     setSelection(null)
     const next = new URLSearchParams(searchParams)
     next.set('focus', id)
-    next.set('view', ARGUMENT_VIEW_NAME)
+    next.set(
+      'view',
+      type === 'claim' || type === 'argument_chain'
+        ? ARGUMENT_VIEW_NAME
+        : EVIDENCE_VIEW_NAME,
+    )
     setSearchParams(next)
   }
 
@@ -340,6 +349,11 @@ const Graph = () => {
               <ViewsStatus error={viewsQuery.error ?? null} views={views} />
             </label>
 
+            {selectedDescriptor &&
+            selectedDescriptor.blockingGaps.length > 0 ? (
+              <ViewGapsNote descriptor={selectedDescriptor} />
+            ) : null}
+
             <label className="block text-xs font-medium text-muted-foreground">
               Depth
               <select
@@ -371,6 +385,28 @@ const Graph = () => {
     </div>
   )
 }
+
+/**
+ * The "0 rows in the corpus" note under the view selector.
+ *
+ * Distinguishes the two empty-looking states before anything is fetched: a
+ * view whose backing tables have zero rows (empty projection — a corpus
+ * fact, not a bug) versus a request that failed (which shows an error state
+ * elsewhere). The note renders the server's own `blockingGaps` strings, so
+ * the table names and counts can never drift from the projection's opinion.
+ *
+ * @param descriptor The selected view's rule, including its `blockingGaps`.
+ * @returns A one-line note spanning the controls row, or null-shaped markup.
+ */
+const ViewGapsNote = ({ descriptor }: { descriptor: GraphViewDescriptor }) => (
+  <p className="basis-full text-xs text-muted-foreground">
+    <span className="font-medium text-amber-700 dark:text-amber-400">
+      0 rows in the corpus
+    </span>{' '}
+    — {descriptor.blockingGaps.join('; ')}. This view is data-blocked: an empty
+    projection, not a failed load.
+  </p>
+)
 
 /**
  * The colour legend, built from the same maps the stylesheet uses.

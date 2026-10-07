@@ -41,6 +41,11 @@ import type {
   ClaimExpansion,
   ClaimRelationRow,
   ClaimRow,
+  ClaimSourceRow,
+  EvidenceClaimRow,
+  EvidenceInferenceRow,
+  EvidenceItemExpansion,
+  EvidenceSourceRow,
   InferenceConclusionRow,
   InferencePremiseRow,
   InferenceStepExpansion,
@@ -49,6 +54,7 @@ import type {
   NodeHydration,
   NodeRefSet,
   RelationshipRow,
+  SourceExpansion,
   TropeGraphReader,
 } from './reader'
 import type {
@@ -61,6 +67,7 @@ import type {
   ClaimNode,
   CollectionNode,
   ConceptNode,
+  EvidenceItemNode,
   GraphEdge,
   GraphEdgeType,
   GraphNode,
@@ -71,6 +78,7 @@ import type {
   InferenceStepRoleValue,
   MechanismNode,
   NodeStatus,
+  SourceNode,
 } from './types'
 import {
   DEFAULT_DEPTH,
@@ -78,6 +86,7 @@ import {
   type GraphViewRule,
   HARD_MAX_DEPTH,
   HARD_MAX_NODES,
+  viewBlockingGaps,
   viewEmitsNodeType,
   viewTraversesFamily,
 } from './views'
@@ -284,7 +293,7 @@ export async function projectGraph(
   const hydration = await reader.hydrate(refs)
 
   warnings.push(...chainMembershipWarnings(hydration))
-  warnings.push(...populationWarnings(view, hydration))
+  warnings.push(...(await populationWarnings(reader, view)))
 
   const nodeList = buildNodes(refs, distances, focusRef, hydration, warnings)
   // Normalising against the nodes that were *actually emitted* rather than the refs that
@@ -341,13 +350,14 @@ export async function projectGraph(
  * Resolve a `focus` reference to the node it names, across every type a view may focus on.
  *
  * The card table is tried first because slugs live there and a slug is the only
- * human-facing alias in the graph; claims and argument chains carry no slug and answer
- * to their uuid alone, so their finders short-circuit any non-uuid reference.
+ * human-facing alias in the graph; claims, argument chains, sources and evidence items
+ * carry no slug and answer to their uuid alone, so their finders short-circuit any
+ * non-uuid reference.
  * Type-specific resolution comes before the view's `focusTypes` check, so the error
  * distinguishes "nothing matches" from "something matches but this view refuses it".
  *
  * @param reader Read-only port over `trope_graph`.
- * @param focus A card slug, or a card / claim / argument-chain uuid.
+ * @param focus A card slug, or a card / claim / argument-chain / source / evidence-item uuid.
  * @returns The resolved ref, plus the matched card row when one exists — it carries the
  * slug echoed back in `focus.slug` (Q7).
  * @throws {GraphFocusNotFoundError} If no type in the graph matches the reference.
@@ -375,9 +385,22 @@ async function resolveFocus(
     }
   }
 
+  const source = await reader.findSourceByRef(focus)
+  if (source) {
+    return { ref: { type: 'source', id: source.id }, card: undefined }
+  }
+
+  const evidenceItem = await reader.findEvidenceItemByRef(focus)
+  if (evidenceItem) {
+    return {
+      ref: { type: 'evidence_item', id: evidenceItem.id },
+      card: undefined,
+    }
+  }
+
   throw new GraphFocusNotFoundError(
     focus,
-    'no card, claim or argument chain matches this slug or uuid',
+    'no card, claim, argument chain, source or evidence item matches this slug or uuid',
   )
 }
 
@@ -402,11 +425,15 @@ async function expandRound(
   const claimIds: string[] = []
   const stepIds: string[] = []
   const chainIds: string[] = []
+  const sourceIds: string[] = []
+  const evidenceIds: string[] = []
   for (const ref of frontier) {
     if (ref.type === 'card') cardIds.push(ref.id)
     else if (ref.type === 'claim') claimIds.push(ref.id)
     else if (ref.type === 'inference_step') stepIds.push(ref.id)
     else if (ref.type === 'argument_chain') chainIds.push(ref.id)
+    else if (ref.type === 'source') sourceIds.push(ref.id)
+    else if (ref.type === 'evidence_item') evidenceIds.push(ref.id)
   }
 
   // Every node discovered in this round is exactly one hop from a node in the frontier, so
@@ -437,6 +464,20 @@ async function expandRound(
   if (chainIds.length > 0) {
     out.push(
       ...chainCandidates(await reader.expandChains(chainIds), view, depth),
+    )
+  }
+  if (sourceIds.length > 0) {
+    out.push(
+      ...sourceCandidates(await reader.expandSources(sourceIds), view, depth),
+    )
+  }
+  if (evidenceIds.length > 0) {
+    out.push(
+      ...evidenceItemCandidates(
+        await reader.expandEvidenceItems(evidenceIds),
+        view,
+        depth,
+      ),
     )
   }
   return out
@@ -653,6 +694,21 @@ function claimCandidates(
       out.push(conclusionCandidate(row, depth))
   }
 
+  // `claim_sources` is the authored attribution layer: the claim is the `from`, the
+  // bibliography entry is the `to`. Direction never reverses — a source does not assert a
+  // claim, a claim is read from a source.
+  if (viewTraversesFamily(view, 'source')) {
+    for (const row of expansion.claimSources) {
+      out.push(claimSourceCandidate(row, depth))
+    }
+  }
+
+  if (viewTraversesFamily(view, 'evidence')) {
+    for (const row of expansion.evidenceClaims) {
+      out.push(evidenceClaimCandidate(row, depth))
+    }
+  }
+
   return out
 }
 
@@ -751,65 +807,83 @@ function stepCandidates(
   view: GraphViewRule,
   depth: number,
 ): CandidateEdge[] {
-  if (!viewTraversesFamily(view, 'inference')) return []
   const out: CandidateEdge[] = []
 
-  // Both step-to-chain attachment paths are emitted, membership rows first: they carry the
-  // authored `role` and `ordinal`, and the direct `inference_steps.argument_chain_id` path
-  // only adds pairs the join row did not already cover. The dedupe key is the edge id, which
-  // is byte-identical for both paths — the same "both reported, neither silently preferred"
-  // rule `groupChainsByStep` applies when it reports chains from a step's point of view.
-  const seen = new Set<string>()
-  for (const row of expansion.chainMemberships) {
-    const id = buildEdgeId(
-      'inference',
-      row.inferenceStepId,
-      'MEMBER_OF',
-      row.chainId,
-    )
-    seen.add(id)
+  if (viewTraversesFamily(view, 'inference')) {
+    // Both step-to-chain attachment paths are emitted, membership rows first: they carry the
+    // authored `role` and `ordinal`, and the direct `inference_steps.argument_chain_id` path
+    // only adds pairs the join row did not already cover. The dedupe key is the edge id,
+    // which is byte-identical for both paths — the same "both reported, neither silently
+    // preferred" rule `groupChainsByStep` applies when it reports chains from a step's
+    // point of view.
+    const seen = new Set<string>()
+    for (const row of expansion.chainMemberships) {
+      const id = buildEdgeId(
+        'inference',
+        row.inferenceStepId,
+        'MEMBER_OF',
+        row.chainId,
+      )
+      seen.add(id)
+      out.push(
+        chainMemberCandidate({
+          id,
+          stepId: row.inferenceStepId,
+          chainId: row.chainId,
+          sourceTable: 'argument_chain_steps',
+          membershipSource: 'argument_chain_steps',
+          role: row.role,
+          ordinal: row.ordinal,
+          depth,
+        }),
+      )
+    }
+    for (const link of expansion.declaredChainLinks) {
+      const id = buildEdgeId(
+        'inference',
+        link.stepId,
+        'MEMBER_OF',
+        link.chainId,
+      )
+      if (seen.has(id)) continue
+      seen.add(id)
+      out.push(
+        chainMemberCandidate({
+          id,
+          stepId: link.stepId,
+          chainId: link.chainId,
+          sourceTable: 'inference_steps',
+          membershipSource: 'inference_steps_argument_chain_id',
+          role: null,
+          ordinal: null,
+          depth,
+        }),
+      )
+    }
+
+    // Premise and conclusion rows are emitted from the step side too, not only from a claim
+    // frontier: the claims composing an argument must be reachable when the entry point is a
+    // chain or a step's neighbour, or a chain focus dead-ends at its steps. The edge id is
+    // the claim frontier's byte for byte, so the edges map folds the two emissions into one.
+    out.push(...expansion.premises.map((row) => premiseCandidate(row, depth)))
     out.push(
-      chainMemberCandidate({
-        id,
-        stepId: row.inferenceStepId,
-        chainId: row.chainId,
-        sourceTable: 'argument_chain_steps',
-        membershipSource: 'argument_chain_steps',
-        role: row.role,
-        ordinal: row.ordinal,
-        depth,
-      }),
+      ...expansion.conclusions.map((row) => conclusionCandidate(row, depth)),
     )
-  }
-  for (const link of expansion.declaredChainLinks) {
-    const id = buildEdgeId('inference', link.stepId, 'MEMBER_OF', link.chainId)
-    if (seen.has(id)) continue
-    seen.add(id)
     out.push(
-      chainMemberCandidate({
-        id,
-        stepId: link.stepId,
-        chainId: link.chainId,
-        sourceTable: 'inference_steps',
-        membershipSource: 'inference_steps_argument_chain_id',
-        role: null,
-        ordinal: null,
-        depth,
-      }),
+      ...expansion.stepRelations.map((row) =>
+        stepRelationCandidate(row, depth),
+      ),
     )
   }
 
-  // Premise and conclusion rows are emitted from the step side too, not only from a claim
-  // frontier: the claims composing an argument must be reachable when the entry point is a
-  // chain or a step's neighbour, or a chain focus dead-ends at its steps. The edge id is the
-  // claim frontier's byte for byte, so the edges map folds the two emissions into one.
-  out.push(...expansion.premises.map((row) => premiseCandidate(row, depth)))
-  out.push(
-    ...expansion.conclusions.map((row) => conclusionCandidate(row, depth)),
-  )
-  out.push(
-    ...expansion.stepRelations.map((row) => stepRelationCandidate(row, depth)),
-  )
+  // `evidence_inferences` is a separate family from `inference`: the row records that a step
+  // cites an evidence item, not a structural fact about the step's reasoning. 0 rows today.
+  if (viewTraversesFamily(view, 'evidence')) {
+    for (const row of expansion.evidenceInferences) {
+      out.push(evidenceInferenceCandidate(row, depth))
+    }
+  }
+
   return out
 }
 
@@ -918,6 +992,169 @@ function stepRelationCandidate(
   })
 }
 
+/**
+ * Project one `claim_sources` row as the claim's authored attribution to a source.
+ *
+ * Direction is claim → source and never reverses: a claim is read from a source; a
+ * bibliography entry does not assert a claim. Emitted byte-identically from both the claim
+ * frontier and the source frontier, so the edges map folds the two discoveries into one edge.
+ *
+ * @param row The authored attribution.
+ * @param depth Hop distance from the focus, for both endpoints.
+ */
+function claimSourceCandidate(
+  row: ClaimSourceRow,
+  depth: number,
+): CandidateEdge {
+  return authored({
+    id: buildEdgeId('source', row.claimId, row.relationship, row.sourceId),
+    type: { family: 'source', value: row.relationship },
+    sourceTable: 'claim_sources',
+    from: { type: 'claim', id: row.claimId },
+    to: { type: 'source', id: row.sourceId },
+    attributes: {
+      quoteOrExcerpt: row.quoteOrExcerpt,
+      pageReference: row.pageReference,
+      notes: row.notes,
+    },
+    depth,
+  })
+}
+
+/**
+ * Project one `evidence_claims` row: the evidential relation an evidence item asserts
+ * about a claim.
+ *
+ * Direction is evidence → claim — the evidence item is the citing side in every row of
+ * `evidence_claims`, and the edge never presents itself as a claim relation. 0 rows today.
+ *
+ * @param row The evidential relation.
+ * @param depth Hop distance from the focus, for both endpoints.
+ */
+function evidenceClaimCandidate(
+  row: EvidenceClaimRow,
+  depth: number,
+): CandidateEdge {
+  return authored({
+    id: buildEdgeId('evidence', row.evidenceId, row.relation, row.claimId),
+    type: { family: 'evidence', value: row.relation },
+    sourceTable: 'evidence_claims',
+    from: { type: 'evidence_item', id: row.evidenceId },
+    to: { type: 'claim', id: row.claimId },
+    attributes: { strength: row.strength, notes: row.notes },
+    depth,
+  })
+}
+
+/**
+ * Project one `evidence_sources` row: where an evidence item was derived from.
+ *
+ * Direction is evidence → source (default relation `DERIVED_FROM`). Emitted byte-identically
+ * from both the evidence frontier and the source frontier. 0 rows today.
+ *
+ * @param row The derivation row.
+ * @param depth Hop distance from the focus, for both endpoints.
+ */
+function evidenceSourceCandidate(
+  row: EvidenceSourceRow,
+  depth: number,
+): CandidateEdge {
+  return authored({
+    id: buildEdgeId('evidence', row.evidenceId, row.relation, row.sourceId),
+    type: { family: 'evidence', value: row.relation },
+    sourceTable: 'evidence_sources',
+    from: { type: 'evidence_item', id: row.evidenceId },
+    to: { type: 'source', id: row.sourceId },
+    attributes: {},
+    depth,
+  })
+}
+
+/**
+ * Project one `evidence_inferences` row: an inference step citing an evidence item.
+ *
+ * Direction is evidence → step (default relation `USED_BY`) — the row is recorded from the
+ * evidence item's side, and a step citing evidence is not a premise. 0 rows today.
+ *
+ * @param row The citation row.
+ * @param depth Hop distance from the focus, for both endpoints.
+ */
+function evidenceInferenceCandidate(
+  row: EvidenceInferenceRow,
+  depth: number,
+): CandidateEdge {
+  return authored({
+    id: buildEdgeId('evidence', row.evidenceId, row.relation, row.inferenceId),
+    type: { family: 'evidence', value: row.relation },
+    sourceTable: 'evidence_inferences',
+    from: { type: 'evidence_item', id: row.evidenceId },
+    to: { type: 'inference_step', id: row.inferenceId },
+    attributes: {},
+    depth,
+  })
+}
+
+/**
+ * Build the candidate edges reachable in one round from a set of source ids.
+ *
+ * A source frontier reaches back through the join rows that name it: `claim_sources`
+ * (family `source`) and `evidence_sources` (family `evidence`). Both emit the same edge
+ * ids as their counterpart frontiers, so a `claim_sources` row discovered from either side
+ * folds into one edge rather than two.
+ *
+ * @param expansion Rows the reader returned for those sources.
+ * @param view The view whose adjacency rules apply.
+ * @param depth Hop distance from the focus, for every node discovered this round.
+ */
+function sourceCandidates(
+  expansion: SourceExpansion,
+  view: GraphViewRule,
+  depth: number,
+): CandidateEdge[] {
+  const out: CandidateEdge[] = []
+  if (viewTraversesFamily(view, 'source')) {
+    for (const row of expansion.claimSources) {
+      out.push(claimSourceCandidate(row, depth))
+    }
+  }
+  if (viewTraversesFamily(view, 'evidence')) {
+    for (const row of expansion.evidenceSources) {
+      out.push(evidenceSourceCandidate(row, depth))
+    }
+  }
+  return out
+}
+
+/**
+ * Build the candidate edges reachable in one round from a set of evidence-item ids.
+ *
+ * Every row of the `evidence_*` join tables is family `evidence`, so the whole round is
+ * gated on that one family. 0 rows today: the layer is unpopulated, and the view's
+ * blocking gaps — not the absence of candidates — are what the UI reports.
+ *
+ * @param expansion Rows the reader returned for those evidence items.
+ * @param view The view whose adjacency rules apply.
+ * @param depth Hop distance from the focus, for every node discovered this round.
+ */
+function evidenceItemCandidates(
+  expansion: EvidenceItemExpansion,
+  view: GraphViewRule,
+  depth: number,
+): CandidateEdge[] {
+  if (!viewTraversesFamily(view, 'evidence')) return []
+  const out: CandidateEdge[] = []
+  for (const row of expansion.evidenceClaims) {
+    out.push(evidenceClaimCandidate(row, depth))
+  }
+  for (const row of expansion.evidenceSources) {
+    out.push(evidenceSourceCandidate(row, depth))
+  }
+  for (const row of expansion.evidenceInferences) {
+    out.push(evidenceInferenceCandidate(row, depth))
+  }
+  return out
+}
+
 /** The only `*_entity_type` discriminator the projection will follow in v1. */
 const CARD_ENTITY_TYPE = 'CARD'
 
@@ -1024,6 +1261,8 @@ function buildNodes(
   const collectionIds = new Set(refs.collectionIds)
   const mechanismIds = new Set(refs.mechanismIds)
   const conceptIds = new Set(refs.conceptIds)
+  const sourceIds = new Set(refs.sourceIds)
+  const evidenceIds = new Set(refs.evidenceIds)
 
   const axesByCard = groupCardAxes(hydration.cardAxes)
   const suitsByCard = groupCardClassifications(
@@ -1243,6 +1482,56 @@ function buildNodes(
         // `description` is null here rather than holding a copy of the definition.
         description: null,
         definition: row.definition,
+      },
+    }
+    nodes.push(node)
+  }
+
+  for (const row of hydration.sources) {
+    if (!sourceIds.has(row.id)) continue
+    const node: SourceNode = {
+      id: row.id,
+      type: 'source',
+      label: row.title,
+      depth: distanceFor(distances, 'source', row.id),
+      isFocus: focus.type === 'source' && focus.id === row.id,
+      degree: 0,
+      // A bibliography entry asserts nothing, so it carries no epistemic or lifecycle status.
+      status: { source: 'none', value: null },
+      metadata: {
+        title: row.title,
+        author: row.author,
+        publisher: row.publisher,
+        citation: row.citation,
+        url: row.url,
+        sourceType: row.sourceType,
+      },
+    }
+    nodes.push(node)
+  }
+
+  for (const row of hydration.evidenceItems) {
+    if (!evidenceIds.has(row.id)) continue
+    const node: EvidenceItemNode = {
+      id: row.id,
+      type: 'evidence_item',
+      label: row.title,
+      depth: distanceFor(distances, 'evidence_item', row.id),
+      isFocus: focus.type === 'evidence_item' && focus.id === row.id,
+      degree: 0,
+      // The item's own status, free text, never merged with any claim or step status (Q4).
+      status: {
+        source: 'evidence_status',
+        value: row.evidenceStatus,
+        vocabulary: 'uncontrolled',
+      },
+      metadata: {
+        evidenceType: row.type,
+        locator: row.locator,
+        quoteOrExcerpt: row.content,
+        // `evidence_claims.strength` is an edge attribute (it describes a relation, not an
+        // item), so the node reports null rather than borrowing a joined row's value.
+        strength: null,
       },
     }
     nodes.push(node)
@@ -1491,48 +1780,36 @@ function chainMembershipWarnings(hydration: NodeHydration): string[] {
 }
 
 /**
- * Warn when a data-blocked view's declared node types have no rows.
+ * Warn when a data-blocked view's declared node types have no rows in the corpus.
  *
- * A structurally valid view over an unpopulated corpus returns 200 with `nodes: []` and this
- * note, which is how `view=evidence` behaves today. Reporting it here rather than as an error
- * is what keeps an unpopulated layer distinguishable from a malformed request.
+ * The check reads `readPopulation()` — whole-table row counts — rather than the hydrated
+ * rows of this projection, so the warning says what is true of the corpus: a focused
+ * projection over a populated table reports no warning just because the focus happened to
+ * have no neighbours, and an unpopulated table is named with the exact gap string
+ * {@link viewBlockingGaps} reports in the views catalogue, without an import cycle.
+ *
+ * A structurally valid view over an unpopulated corpus returns 200 with `nodes: []` and
+ * this note, which is how `view=evidence` behaves today. Reporting it here rather than as
+ * an error is what keeps an unpopulated layer distinguishable from a malformed request —
+ * "0 rows in the corpus" versus "failed to load".
+ *
+ * @param reader Read-only port over `trope_graph`, for the corpus row counts.
+ * @param view The view being projected.
+ * @returns One note per blocked view with gaps; `[]` otherwise.
  */
-function populationWarnings(
+async function populationWarnings(
+  reader: TropeGraphReader,
   view: GraphViewRule,
-  hydration: NodeHydration,
-): string[] {
+): Promise<string[]> {
   if (view.status !== 'data_blocked') return []
-  const empty = view.nodeTypes.filter((type) => countFor(type, hydration) === 0)
-  if (empty.length === 0) return []
+  const population = await reader.readPopulation()
+  const gaps = viewBlockingGaps(view, population)
+  if (gaps.length === 0) return []
   return [
-    `View "${view.name}" is data-blocked: no rows exist for ${empty.join(', ')}. This is an ` +
+    `View "${view.name}" is data-blocked: ${gaps.join('; ')}. This is an ` +
       'empty projection, not an error; the schema for these types exists and the view becomes ' +
       'populated as the corpus lands.',
   ]
-}
-
-/** Row count for a declared node type, used only to detect an unpopulated view. */
-function countFor(type: GraphNodeType, hydration: NodeHydration): number {
-  switch (type) {
-    case 'card':
-      return hydration.cards.length
-    case 'claim':
-      return hydration.claims.length
-    case 'inference_step':
-      return hydration.inferenceSteps.length
-    case 'collection':
-      return hydration.cardCollections.length
-    case 'mechanism':
-      return hydration.cardMechanisms.length
-    case 'concept':
-      // Counts hydrated Card -> Concept rows, not `concepts` rows. A view is data-blocked when
-      // the associations it would render are absent, not merely because the vocabulary exists.
-      return hydration.cardConcepts.length
-    case 'argument_chain':
-      return hydration.chains.length
-    default:
-      return 0
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1614,6 +1891,8 @@ function splitRefs(
   const collectionIds: string[] = []
   const mechanismIds: string[] = []
   const conceptIds: string[] = []
+  const sourceIds: string[] = []
+  const evidenceIds: string[] = []
 
   for (const key of allowed) {
     const ref = discovered.get(key)
@@ -1640,8 +1919,14 @@ function splitRefs(
       case 'concept':
         conceptIds.push(ref.id)
         break
+      case 'source':
+        sourceIds.push(ref.id)
+        break
+      case 'evidence_item':
+        evidenceIds.push(ref.id)
+        break
       default:
-        // A view may declare a node type the v1 reader cannot hydrate. Reaching this means the
+        // A view may declare a node type the reader cannot hydrate. Reaching this means the
         // view registry and the reader disagree, which `test/graph-projection.test.ts` asserts
         // cannot happen: every declared node type must be a type the reader can resolve.
         break
@@ -1656,6 +1941,8 @@ function splitRefs(
     collectionIds,
     mechanismIds,
     conceptIds,
+    sourceIds,
+    evidenceIds,
   }
 }
 

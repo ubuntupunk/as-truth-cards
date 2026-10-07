@@ -32,9 +32,10 @@
  * The component is pure — props in, string out — which is what lets
  * `preact-render-to-string` test it under Node. Interaction is limited to two
  * navigations: the "Open card" button that moves the projection to another
- * card's slug, and the "Focus claim / Focus argument" button that re-focuses
- * the projection onto a claim or argument chain in the argument view — the one
- * registered view whose `focusTypes` accepts both.
+ * card's slug, and the refocus button: a claim or argument chain re-focuses in
+ * the argument view (the registered view whose `focusTypes` accepts both), a
+ * source or evidence item in the evidence view (the only one that accepts
+ * those).
  */
 
 import type {
@@ -43,6 +44,7 @@ import type {
   GraphNode,
   GraphProjection,
 } from '../../trope-cards/src/graph/types.ts'
+import type { GraphViewDescriptor } from './projection-guards'
 
 /** Selection state as the page sees it: presentation-only entity identity. */
 export type InspectorSelection =
@@ -53,10 +55,24 @@ export type InspectorSelection =
 /**
  * Node types the inspector offers to re-focus the projection onto.
  *
- * Exactly the non-card types whose uuid the argument view accepts as a focus;
- * a type outside this pair could be handed to the handler and silently 404.
+ * Exactly the non-card types whose uuid a registered view accepts as a focus:
+ * `claim` and `argument_chain` in the argument view, `source` and
+ * `evidence_item` in the evidence view. A type outside this set could be
+ * handed to the handler and silently 404.
  */
-export type RefocusTarget = 'claim' | 'argument_chain'
+export type RefocusTarget =
+  | 'claim'
+  | 'argument_chain'
+  | 'source'
+  | 'evidence_item'
+
+/** Button copy per refocusable type, so no type falls through to a generic label. */
+const REFOCUS_LABELS: Record<RefocusTarget, string> = {
+  claim: 'Focus claim',
+  argument_chain: 'Focus argument',
+  source: 'Focus source',
+  evidence_item: 'Focus evidence',
+}
 
 /**
  * Look up a node in the projection by its canonical id.
@@ -127,9 +143,13 @@ export function resolveNodeLabel(
  * @param props.selection The current presentation selection, or `null`.
  * @param props.onNavigateCard Optional handler fired by a card's "Open card"
  * button; it receives the card's canonical slug.
- * @param props.onRefocus Optional handler fired by a claim's or an argument
- * chain's focus button; it receives the node id and which refocusable type it
- * is, so the page can move `focus` and switch `view` in one write.
+ * @param props.onRefocus Optional handler fired by a refocusable node's focus
+ * button; it receives the node id and which refocusable type it is, so the page
+ * can move `focus` and switch `view` in one write.
+ * @param props.descriptor The selected view's rule, when the page has it.
+ * Provenance and evidence blocks use it to tell "this view cannot carry
+ * attribution/evidence" apart from "it can and the corpus has none"; without
+ * it those empty states are suppressed rather than guessed.
  * @returns A semantic side panel describing the selected node or edge.
  * @example
  * ```tsx
@@ -138,6 +158,7 @@ export function resolveNodeLabel(
  *   selection={{ kind: 'node', id: selectedId }}
  *   onNavigateCard={(slug) => setSearchParams({ focus: slug })}
  *   onRefocus={(id, type) => refocus(id, type)}
+ *   descriptor={selectedDescriptor}
  * />
  * ```
  */
@@ -146,11 +167,13 @@ export function EntityInspector({
   selection,
   onNavigateCard,
   onRefocus,
+  descriptor,
 }: {
   projection: GraphProjection
   selection: InspectorSelection
   onNavigateCard?: (slug: string) => void
   onRefocus?: (id: string, type: RefocusTarget) => void
+  descriptor?: GraphViewDescriptor | null
 }) {
   if (selection === null) {
     return (
@@ -176,6 +199,7 @@ export function EntityInspector({
         node={node}
         onNavigateCard={onNavigateCard}
         onRefocus={onRefocus}
+        descriptor={descriptor}
       />
     )
   }
@@ -197,14 +221,21 @@ function NodePanel({
   node,
   onNavigateCard,
   onRefocus,
+  descriptor,
 }: {
   projection: GraphProjection
   node: GraphNode
   onNavigateCard?: (slug: string) => void
   onRefocus?: (id: string, type: RefocusTarget) => void
+  descriptor?: GraphViewDescriptor | null
 }) {
   const refocusType: RefocusTarget | null =
-    node.type === 'claim' || node.type === 'argument_chain' ? node.type : null
+    node.type === 'claim' ||
+    node.type === 'argument_chain' ||
+    node.type === 'source' ||
+    node.type === 'evidence_item'
+      ? node.type
+      : null
   return (
     <aside
       className="rounded-xl border p-4"
@@ -231,7 +262,7 @@ function NodePanel({
           onClick={() => onRefocus(node.id, refocusType)}
           className="mt-3 w-full rounded border border-input px-1.5 py-1 text-xs hover:bg-muted"
         >
-          {refocusType === 'claim' ? 'Focus claim' : 'Focus argument'}
+          {REFOCUS_LABELS[refocusType]}
         </button>
       ) : null}
 
@@ -251,7 +282,11 @@ function NodePanel({
           onNavigateCard={onNavigateCard}
         />
       ) : (
-        <MetadataSections projection={projection} node={node} />
+        <MetadataSections
+          projection={projection}
+          node={node}
+          descriptor={descriptor}
+        />
       )}
 
       <RelationshipsSection projection={projection} nodeId={node.id} />
@@ -575,25 +610,226 @@ function ConceptSection({
 }
 
 /** Type-specific metadata for every non-card node type. */
-function MetadataSections({
+/**
+ * Whether a node at this depth was actually expanded by the BFS.
+ *
+ * A node discovered on the last executed hop sits at the frontier: its own
+ * rows were never requested, so an empty result about it is a limit of the
+ * request, not a fact about the corpus. Truncation cuts expansion arbitrarily,
+ * which makes the same caveat apply to every node.
+ *
+ * @param projection The loaded projection, carrying `depth` and `meta.truncated`.
+ * @param node The inspected node.
+ * @returns `true` only when this node's own rows were fully requested.
+ */
+function nodeWasExpanded(
+  projection: GraphProjection,
+  node: GraphNode,
+): boolean {
+  return !projection.meta.truncated && node.depth < projection.depth
+}
+
+/**
+ * A claim's source attribution: the `claim_sources` rows projected as
+ * `claim -> source` edges, with the authored quote and page carried by the edge.
+ *
+ * Rendered only when the view declares the source family or the projection
+ * actually contains attribution edges — a view that never asks for provenance
+ * gets no empty-state claim, because "this view does not carry attribution" and
+ * "this claim is unsourced" must not read the same. When the view does declare
+ * the family and no edge exists, the note distinguishes a corpus fact (the
+ * claim was expanded and has no attribution) from a depth limit (it sits at
+ * the frontier).
+ *
+ * @param props.projection The loaded projection.
+ * @param props.descriptor The selected view's rule, when known.
+ * @param props.node The inspected claim.
+ * @returns The Provenance section, or `null` when this view cannot carry one.
+ */
+function ProvenanceSection({
   projection,
+  descriptor,
   node,
 }: {
   projection: GraphProjection
+  descriptor?: GraphViewDescriptor | null
+  node: GraphNode
+}) {
+  const edges = projection.edges.filter(
+    (edge) =>
+      edge.family === 'source' &&
+      (edge.from === node.id || edge.to === node.id),
+  )
+  const declares = descriptor?.edgeFamilies.includes('source') ?? false
+  if (edges.length === 0 && !declares) return null
+
+  if (edges.length === 0) {
+    return (
+      <Section title="Provenance">
+        <Note>
+          {nodeWasExpanded(projection, node)
+            ? 'No source attribution recorded for this claim in the corpus.'
+            : 'Not expanded at this depth: the claim sits at the frontier, so attribution may exist beyond the loaded depth.'}
+        </Note>
+      </Section>
+    )
+  }
+
+  return (
+    <Section title={`Provenance (${edges.length})`}>
+      <ul className="space-y-2">
+        {edges.map((edge) => {
+          const sourceId = edge.from === node.id ? edge.to : edge.from
+          const quote = edge.attributes.quoteOrExcerpt
+          const page = edge.attributes.pageReference
+          return (
+            <li
+              key={edge.id}
+              className="rounded border border-input p-2 text-xs"
+              data-provenance-edge={edge.id}
+              data-source-table={edge.sourceTable}
+            >
+              <div className="font-medium">
+                {resolveNodeLabel(projection, sourceId)}
+              </div>
+              <div className="text-muted-foreground">
+                {edge.type.value} · {edge.sourceTable}
+              </div>
+              {typeof quote === 'string' && quote.length > 0 ? (
+                <div className="mt-0.5 italic">“{quote}”</div>
+              ) : null}
+              {typeof page === 'string' && page.length > 0 ? (
+                <div className="mt-0.5 text-muted-foreground">{page}</div>
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
+    </Section>
+  )
+}
+
+/**
+ * The evidence directed at a claim: the `evidence_claims` rows projected as
+ * `evidence_item -> claim` edges, with relation and strength from the edge.
+ *
+ * The three empty states are deliberately different sentences, because they
+ * are different facts: the corpus has zero evidence rows at all (missing
+ * evidence — reported from the view's own `blockingGaps`), the claim was
+ * expanded against a non-empty corpus and has none (unsupported claim), or
+ * the claim sits at the depth limit (not yet asked). A view that does not
+ * traverse the evidence family renders nothing.
+ *
+ * @param props.projection The loaded projection.
+ * @param props.descriptor The selected view's rule, when known.
+ * @param props.node The inspected claim.
+ * @returns The Evidence section, or `null` when this view cannot carry one.
+ */
+function EvidenceSection({
+  projection,
+  descriptor,
+  node,
+}: {
+  projection: GraphProjection
+  descriptor?: GraphViewDescriptor | null
+  node: GraphNode
+}) {
+  const edges = projection.edges.filter(
+    (edge) =>
+      edge.family === 'evidence' &&
+      edge.sourceTable === 'evidence_claims' &&
+      (edge.from === node.id || edge.to === node.id),
+  )
+  const declares = descriptor?.edgeFamilies.includes('evidence') ?? false
+  if (edges.length === 0 && !declares) return null
+
+  if (edges.length === 0) {
+    const corpusEmpty =
+      descriptor?.blockingGaps.some((gap) => gap.includes('evidence_items')) ??
+      false
+    const note = corpusEmpty
+      ? 'No evidence in the corpus: trope_graph.evidence_items has 0 rows. Nothing is recorded against this claim — or any claim.'
+      : !nodeWasExpanded(projection, node)
+        ? 'Not expanded at this depth: the claim sits at the frontier, so evidence may exist beyond the loaded depth.'
+        : 'No evidence directed at this claim in the corpus. Nothing in evidence_* supports it — a corpus fact, not a load failure.'
+    return (
+      <Section title="Evidence">
+        <Note>{note}</Note>
+      </Section>
+    )
+  }
+
+  return (
+    <Section title={`Evidence (${edges.length})`}>
+      <ul className="space-y-2">
+        {edges.map((edge) => {
+          const evidenceId = edge.from === node.id ? edge.to : edge.from
+          const evidenceNode = findNodeById(projection, evidenceId)
+          const strength = edge.attributes.strength
+          const quote =
+            evidenceNode?.type === 'evidence_item'
+              ? evidenceNode.metadata.quoteOrExcerpt
+              : null
+          return (
+            <li
+              key={edge.id}
+              className="rounded border border-input p-2 text-xs"
+              data-evidence-edge={edge.id}
+              data-source-table={edge.sourceTable}
+            >
+              <div className="font-medium">
+                {resolveNodeLabel(projection, evidenceId)}
+              </div>
+              <div className="text-muted-foreground">
+                {edge.type.value} · {edge.sourceTable}
+                {typeof strength === 'string' && strength.length > 0
+                  ? ` · strength ${strength}`
+                  : ''}
+              </div>
+              {typeof quote === 'string' && quote.length > 0 ? (
+                <div className="mt-0.5 italic">“{quote}”</div>
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
+    </Section>
+  )
+}
+
+function MetadataSections({
+  projection,
+  node,
+  descriptor,
+}: {
+  projection: GraphProjection
   node: Exclude<GraphNode, { type: 'card' }>
+  descriptor?: GraphViewDescriptor | null
 }) {
   switch (node.type) {
     case 'claim':
       return (
-        <Section title="Claim">
-          <DataRow label="Claim type">{node.metadata.claimType}</DataRow>
-          {node.metadata.description ? (
-            <DataRow label="Description">{node.metadata.description}</DataRow>
-          ) : null}
-          <DataRow label="Card id">
-            <code className="text-xs">{node.metadata.cardId}</code>
-          </DataRow>
-        </Section>
+        <>
+          <Section title="Claim">
+            <DataRow label="Claim type">{node.metadata.claimType}</DataRow>
+            {node.metadata.description ? (
+              <DataRow label="Description">{node.metadata.description}</DataRow>
+            ) : null}
+            <DataRow label="Card id">
+              <code className="text-xs">{node.metadata.cardId}</code>
+            </DataRow>
+          </Section>
+          <ProvenanceSection
+            projection={projection}
+            descriptor={descriptor}
+            node={node}
+          />
+          <EvidenceSection
+            projection={projection}
+            descriptor={descriptor}
+            node={node}
+          />
+        </>
       )
     case 'inference_step':
       return (

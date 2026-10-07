@@ -13,12 +13,14 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { render } from 'preact-render-to-string'
+import type { GraphProjection } from '../../trope-cards/src/graph/types.ts'
 import {
   EntityInspector,
   findEdgeById,
   findNodeById,
   type RefocusTarget,
 } from './entity-inspector'
+import type { GraphViewDescriptor } from './projection-guards'
 import {
   CARD_PROJECTION,
   FOCUS_CARD_NODE,
@@ -227,6 +229,220 @@ describe('entity-inspector edges', () => {
     assert.equal(findNodeById(CARD_PROJECTION, 'nope'), null)
     // FOCUS_CARD_NODE is the fixture node: it must be the one the projection carries.
     assert.equal(findNodeById(CARD_PROJECTION, ID.focusCard), FOCUS_CARD_NODE)
+  })
+})
+
+/** A projection carrying one authored `claim -> source` attribution. */
+const PROJECTION_WITH_SOURCE: GraphProjection = {
+  ...CARD_PROJECTION,
+  nodes: [
+    ...CARD_PROJECTION.nodes,
+    {
+      id: 'source-1',
+      type: 'source',
+      label: 'Pilgrims and Patriots',
+      depth: 1,
+      isFocus: false,
+      degree: 1,
+      status: { source: 'none', value: null },
+      metadata: {
+        title: 'Pilgrims and Patriots',
+        author: 'Sarah Rachel',
+        publisher: null,
+        citation: null,
+        url: null,
+        sourceType: 'BOOK',
+      },
+    },
+  ],
+  edges: [
+    ...CARD_PROJECTION.edges,
+    {
+      id: `source|${ID.claimOne}|ATTRIBUTED_TO|source-1`,
+      family: 'source',
+      type: { family: 'source', value: 'ATTRIBUTED_TO' },
+      sourceTable: 'claim_sources',
+      from: ID.claimOne,
+      to: 'source-1',
+      attributes: {
+        quoteOrExcerpt: 'a quotation the claim was read from',
+        pageReference: 'p. 12',
+        notes: null,
+      },
+      traversal: 'bidirectional',
+    },
+  ],
+}
+
+/** The previous projection plus one evidence item asserted against the claim. */
+const PROJECTION_WITH_EVIDENCE: GraphProjection = {
+  ...PROJECTION_WITH_SOURCE,
+  nodes: [
+    ...PROJECTION_WITH_SOURCE.nodes,
+    {
+      id: 'ev-1',
+      type: 'evidence_item',
+      label: 'Field report',
+      depth: 2,
+      isFocus: false,
+      degree: 1,
+      status: {
+        source: 'evidence_status',
+        value: 'PRIMARY',
+        vocabulary: 'uncontrolled',
+      },
+      metadata: {
+        evidenceType: 'QUOTATION',
+        locator: null,
+        quoteOrExcerpt: 'Evidence ev-1 content',
+        strength: null,
+      },
+    },
+  ],
+  edges: [
+    ...PROJECTION_WITH_SOURCE.edges,
+    {
+      id: `evidence|ev-1|SUPPORTS|${ID.claimOne}`,
+      family: 'evidence',
+      type: { family: 'evidence', value: 'SUPPORTS' },
+      sourceTable: 'evidence_claims',
+      from: 'ev-1',
+      to: ID.claimOne,
+      attributes: { strength: 'STRONG', notes: null },
+      traversal: 'bidirectional',
+    },
+  ],
+}
+
+/** A descriptor that declares the source family: provenance may speak. */
+const SOURCE_DECLARING_VIEW: GraphViewDescriptor = {
+  name: 'card-argument-taxonomy',
+  description: 'fixture descriptor that declares the source family',
+  status: 'implemented',
+  focusTypes: ['card'],
+  nodeTypes: ['card', 'claim', 'source'],
+  edgeFamilies: ['domain', 'claim_relation', 'inference', 'source'],
+  excludedNodeTypes: [],
+  nonNodeStructures: [],
+  maxDepth: 3,
+  populated: true,
+  blockingGaps: [],
+}
+
+/** Classification only: this view never asks for provenance. */
+const TAXONOMY_ONLY_VIEW: GraphViewDescriptor = {
+  ...SOURCE_DECLARING_VIEW,
+  edgeFamilies: ['classification'],
+}
+
+/** The evidence view over a corpus with zero evidence rows. */
+const EVIDENCE_EMPTY_VIEW: GraphViewDescriptor = {
+  name: 'evidence',
+  description: 'fixture descriptor over an empty evidence layer',
+  status: 'data_blocked',
+  focusTypes: ['claim', 'source', 'evidence_item'],
+  nodeTypes: ['claim', 'source', 'evidence_item', 'inference_step'],
+  edgeFamilies: ['inference', 'source', 'evidence'],
+  excludedNodeTypes: [],
+  nonNodeStructures: [],
+  maxDepth: 3,
+  populated: false,
+  blockingGaps: ['evidence_item: trope_graph.evidence_items has 0 rows'],
+}
+
+/** The evidence view over a corpus that does have evidence rows elsewhere. */
+const EVIDENCE_POPULATED_VIEW: GraphViewDescriptor = {
+  ...EVIDENCE_EMPTY_VIEW,
+  populated: true,
+  blockingGaps: [],
+}
+
+/** Render the inspected claim under a given projection and view descriptor. */
+function renderClaimWith(
+  projection: GraphProjection,
+  descriptor?: GraphViewDescriptor,
+) {
+  return render(
+    <EntityInspector
+      projection={projection}
+      selection={{ kind: 'node', id: ID.claimOne }}
+      onNavigateCard={() => {}}
+      descriptor={descriptor}
+    />,
+  )
+}
+
+describe('entity-inspector provenance and evidence honesty', () => {
+  it('shows the authored attribution with its quote, page and source label', () => {
+    const html = renderClaimWith(PROJECTION_WITH_SOURCE, SOURCE_DECLARING_VIEW)
+    assert.ok(html.includes('data-provenance-edge='))
+    assert.ok(html.includes('data-source-table="claim_sources"'))
+    assert.ok(html.includes('ATTRIBUTED_TO'))
+    assert.ok(html.includes('a quotation the claim was read from'))
+    assert.ok(html.includes('p. 12'))
+    assert.ok(html.includes('Pilgrims and Patriots'))
+  })
+
+  it('reports an expanded claim with no attribution as a corpus fact', () => {
+    // claimOne sits at depth 1 of a depth-3, untruncated projection, so its
+    // rows were fully requested: silence here is the corpus's answer.
+    const html = renderClaimWith(CARD_PROJECTION, SOURCE_DECLARING_VIEW)
+    assert.ok(
+      html.includes(
+        'No source attribution recorded for this claim in the corpus.',
+      ),
+    )
+  })
+
+  it('stays silent about provenance when the view declares no source family', () => {
+    const html = renderClaimWith(CARD_PROJECTION, TAXONOMY_ONLY_VIEW)
+    assert.ok(!html.includes('Provenance'))
+    assert.ok(!html.includes('No source attribution recorded'))
+  })
+
+  it('suppresses the provenance empty state when no descriptor was passed', () => {
+    const html = renderClaimWith(CARD_PROJECTION)
+    assert.ok(!html.includes('Provenance'))
+  })
+
+  it('names the empty evidence table instead of implying a load failure', () => {
+    const html = renderClaimWith(CARD_PROJECTION, EVIDENCE_EMPTY_VIEW)
+    assert.ok(html.includes('No evidence in the corpus'))
+    assert.ok(html.includes('trope_graph.evidence_items has 0 rows'))
+  })
+
+  it('reports an unsupported claim when the corpus has evidence rows but none here', () => {
+    const html = renderClaimWith(CARD_PROJECTION, EVIDENCE_POPULATED_VIEW)
+    assert.ok(
+      html.includes(
+        'No evidence directed at this claim in the corpus. Nothing in evidence_* supports it — a corpus fact, not a load failure.',
+      ),
+    )
+    assert.ok(!html.includes('evidence_items has 0 rows'))
+  })
+
+  it('lists evidence against the claim with relation, strength and quote', () => {
+    const html = renderClaimWith(PROJECTION_WITH_EVIDENCE, EVIDENCE_EMPTY_VIEW)
+    assert.ok(html.includes('data-evidence-edge='))
+    assert.ok(html.includes('data-source-table="evidence_claims"'))
+    assert.ok(html.includes('SUPPORTS'))
+    assert.ok(html.includes('strength STRONG'))
+    assert.ok(html.includes('Evidence ev-1 content'))
+    assert.ok(html.includes('Field report'))
+  })
+
+  it('offers refocus for a source node', () => {
+    const html = render(
+      <EntityInspector
+        projection={PROJECTION_WITH_SOURCE}
+        selection={{ kind: 'node', id: 'source-1' }}
+        onNavigateCard={() => {}}
+        onRefocus={() => {}}
+      />,
+    )
+    assert.ok(html.includes('data-testid="focus-entity"'))
+    assert.ok(html.includes('data-entity-type="source"'))
+    assert.ok(html.includes('Focus source'))
   })
 })
 

@@ -13,6 +13,7 @@
  * is deliberately no ontology-wide adjacency graph that depth could be measured against.
  */
 
+import type { ViewPopulation } from './reader'
 import type { EdgeFamily, GraphNodeType } from './types'
 
 /**
@@ -68,19 +69,28 @@ export type GraphViewRule = {
 const CARD_ARGUMENT_TAXONOMY: GraphViewRule = {
   name: 'card-argument-taxonomy',
   description:
-    'The first projection: a card with its Suits, Mechanisms, ordered Axis, asserted Claims, ' +
-    'the reasoning steps bridging those claims, and its card-to-card relationships. Chosen ' +
+    'The first projection: a card with its Suits, Mechanisms, ordered Axis, asserted Claims ' +
+    'and their authored attributions to sources, the reasoning steps bridging those claims, ' +
+    'and its card-to-card relationships. Chosen ' +
     'because it is the only projection fully populated for all 47 cards while still ' +
     'deepening into real argument structure where it exists.',
   status: 'implemented',
   focusTypes: ['card'],
-  nodeTypes: ['card', 'collection', 'mechanism', 'claim', 'inference_step'],
+  nodeTypes: [
+    'card',
+    'collection',
+    'mechanism',
+    'claim',
+    'inference_step',
+    'source',
+  ],
   edgeFamilies: [
     'domain',
     'classification',
     'claim_relation',
     'inference',
     'card_relationship',
+    'source',
   ],
   excludedNodeTypes: [
     {
@@ -101,10 +111,6 @@ const CARD_ARGUMENT_TAXONOMY: GraphViewRule = {
       reason:
         'Carried as grouping metadata on inference_step per issue #3 Q6. Becomes a node in ' +
         'the argument view, reading the same canonical rows.',
-    },
-    {
-      type: 'source',
-      reason: 'sources has 0 rows.',
     },
     {
       type: 'evidence_item',
@@ -181,14 +187,9 @@ const ARGUMENT: GraphViewRule = {
     'canonical rows.',
   status: 'implemented',
   focusTypes: ['card', 'claim', 'argument_chain'],
-  nodeTypes: ['card', 'claim', 'inference_step', 'argument_chain'],
-  edgeFamilies: ['domain', 'claim_relation', 'inference'],
+  nodeTypes: ['card', 'claim', 'inference_step', 'argument_chain', 'source'],
+  edgeFamilies: ['domain', 'claim_relation', 'inference', 'source'],
   excludedNodeTypes: [
-    {
-      type: 'source',
-      reason:
-        'sources has 0 rows; the evidence view covers provenance once it lands.',
-    },
     {
       type: 'evidence_item',
       reason: 'All five evidence_* tables have 0 rows.',
@@ -201,12 +202,14 @@ const ARGUMENT: GraphViewRule = {
 const EVIDENCE: GraphViewRule = {
   name: 'evidence',
   description:
-    'Claim -> evidence -> source provenance. Designed and wired, but the corpus is empty, ' +
-    'so it returns an empty node set with a warning.',
+    'Claim -> evidence -> source provenance. The evidence half (evidence_items and its ' +
+    'join tables) has 0 rows in the corpus, so it returns an empty neighbourhood with a ' +
+    'warning naming the missing table; claim -> source attribution resolves today on the ' +
+    'populated claim_sources rows.',
   status: 'data_blocked',
   focusTypes: ['claim', 'source', 'evidence_item'],
   nodeTypes: ['claim', 'evidence_item', 'source', 'inference_step'],
-  edgeFamilies: ['inference'],
+  edgeFamilies: ['inference', 'source', 'evidence'],
   excludedNodeTypes: [
     {
       type: 'case',
@@ -230,7 +233,12 @@ const IDENTITY_RETROJECTION: GraphViewRule = {
   excludedNodeTypes: [
     {
       type: 'source',
-      reason: 'sources has 0 rows; will extend when provenance is populated.',
+      reason:
+        'A scope decision, not a data gap: sources and claim_sources are populated and ' +
+        'attribution resolves in the default, argument and evidence views. This view is ' +
+        'scoped to the subject -> identity -> mapping path, where a bibliography entry ' +
+        'would add no edge of its own. Admitting source here later is a one-line ' +
+        'nodeTypes change with no reader or ontology work outstanding.',
     },
   ],
   nonNodeStructures: [],
@@ -254,6 +262,50 @@ export const GRAPH_VIEWS: ReadonlyMap<string, GraphViewRule> = new Map<
   [IDENTITY_RETROJECTION.name, IDENTITY_RETROJECTION],
 ])
 
+/**
+ * Which of a view's declared node types have no rows behind them.
+ *
+ * Lives here rather than in `query.ts` so the projection's corpus warnings can
+ * reuse the exact gap strings the views catalogue reports, without an import
+ * cycle (query imports views; views must not import query). The reason strings
+ * name the table, so a `blockingGap` points at the corpus task that would close
+ * it rather than at the projection that would have to change.
+ *
+ * @param view The view whose declared node types are checked.
+ * @param population Current row counts from `readPopulation()`.
+ * @returns One `"<type>: trope_graph.<table> has 0 rows"` string per empty table
+ * the view actually declares; `[]` when the view is fully backed.
+ * @example
+ * ```ts
+ * viewBlockingGaps(getGraphView("evidence")!, population);
+ * // ["evidence_item: trope_graph.evidence_items has 0 rows"]
+ * ```
+ */
+export function viewBlockingGaps(
+  view: GraphViewRule,
+  population: ViewPopulation,
+): string[] {
+  const gaps: string[] = []
+  const check = (type: GraphNodeType, count: number, table: string): void => {
+    if (!view.nodeTypes.includes(type)) return
+    if (count > 0) return
+    gaps.push(`${type}: trope_graph.${table} has 0 rows`)
+  }
+  check('card', population.cards, 'cards')
+  check('claim', population.claims, 'claims')
+  check('inference_step', population.inferenceSteps, 'inference_steps')
+  check('argument_chain', population.argumentChains, 'argument_chains')
+  check('collection', population.collections, 'collections')
+  check('mechanism', population.mechanisms, 'mechanisms')
+  check('concept', population.cardConcepts, 'card_concepts')
+  check('source', population.sources, 'sources')
+  check('evidence_item', population.evidenceItems, 'evidence_items')
+  check('case', population.cases, 'cases')
+  check('interpretation', population.interpretations, 'interpretations')
+  check('question', population.questions, 'questions')
+  return gaps
+}
+
 /** The view used when `view` is omitted. */
 export const DEFAULT_VIEW_NAME = CARD_ARGUMENT_TAXONOMY.name
 
@@ -265,6 +317,15 @@ export const DEFAULT_VIEW_NAME = CARD_ARGUMENT_TAXONOMY.name
  * destination for every refocus action the UI offers.
  */
 export const ARGUMENT_VIEW_NAME = ARGUMENT.name
+
+/**
+ * The view that accepts source and evidence-item focuses.
+ *
+ * Refocusing the projection onto a source or an evidence item moves here: it is
+ * the only registered view whose `focusTypes` contains both, so an inspector
+ * refocus button can never hand the page a focus this view would 404.
+ */
+export const EVIDENCE_VIEW_NAME = EVIDENCE.name
 
 /** Default `depth` when the parameter is omitted: the immediate neighbourhood. */
 export const DEFAULT_DEPTH = 1
