@@ -56,6 +56,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   interactions  UserInteraction[]
+  drafts        DecompositionDraft[]
 
   @@unique([email])
   @@map("user")
@@ -144,4 +145,28 @@ enum InteractionType {
   STRUCTURED_FEEDBACK
   ACADEMIC_FEEDBACK
   MODERATION_ACTION
+}
+
+// User-authored claim decomposition and argument-chain work, from the
+// Compose/Decompose surface. This is participation data, not ontology data: the
+// canonical graph lives in the `trope_graph` schema and is never written here.
+// A draft references graph entities by slug/uuid string with no foreign key,
+// because `trope_graph` is a separate schema the projection owns; the column is
+// deliberately *not* named `cards` so it can never be mistaken for a canonical
+// card row.
+model DecompositionDraft {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  cardSlug  String   @map("card_slug")
+  // The validated draft payload (steps + chains). Shape is enforced at the API
+  // boundary by `server/composition/draft-contract.ts`; the free `Json` column
+  // stores it verbatim so a schema change never silently rewrites authored work.
+  payload   Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cardSlug])
+  @@index([userId])
+  @@map("decomposition_drafts")
 }

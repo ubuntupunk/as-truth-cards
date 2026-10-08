@@ -6,6 +6,7 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { ThemeProvider } from './components/ThemeProvider'
 import About from './pages/About'
 import Admin from './pages/Admin'
+import Compose from './pages/Compose'
 import Deck from './pages/Deck'
 import Explore from './pages/Explore'
 import Graph from './pages/Graph'
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/" element={<Deck />} />
             <Route path="/legacy/deck" element={<LegacyDeck />} />
             <Route path="/explore" element={<Explore />} />
+            <Route path="/research/compose" element={<Compose />} />
             <Route path="/about" element={<About />} />
             <Route path="/graph" element={<Graph />} />
             <Route path="/admin" element={<Admin />} />
