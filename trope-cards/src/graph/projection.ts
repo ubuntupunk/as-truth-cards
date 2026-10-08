@@ -32,6 +32,11 @@
  * - No edge is emitted unless both endpoints are in the emitted node set.
  */
 
+import {
+  buildCardClassification,
+  groupCardAxes,
+  groupCardClassifications,
+} from './classification'
 import type {
   ArgumentChainExpansion,
   ArgumentChainMembershipRow,
@@ -60,7 +65,6 @@ import type {
 import type {
   ArgumentChainMembership,
   ArgumentChainNode,
-  AxisAssignment,
   CardClassification,
   CardNode,
   CardNodeMetadata,
@@ -1565,117 +1569,6 @@ function uniqueBy<T>(rows: readonly T[], key: (row: T) => string): T[] {
     out.push(row)
   }
   return out
-}
-
-/**
- * Group `card_axes` rows by card, in authored ordinal order.
- *
- * The `primary` marker comes from `ordinal === 0` and nothing else. This single expression is
- * the entirety of Issue #2's "axis is `card_axes.ordinal = 0`, never `primary_type`"
- * requirement, and `primaryType` appears nowhere near it. The whole multi-valued assignment
- * is preserved rather than collapsing to the primary value, because 9 of the 47 seeded cards
- * carry more than one axis and a card can legitimately be both a rhetorical tactic and a
- * theological dispute.
- */
-function groupCardAxes(
-  rows: NodeHydration['cardAxes'],
-): Map<string, AxisAssignment[]> {
-  const byCard = new Map<string, AxisAssignment[]>()
-  const ordered = [...rows].sort((a, b) => a.ordinal - b.ordinal)
-  for (const row of ordered) {
-    const assignment: AxisAssignment = {
-      axis: row.axis,
-      ordinal: row.ordinal,
-      primary: row.ordinal === 0,
-    }
-    const list = byCard.get(row.cardId)
-    if (list) list.push(assignment)
-    else byCard.set(row.cardId, [assignment])
-  }
-  return byCard
-}
-
-type ClassificationLink = {
-  readonly linkId: string
-  readonly slug: string
-  readonly name: string
-  readonly description: string | null
-}
-
-/** The columns a classification link row contributes, whichever taxonomy it points at. */
-type ClassificationSource = {
-  readonly cardId: string
-  readonly slug: string
-  readonly name: string
-  readonly description: string | null
-}
-
-/**
- * Group classification link rows by card, sorted by slug.
- *
- * Takes the taxonomy id as a getter rather than a column name, because the two tables it
- * covers spell that column differently (`card_collections.collection_id` versus
- * `card_mechanisms.mechanism_id`) and a union key would need a runtime narrowing branch for a
- * difference the caller already knows.
- *
- * @param rows `card_collections` or `card_mechanisms` rows joined to their taxonomy row.
- * @param taxonomyId Extracts the taxonomy row's id from a link row.
- */
-function groupCardClassifications<T extends ClassificationSource>(
-  rows: readonly T[],
-  taxonomyId: (row: T) => string,
-): Map<string, ClassificationLink[]> {
-  const byCard = new Map<string, ClassificationLink[]>()
-  for (const row of rows) {
-    const link: ClassificationLink = {
-      linkId: taxonomyId(row),
-      slug: row.slug,
-      name: row.name,
-      description: row.description,
-    }
-    const list = byCard.get(row.cardId)
-    if (list) list.push(link)
-    else byCard.set(row.cardId, [link])
-  }
-  for (const list of byCard.values()) {
-    list.sort((a, b) => a.slug.localeCompare(b.slug))
-  }
-  return byCard
-}
-
-/**
- * Build a card's independent classification dimensions.
- *
- * Suits are reported by slug because a Suit is a human-facing browse dimension, and Q3 defers
- * any reconciliation with Issue #2's proposed vocabulary — so nothing here maps, renames, or
- * infers a Suit, and in particular epistemic `CONTESTED` is never surfaced as a Suit called
- * `contested`. Axis, Suit, Mechanism, Locale and Concept stay five separate dimensions.
- *
- * Locale is reported only from `card_locales`. It is not derived from Suit: a Suit is a
- * mutable curation bucket, so a card in the `south-africa` suit is not thereby about South
- * Africa. There is deliberately no default and no fallback here — a card with no locale rows
- * reports an empty list rather than a guess.
- *
- * Suits report ids alongside slugs for the same reason locales do: `collections` and
- * `locales` share the slug `south-africa`, and four cards are in both. A consumer comparing
- * the two lists needs the ids to tell the taxonomies apart, so slug equality between
- * `suits` and `localeSlugs` carries no meaning on its own.
- */
-function buildCardClassification(
-  axes: readonly AxisAssignment[],
-  suits: readonly ClassificationLink[],
-  mechanisms: readonly ClassificationLink[],
-  locales: readonly ClassificationLink[],
-): CardClassification {
-  return {
-    axes,
-    suits: suits.map((suit) => suit.slug),
-    suitIds: suits.map((suit) => suit.linkId),
-    mechanismSlugs: mechanisms.map((mechanism) => mechanism.slug),
-    mechanismIds: mechanisms.map((mechanism) => mechanism.linkId),
-    localeSlugs: locales.map((locale) => locale.slug),
-    localeIds: locales.map((locale) => locale.linkId),
-  }
 }
 
 /**

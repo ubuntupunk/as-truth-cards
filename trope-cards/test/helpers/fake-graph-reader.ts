@@ -4,6 +4,7 @@ import type {
   ArgumentChainRow,
   CardCollectionRow,
   CardExpansion,
+  CardListingRow,
   CardLocaleRow,
   CardConceptRow,
   CardMechanismRow,
@@ -31,6 +32,11 @@ import type {
   TropeGraphReader,
   ViewPopulation,
 } from '../../src/graph/reader'
+import type { ClassificationLinkRow } from '../../src/graph/classification'
+import {
+  buildCardClassification,
+  groupCardClassifications,
+} from '../../src/graph/classification'
 
 /**
  * An in-memory {@link TropeGraphReader} for projection tests.
@@ -669,7 +675,7 @@ export class FakeGraphReader implements TropeGraphReader {
     localeSlug?: string
     limit?: number
     offset?: number
-  } = {}): Promise<{ items: readonly CardRow[]; total: number }> {
+  } = {}): Promise<{ items: readonly CardListingRow[]; total: number }> {
     let items = this.corpus.cards.slice()
     if (params.localeSlug) {
       const cardIdsInLocale = new Set(
@@ -685,7 +691,45 @@ export class FakeGraphReader implements TropeGraphReader {
     const offset = params.offset ?? 0
     const limit = params.limit ?? 50
     const sliced = items.slice(offset, offset + limit)
-    return { items: sliced, total }
+    return { items: sliced.map((row) => this.withClassification(row)), total }
+  }
+
+  /**
+   * Attach one card's classification, assembled from the fake's link rows.
+   *
+   * `FakeCorpus` carries no `card_axes` rows, so `axes` is always empty here —
+   * axis assignment is proved by the Drizzle integration test instead. The
+   * dimensions that do exist are grouped by the same helpers the Drizzle
+   * reader uses, so a `south-africa` suit and a `south-africa` locale stay
+   * apart in the fake exactly as they do against Postgres.
+   *
+   * @param row The card row to classify.
+   * @returns The row with its classification attached.
+   */
+  private withClassification(row: CardRow): CardListingRow {
+    const byId = <T extends ClassificationLinkRow>(
+      rows: readonly T[],
+      taxonomyId: (r: T) => string,
+    ) => groupCardClassifications(rows, taxonomyId).get(row.id) ?? []
+
+    return {
+      ...row,
+      classification: buildCardClassification(
+        [],
+        byId(
+          this.corpus.cardCollections.filter((r) => r.cardId === row.id),
+          (r) => r.collectionId,
+        ),
+        byId(
+          this.corpus.cardMechanisms.filter((r) => r.cardId === row.id),
+          (r) => r.mechanismId,
+        ),
+        byId(
+          this.corpus.cardLocales.filter((r) => r.cardId === row.id),
+          (r) => r.localeId,
+        ),
+      ),
+    }
   }
 
   async listSources(params: {

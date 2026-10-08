@@ -5,7 +5,14 @@ import { after, before, describe, it } from 'node:test'
 import express from 'express'
 
 import { createGraphRouter } from '../../server/api/graph'
-import { FakeGraphReader, card, emptyCorpus, richCorpus } from './helpers/fake-graph-reader'
+import {
+  FakeGraphReader,
+  card,
+  emptyCorpus,
+  link,
+  localeLink,
+  richCorpus,
+} from './helpers/fake-graph-reader'
 import type { FakeCorpus } from './helpers/fake-graph-reader'
 
 /**
@@ -442,6 +449,39 @@ describe('GET /api/graph/cards', () => {
       sources: [],
       evidenceItems: [],
       claimSources: [],
+      // A Suit and a Locale that share the `south-africa` slug on the same card, with
+      // distinct taxonomy ids — the real seeded corpus has exactly this collision, and it is
+      // the one shape that proves the listing keeps the dimensions apart instead of merging
+      // two taxonomies because their slugs match.
+      cardCollections: [
+        link({ cardId: 'card-1', slug: 'zionism', name: 'Zionism' }),
+        link({
+          cardId: 'card-3',
+          id: 'collection-south-africa',
+          slug: 'south-africa',
+          name: 'South Africa',
+        }),
+      ],
+      cardLocales: [
+        localeLink({
+          cardId: 'card-1',
+          id: 'locale-south-africa',
+          slug: 'south-africa',
+          name: 'South Africa',
+        }),
+        localeLink({
+          cardId: 'card-1',
+          id: 'locale-israel',
+          slug: 'israel',
+          name: 'Israel',
+        }),
+        localeLink({
+          cardId: 'card-3',
+          id: 'locale-south-africa',
+          slug: 'south-africa',
+          name: 'South Africa',
+        }),
+      ],
     }
     const server = await serve(corpus)
     origin = server.origin
@@ -471,6 +511,76 @@ describe('GET /api/graph/cards', () => {
     assert.equal(typeof first.title, 'string')
     for (const forbidden of ['nodes', 'edges', 'cardLocales', 'claims']) {
       assert.equal(forbidden in first, false, `${forbidden} must not leak to the client`)
+    }
+  })
+
+  it('carries each card classification verbatim from the graph vocabulary', async () => {
+    const { body } = await get(origin, '/api/graph/cards')
+    const items = body['items'] as { id: string; classification: unknown }[]
+    const one = items.find((c) => c.id === 'card-1')
+    assert.ok(one)
+    // Every slug is one that exists as a row in `collections`, `mechanisms` or `locales`.
+    // `axes` stays empty because `FakeCorpus` carries no `card_axes` rows; axis assignment is
+    // proved against Postgres in the Drizzle integration tests.
+    assert.deepEqual(one.classification, {
+      axes: [],
+      suits: ['zionism'],
+      suitIds: ['zionism'],
+      mechanismSlugs: ['name-slur'],
+      mechanismIds: ['name-slur'],
+      localeSlugs: ['israel', 'south-africa'],
+      localeIds: ['locale-israel', 'locale-south-africa'],
+    })
+  })
+
+  it('keeps a suit and a locale that share a slug in separate dimensions', async () => {
+    const { body } = await get(origin, '/api/graph/cards')
+    const items = body['items'] as {
+      id: string
+      classification: {
+        suits: string[]
+        suitIds: string[]
+        localeSlugs: string[]
+        localeIds: string[]
+      }
+    }[]
+    const shared = items.find((c) => c.id === 'card-3')
+    assert.ok(shared)
+    assert.deepEqual(shared.classification.suits, ['south-africa'])
+    assert.deepEqual(shared.classification.suitIds, ['collection-south-africa'])
+    assert.deepEqual(shared.classification.localeSlugs, ['south-africa'])
+    assert.deepEqual(shared.classification.localeIds, ['locale-south-africa'])
+    // Slug equality across the two lists carries no meaning: only the ids distinguish them.
+    assert.notDeepEqual(shared.classification.suitIds, shared.classification.localeIds)
+  })
+
+  it('reports empty classification dimensions rather than inventing them', async () => {
+    const corpus: FakeCorpus = { ...emptyCorpus(), cards: [card({ id: 'bare' })] }
+    const server = await serve(corpus)
+    try {
+      const { body } = await get(server.origin, '/api/graph/cards')
+      assert.deepEqual(body['items'], [
+        {
+          id: 'bare',
+          slug: 'bare',
+          title: 'Card bare',
+          summary: null,
+          coreQuestion: null,
+          primaryType: 'CASE',
+          epistemicStatus: 'ESTABLISHED',
+          classification: {
+            axes: [],
+            suits: [],
+            suitIds: [],
+            mechanismSlugs: [],
+            mechanismIds: [],
+            localeSlugs: [],
+            localeIds: [],
+          },
+        },
+      ])
+    } finally {
+      await server.close()
     }
   })
 

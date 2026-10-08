@@ -20,6 +20,7 @@
 import type {
   ArgumentChainKindValue,
   CardAxisValue,
+  CardClassification,
   CardTypeValue,
   ClaimRelationValue,
   ClaimTypeValue,
@@ -41,6 +42,19 @@ export type CardRow = {
   readonly coreQuestion: string | null
   readonly primaryType: CardTypeValue
   readonly epistemicStatus: EpistemicStatusValue
+}
+
+/**
+ * One card as the read-side listing transports it: the row plus its
+ * classification dimensions.
+ *
+ * The classification is the *same* assembly the focused projection builds, from
+ * the same tables and the same pure helpers (`classification.ts`), so a
+ * browse surface and a graph node never disagree about what a card is in. It
+ * is not a second vocabulary and nothing here re-derives it from presentation.
+ */
+export type CardListingRow = CardRow & {
+  readonly classification: CardClassification
 }
 
 /** A ranked card search hit, returned by {@link TropeGraphReader.searchCards}. */
@@ -512,13 +526,22 @@ export interface TropeGraphReader {
   /** Read the row counts behind `/api/graph/views`. */
   readPopulation(): Promise<ViewPopulation>
 
-  /** List cards (read-only) for Explore/curation surfaces. */
+  /**
+   * List cards (read-only) for Deck, Explore and curation surfaces.
+   *
+   * Ordered by title so paging is stable, with `total` reported for the same
+   * filter — a browse surface that can only count the current page cannot
+   * honestly show `n / total`.
+   *
+   * @param params Optional locale filter and page size.
+   * @returns The page's cards with classification, and the filtered total.
+   */
   listCards(params?: {
     localeSlug?: string
     limit?: number
     offset?: number
   }): Promise<{
-    items: readonly CardRow[]
+    items: readonly CardListingRow[]
     total: number
   }>
 
