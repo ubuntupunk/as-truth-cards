@@ -1,3 +1,14 @@
+/**
+ * The legacy flat deck, preserved unchanged behind `/legacy/deck`.
+ *
+ * This was the site's original "Revealing Truth" draw-a-card surface: a
+ * Prisma-backed 2:3 card stack with an Israel/Palestine toggle. The product
+ * shell's discovery composition moved to `pages/Deck.tsx` at `/` (SPEC §3.1,
+ * §3.3), and SPEC §14 retires the toggle and the physical-card presentation as
+ * design requirements — so this page stays reachable for comparison but is
+ * no longer the route anyone lands on.
+ */
+
 import { useState } from 'react'
 import CardDeck from '@/components/CardDeck'
 import Footer from '@/components/Footer'
@@ -7,7 +18,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
 
-const Index = () => {
+const LegacyDeck = () => {
   const isHeaderVisible = useDelayedVisibility(100)
   const isContentVisible = useDelayedVisibility(300)
   const [showPalestineStack, setShowPalestineStack] = useState(false)
@@ -82,4 +93,4 @@ const Index = () => {
   )
 }
 
-export default Index
+export default LegacyDeck

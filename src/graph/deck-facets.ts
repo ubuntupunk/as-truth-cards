@@ -263,8 +263,18 @@ export function applyFacetFilter(
   }
 }
 
-/** Human label for a Suit slug, with a slug-shaped fallback for unknown suits. */
-function suitLabel(slug: string): string {
+/**
+ * Human label for a Suit slug, with a slug-shaped fallback for unknown suits.
+ *
+ * Exported for the Deck's classification tags: a Suit is displayed from this
+ * vocabulary (`fact-rebuttal` reads `Reference`, not `Fact rebuttal`), never
+ * re-humanized. Other dimensions must not use it — a Locale called
+ * `fact-rebuttal` would be a different word with a different origin.
+ *
+ * @param slug The `collections.slug` to label.
+ * @returns The vocabulary label, or a humanized slug when unknown.
+ */
+export function suitLabel(slug: string): string {
   return SUIT_LABELS[slug] ?? humanize(slug)
 }
 
@@ -273,8 +283,16 @@ function axisLabel(axis: CardAxisValue): string {
   return AXIS_LABELS[axis]
 }
 
-/** `kebab-slug` → `Kebab slug`. Presentation only; never parsed back. */
-function humanize(value: string): string {
+/**
+ * `kebab-slug` → `Kebab slug`. Presentation only; never parsed back.
+ *
+ * Used for Mechanisms and Locales, which have no label vocabulary of their
+ * own, and as the Suit fallback for a slug outside the known five.
+ *
+ * @param value The slug to humanize.
+ * @returns The display form of the slug.
+ */
+export function humanize(value: string): string {
   return value
     .split('-')
     .map((part) =>

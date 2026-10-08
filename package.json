@@ -29,7 +29,7 @@
     "start": "tsx server/index.ts",
     "test": "pnpm run test:server && pnpm run trope-graph:test && pnpm run test:ui",
     "test:server": "node --import tsx --test \"server/**/*.test.ts\"",
-    "test:ui": "TSX_TSCONFIG_PATH=./tsconfig.app.json node --import tsx --test \"src/graph/*.test.tsx\"",
+    "test:ui": "TSX_TSCONFIG_PATH=./tsconfig.app.json node --import tsx --import ./scripts/preact-test-alias.mjs --test \"src/**/*.test.tsx\"",
     "trope-graph:check": "pnpm run trope-graph:migrate:check && pnpm run trope-graph:validate && pnpm run typecheck:graph && pnpm run trope-graph:verify && pnpm run trope-graph:test && pnpm run trope-graph:check-drift",
     "trope-graph:check-drift": "node trope-cards/scripts/check-drift.mjs",
     "trope-graph:migrate": "tsx trope-cards/src/db/migrate-cli.ts",

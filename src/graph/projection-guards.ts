@@ -1,5 +1,5 @@
 /**
- * Runtime shape validation for the two HTTP bodies the Graph page consumes.
+ * Runtime shape validation for the HTTP bodies the Graph and Deck pages consume.
  *
  * `fetch` hands back `unknown`. Between a `res.json()` and a typed
  * `GraphProjection` sits exactly one assumption — that the server sent the
@@ -29,6 +29,7 @@
  * "the server sent nonsense" need different words on screen.
  */
 
+import type { CardListingRow } from '../../trope-cards/src/graph/reader.ts'
 import type { GraphProjection } from '../../trope-cards/src/graph/types.ts'
 
 /**
@@ -252,6 +253,81 @@ export function assertGraphSearchResponse(
     asNullableString(result.summary, `${path}.summary`)
     asString(result.type, `${path}.type`)
     asNumber(result.rank, `${path}.rank`)
+  }
+}
+
+/**
+ * The `GET /api/graph/cards` body: one page of cards with their
+ * classification, plus the paging envelope the deck's scope badge reads.
+ *
+ * `total` is the count for the *same filter* the page was requested with, so
+ * `n / total` on screen is a server fact rather than a client guess.
+ */
+export type CardListResponse = {
+  readonly items: readonly CardListingRow[]
+  readonly total: number
+  readonly limit: number
+  readonly offset: number
+}
+
+/**
+ * Assert that a decoded JSON body is a `CardListResponse`.
+ *
+ * Classification is checked at the same presence level as everything else:
+ * the six slug/id lists must be there and must be strings, and `axes` must be
+ * an array. What an axis or a suit *means* is the ontology's contract, checked
+ * against the real server in the graph suite — re-deriving it here would be a
+ * second vocabulary on the client.
+ *
+ * @param value The decoded body.
+ * @throws {ProjectionShapeError} If the envelope, a card field or a
+ * classification list is missing or of the wrong primitive type.
+ * @example
+ * ```ts
+ * const body: unknown = await res.json()
+ * assertCardListResponse(body) // narrows to CardListResponse
+ * ```
+ */
+export function assertCardListResponse(
+  value: unknown,
+): asserts value is CardListResponse {
+  const root = asRecord(value, '')
+  asNumber(root.total, 'total')
+  asNumber(root.limit, 'limit')
+  asNumber(root.offset, 'offset')
+
+  const items = asArray(root.items, 'items')
+  for (let index = 0; index < items.length; index++) {
+    const path = `items[${index}]`
+    const item = asRecord(items[index], path)
+    asString(item.id, `${path}.id`)
+    asString(item.slug, `${path}.slug`)
+    asString(item.title, `${path}.title`)
+    asNullableString(item.summary, `${path}.summary`)
+    asNullableString(item.coreQuestion, `${path}.coreQuestion`)
+    asString(item.primaryType, `${path}.primaryType`)
+    asString(item.epistemicStatus, `${path}.epistemicStatus`)
+
+    const classification = asRecord(
+      item.classification,
+      `${path}.classification`,
+    )
+    asArray(classification.axes, `${path}.classification.axes`)
+    asStringArray(classification.suits, `${path}.classification.suits`)
+    asStringArray(classification.suitIds, `${path}.classification.suitIds`)
+    asStringArray(
+      classification.mechanismSlugs,
+      `${path}.classification.mechanismSlugs`,
+    )
+    asStringArray(
+      classification.mechanismIds,
+      `${path}.classification.mechanismIds`,
+    )
+    asStringArray(
+      classification.localeSlugs,
+      `${path}.classification.localeSlugs`,
+    )
+    asStringArray(classification.localeIds, `${path}.classification.localeIds`)
   }
 }
 
