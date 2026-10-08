@@ -54,6 +54,11 @@ import {
   relationships,
   sources,
 } from '../db/schema/tropeGraph'
+import {
+  buildCardClassification,
+  groupCardAxes,
+  groupCardClassifications,
+} from './classification'
 import type {
   ArgumentChainExpansion,
   ArgumentChainMembershipRow,
@@ -61,6 +66,7 @@ import type {
   CardCollectionRow,
   CardConceptRow,
   CardExpansion,
+  CardListingRow,
   CardLocaleRow,
   CardMechanismRow,
   CardRow,
@@ -1072,7 +1078,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
 
   async listCards(
     params: { localeSlug?: string; limit?: number; offset?: number } = {},
-  ): Promise<{ items: readonly CardRow[]; total: number }> {
+  ): Promise<{ items: readonly CardListingRow[]; total: number }> {
     const limit = params.limit ?? 50
     const offset = params.offset ?? 0
     if (params.localeSlug) {
@@ -1093,7 +1099,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
         WHERE l.slug = ${params.localeSlug}
       `)
       return {
-        items: rows.rows,
+        items: await this.attachClassification(rows.rows),
         total: totalResult.rows[0]?.total ?? 0,
       }
     }
@@ -1108,9 +1114,91 @@ export class DrizzleGraphReader implements TropeGraphReader {
       FROM trope_graph.cards c
     `)
     return {
-      items: rows.rows,
+      items: await this.attachClassification(rows.rows),
       total: totalResult.rows[0]?.total ?? 0,
     }
+  }
+
+  /**
+   * Attach each row's classification, batched over the page's card ids.
+   *
+   * Four queries for the whole page rather than four per card, and the same
+   * pure grouping/assembly the focused projection uses — the listing is a
+   * different *window* onto the graph, never a different reading of it.
+   *
+   * @param rows The page of card rows already fetched.
+   * @returns The same rows, each with its classification attached.
+   */
+  private async attachClassification(
+    rows: readonly CardRow[],
+  ): Promise<CardListingRow[]> {
+    if (rows.length === 0) return []
+    const ids = rows.map((row) => row.id)
+
+    const [axisRows, collectionRows, mechanismRows, localeRows] =
+      await Promise.all([
+        emptyIfNo(ids, () =>
+          this.client
+            .select({
+              cardId: cardAxes.cardId,
+              axis: cardAxes.axis,
+              ordinal: cardAxes.ordinal,
+            })
+            .from(cardAxes)
+            .where(inArray(cardAxes.cardId, ids)),
+        ),
+        emptyIfNo(ids, () =>
+          this.client
+            .select(cardCollectionColumns)
+            .from(cardCollections)
+            .innerJoin(
+              collections,
+              eq(cardCollections.collectionId, collections.id),
+            )
+            .where(inArray(cardCollections.cardId, ids)),
+        ),
+        emptyIfNo(ids, () =>
+          this.client
+            .select(cardMechanismColumns)
+            .from(cardMechanisms)
+            .innerJoin(
+              mechanisms,
+              eq(cardMechanisms.mechanismId, mechanisms.id),
+            )
+            .where(inArray(cardMechanisms.cardId, ids)),
+        ),
+        emptyIfNo(ids, () =>
+          this.client
+            .select(cardLocaleColumns)
+            .from(cardLocales)
+            .innerJoin(locales, eq(cardLocales.localeId, locales.id))
+            .where(inArray(cardLocales.cardId, ids)),
+        ),
+      ])
+
+    const axesByCard = groupCardAxes(axisRows)
+    const suitsByCard = groupCardClassifications(
+      collectionRows,
+      (row) => row.collectionId,
+    )
+    const mechanismsByCard = groupCardClassifications(
+      mechanismRows,
+      (row) => row.mechanismId,
+    )
+    const localesByCard = groupCardClassifications(
+      localeRows,
+      (row) => row.localeId,
+    )
+
+    return rows.map((row) => ({
+      ...row,
+      classification: buildCardClassification(
+        axesByCard.get(row.id) ?? [],
+        suitsByCard.get(row.id) ?? [],
+        mechanismsByCard.get(row.id) ?? [],
+        localesByCard.get(row.id) ?? [],
+      ),
+    }))
   }
 
   async listSources(params: { limit?: number; offset?: number } = {}): Promise<{
