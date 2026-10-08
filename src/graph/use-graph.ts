@@ -213,7 +213,7 @@ export function graphSearchQueryKey(term: string): readonly unknown[] {
 }
 
 /**
- * Debounced card search for the focus typeahead.
+ * Debounced card search for the focus typeahead and for Explore.
  *
  * The query is disabled until the trimmed term is at least two characters
  * (matching the server's minimum), and the term is debounced so a fast typist
@@ -221,15 +221,16 @@ export function graphSearchQueryKey(term: string): readonly unknown[] {
  * transient 400/500 from turning into a spinner while react-query retries a
  * request that will not succeed.
  *
- * @param query The raw focus input text.
+ * @param query The raw search input text.
  * @returns A TanStack Query result whose `data` is a validated
- * {@link GraphSearchResponse} once loaded.
+ * {@link GraphSearchResponse} once loaded, plus `term` — the debounced term
+ * `data` answers.
  */
 export function useCardSearch(query: string) {
   const term = query.trim()
   const debounced = useDebouncedValue(term, 250)
 
-  return useQuery<GraphSearchResponse>({
+  const result = useQuery<GraphSearchResponse>({
     queryKey: graphSearchQueryKey(debounced),
     queryFn: () =>
       fetchValidated(
@@ -241,4 +242,10 @@ export function useCardSearch(query: string) {
     staleTime: 30_000,
     placeholderData: (previous) => previous,
   })
+
+  // The term this result actually answers — surfaced so a caller that must
+  // decide whether a search owns the screen (Explore) reads the same value
+  // that keyed the query instead of running a second debounce that could
+  // drift a frame from it.
+  return { ...result, term: debounced }
 }

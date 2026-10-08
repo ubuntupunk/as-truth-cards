@@ -7,6 +7,7 @@ import { ThemeProvider } from './components/ThemeProvider'
 import About from './pages/About'
 import Admin from './pages/Admin'
 import Deck from './pages/Deck'
+import Explore from './pages/Explore'
 import Graph from './pages/Graph'
 import LegacyDeck from './pages/LegacyDeck'
 import NotFound from './pages/NotFound'
@@ -23,6 +24,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Deck />} />
             <Route path="/legacy/deck" element={<LegacyDeck />} />
+            <Route path="/explore" element={<Explore />} />
             <Route path="/about" element={<About />} />
             <Route path="/graph" element={<Graph />} />
             <Route path="/admin" element={<Admin />} />
