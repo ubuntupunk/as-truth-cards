@@ -48,6 +48,14 @@ describe('DeckScopeBadges', () => {
     assert.ok(html.includes('6 of 47 cards'))
   })
 
+  it('pluralises off the corpus when one card survives the scope', () => {
+    const html = render(
+      <DeckScopeBadges {...fixture({ shown: 1, total: 47 })} />,
+    )
+    assert.ok(html.includes('1 of 47 cards'))
+    assert.ok(!/1 of 47 card(?!s)/.test(html))
+  })
+
   it('counts plainly when the whole list was served', () => {
     const html = render(
       <DeckScopeBadges {...fixture({ shown: 47, total: 47 })} />,

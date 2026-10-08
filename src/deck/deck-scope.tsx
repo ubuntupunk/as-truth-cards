@@ -15,6 +15,7 @@
  * same behaviour as the graph facet popover.
  */
 
+import { CHIP_BADGE, FilterGroup, ToggleBadge } from '@/components/filter-chips'
 import { cn } from '@/lib/utils'
 import type {
   CardAxisValue,
@@ -41,75 +42,21 @@ export type DeckScopeBadgesProps = {
   readonly onChange: (scope: DeckScope) => void
 }
 
-/** The muted, compact badge shell shared by every chip in the strip. */
-const BADGE =
-  'inline-flex min-h-[34px] items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors'
-
 /**
  * The count badge's text: how many cards are in play, and — only when the
  * server held more than one page — that the page is a prefix of the listing.
  *
  * @param total Server total for the unfiltered listing.
- * @param served How many cards arrived in this page.
+ * @param served How many cards the server actually returned in this page.
  * @param shown How many the active scope keeps.
- * @returns The badge text, e.g. `47 cards` or `6 of 47 cards`.
+ * @returns The badge text, e.g. `47 cards`, `6 of 47 cards`, `1 of 47 cards`.
  */
 function countLabel(total: number, served: number, shown: number): string {
   const scopeSuffix = shown === total ? '' : ` of ${total}`
-  const base = `${shown}${scopeSuffix} card${shown === 1 ? '' : 's'}`
+  // The noun counts the corpus (`1 of 47 cards`, never `1 of 47 card`), so it
+  // pluralises off the total, not off what happens to be showing.
+  const base = `${shown}${scopeSuffix} card${total === 1 ? '' : 's'}`
   return served === total ? base : `${base} (first ${served} loaded)`
-}
-
-/**
- * One group of filter badges.
- *
- * A `<fieldset>`/`<legend>` rather than an ARIA `role="group"`: the legend is
- * the group's real accessible name, it works without scripting, and a set of
- * filters *is* a form control group semantically — the axis chips are not
- * just visually near the word "Axis".
- */
-function FilterGroup({
-  label,
-  children,
-}: {
-  label: string
-  children: import('preact').ComponentChildren
-}) {
-  return (
-    <fieldset className="m-0 border-0 p-0" data-filter-group={label}>
-      <legend className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </legend>
-      <div className="flex flex-wrap items-center gap-1.5">{children}</div>
-    </fieldset>
-  )
-}
-
-/** One toggle badge. Active state is carried by `aria-pressed` and text weight. */
-function ToggleBadge({
-  active,
-  onSelect,
-  children,
-}: {
-  active: boolean
-  onSelect: () => void
-  children: import('preact').ComponentChildren
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onSelect}
-      className={cn(
-        BADGE,
-        active
-          ? 'border-foreground/30 bg-foreground text-background'
-          : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground',
-      )}
-    >
-      {children}
-    </button>
-  )
 }
 
 /**
@@ -136,7 +83,10 @@ export function DeckScopeBadges({
       <div className="flex flex-wrap items-center gap-1.5">
         <span
           data-testid="deck-scope-count"
-          className={cn(BADGE, 'border-border bg-muted/60 text-foreground')}
+          className={cn(
+            CHIP_BADGE,
+            'border-border bg-muted/60 text-foreground',
+          )}
         >
           {countLabel(total, served, shown)}
         </span>
@@ -148,7 +98,7 @@ export function DeckScopeBadges({
           }
           data-testid="deck-scope-repeat"
           className={cn(
-            BADGE,
+            CHIP_BADGE,
             scope.withoutRepeats
               ? 'border-foreground/30 bg-foreground text-background'
               : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground',
