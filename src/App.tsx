@@ -6,8 +6,9 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { ThemeProvider } from './components/ThemeProvider'
 import About from './pages/About'
 import Admin from './pages/Admin'
+import Deck from './pages/Deck'
 import Graph from './pages/Graph'
-import Index from './pages/Index'
+import LegacyDeck from './pages/LegacyDeck'
 import NotFound from './pages/NotFound'
 
 const queryClient = new QueryClient()
@@ -20,7 +21,8 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<Deck />} />
+            <Route path="/legacy/deck" element={<LegacyDeck />} />
             <Route path="/about" element={<About />} />
             <Route path="/graph" element={<Graph />} />
             <Route path="/admin" element={<Admin />} />
