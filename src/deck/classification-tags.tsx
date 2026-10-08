@@ -57,6 +57,44 @@ function toTags(classification: CardClassification): readonly Tag[] {
   ]
 }
 
+/** Props for {@link ClassificationChips}. */
+export type ClassificationChipsProps = {
+  readonly classification: CardClassification
+}
+
+/**
+ * The chip list alone, with no heading — so a second browse surface (the
+ * Explore result tile) can show the same dimension-prefixed chips without
+ * repeating a `CLASSIFICATION` heading on every card. Each chip keeps its
+ * `Axis ·` / `Suit ·` prefix and its `data-dimension`, because `south-africa`
+ * remains legitimately both a Suit and a Locale and the markup must keep
+ * saying which.
+ *
+ * @param props See {@link ClassificationChipsProps}.
+ * @returns The `<ul>` of chips, or `null` when nothing is recorded.
+ */
+export function ClassificationChips({
+  classification,
+}: ClassificationChipsProps) {
+  const tags = toTags(classification)
+  if (tags.length === 0) return null
+  return (
+    <ul className="flex flex-wrap gap-1.5">
+      {tags.map((tag) => (
+        <li
+          key={tag.key}
+          data-dimension={tag.dimension}
+          className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs text-foreground"
+        >
+          <span className="text-muted-foreground">{tag.dimension}</span>
+          <span aria-hidden="true"> · </span>
+          {tag.label}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 /**
  * The classification region of the featured card.
  *
@@ -84,19 +122,9 @@ export function ClassificationTags({
           No classification tags recorded for this card.
         </p>
       ) : (
-        <ul className="mt-1.5 flex flex-wrap gap-1.5">
-          {tags.map((tag) => (
-            <li
-              key={tag.key}
-              data-dimension={tag.dimension}
-              className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-xs text-foreground"
-            >
-              <span className="text-muted-foreground">{tag.dimension}</span>
-              <span aria-hidden="true"> · </span>
-              {tag.label}
-            </li>
-          ))}
-        </ul>
+        <div className="mt-1.5">
+          <ClassificationChips classification={classification} />
+        </div>
       )}
     </section>
   )
