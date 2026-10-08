@@ -1069,6 +1069,79 @@ export class DrizzleGraphReader implements TropeGraphReader {
       cardLocales: num(row?.card_locales),
     }
   }
+
+  async listCards(
+    params: { localeSlug?: string; limit?: number; offset?: number } = {},
+  ): Promise<{ items: readonly CardRow[]; total: number }> {
+    const limit = params.limit ?? 50
+    const offset = params.offset ?? 0
+    if (params.localeSlug) {
+      const rows = await this.client.execute<CardRow>(sql`
+        SELECT c.id, c.slug, c.title, c.summary, c.core_question AS "coreQuestion", c.primary_type AS "primaryType", c.epistemic_status AS "epistemicStatus"
+        FROM trope_graph.cards c
+        INNER JOIN trope_graph.card_locales cl ON cl.card_id = c.id
+        INNER JOIN trope_graph.locales l ON l.id = cl.locale_id
+        WHERE l.slug = ${params.localeSlug}
+        ORDER BY c.title
+        LIMIT ${limit} OFFSET ${offset}
+      `)
+      const totalResult = await this.client.execute<{ total: number }>(sql`
+        SELECT count(*)::int AS total
+        FROM trope_graph.cards c
+        INNER JOIN trope_graph.card_locales cl ON cl.card_id = c.id
+        INNER JOIN trope_graph.locales l ON l.id = cl.locale_id
+        WHERE l.slug = ${params.localeSlug}
+      `)
+      return {
+        items: rows.rows,
+        total: totalResult.rows[0]?.total ?? 0,
+      }
+    }
+    const rows = await this.client.execute<CardRow>(sql`
+      SELECT c.id, c.slug, c.title, c.summary, c.core_question AS "coreQuestion", c.primary_type AS "primaryType", c.epistemic_status AS "epistemicStatus"
+      FROM trope_graph.cards c
+      ORDER BY c.title
+      LIMIT ${limit} OFFSET ${offset}
+    `)
+    const totalResult = await this.client.execute<{ total: number }>(sql`
+      SELECT count(*)::int AS total
+      FROM trope_graph.cards c
+    `)
+    return {
+      items: rows.rows,
+      total: totalResult.rows[0]?.total ?? 0,
+    }
+  }
+
+  async listSources(params: { limit?: number; offset?: number } = {}): Promise<{
+    items: readonly (SourceRow & { claimSourceCount: number })[]
+    total: number
+  }> {
+    const limit = params.limit ?? 50
+    const offset = params.offset ?? 0
+    const rows = await this.client.execute<
+      SourceRow & { claimSourceCount: number }
+    >(sql`
+      SELECT s.id, s.title, s.author, s.publisher, s.citation, s.url, s.source_type AS "sourceType",
+             COALESCE(cs_count.claim_source_count, 0)::int AS "claimSourceCount"
+      FROM trope_graph.sources s
+      LEFT JOIN (
+        SELECT source_id, count(*)::int AS claim_source_count
+        FROM trope_graph.claim_sources
+        GROUP BY source_id
+      ) cs_count ON cs_count.source_id = s.id
+      ORDER BY s.title
+      LIMIT ${limit} OFFSET ${offset}
+    `)
+    const totalResult = await this.client.execute<{ total: number }>(sql`
+      SELECT count(*)::int AS total
+      FROM trope_graph.sources s
+    `)
+    return {
+      items: rows.rows,
+      total: totalResult.rows[0]?.total ?? 0,
+    }
+  }
 }
 
 /** The single `*_entity_type` discriminator this reader follows. The projection whitelists again. */
@@ -1255,6 +1328,16 @@ export type SelectedRowChecks = [
   Awaited<
     ReturnType<DrizzleGraphReader['expandInferenceSteps']>
   >['evidenceInferences'][number] extends EvidenceInferenceRow
+    ? true
+    : never,
+  Awaited<
+    ReturnType<DrizzleGraphReader['listCards']>
+  >['items'][number] extends CardRow
+    ? true
+    : never,
+  Awaited<
+    ReturnType<DrizzleGraphReader['listSources']>
+  >['items'][number] extends SourceRow & { claimSourceCount: number }
     ? true
     : never,
 ]

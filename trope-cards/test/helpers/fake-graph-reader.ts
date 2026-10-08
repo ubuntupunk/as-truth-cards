@@ -664,4 +664,51 @@ export class FakeGraphReader implements TropeGraphReader {
       ...over,
     }
   }
+
+  async listCards(params: {
+    localeSlug?: string
+    limit?: number
+    offset?: number
+  } = {}): Promise<{ items: readonly CardRow[]; total: number }> {
+    let items = this.corpus.cards.slice()
+    if (params.localeSlug) {
+      const cardIdsInLocale = new Set(
+        this.corpus.cardLocales
+          .filter((l) => l.slug === params.localeSlug)
+          .map((l) => l.cardId),
+      )
+      items = items.filter((c) => cardIdsInLocale.has(c.id))
+    }
+    // Sorted by title so paging is order-stable, matching the Drizzle reader's `ORDER BY title`.
+    items = items.sort((a, b) => a.title.localeCompare(b.title))
+    const total = items.length
+    const offset = params.offset ?? 0
+    const limit = params.limit ?? 50
+    const sliced = items.slice(offset, offset + limit)
+    return { items: sliced, total }
+  }
+
+  async listSources(params: {
+    limit?: number
+    offset?: number
+  } = {}): Promise<{
+    items: readonly (SourceRow & { claimSourceCount: number })[]
+    total: number
+  }> {
+    const claimSourceCounts = new Map<string, number>()
+    for (const cs of this.corpus.claimSources) {
+      claimSourceCounts.set(cs.sourceId, (claimSourceCounts.get(cs.sourceId) ?? 0) + 1)
+    }
+    const items = this.corpus.sources
+      .map((s) => ({
+        ...s,
+        claimSourceCount: claimSourceCounts.get(s.id) ?? 0,
+      }))
+      .sort((a, b) => a.title.localeCompare(b.title))
+    const total = items.length
+    const offset = params.offset ?? 0
+    const limit = params.limit ?? 50
+    const sliced = items.slice(offset, offset + limit)
+    return { items: sliced, total }
+  }
 }

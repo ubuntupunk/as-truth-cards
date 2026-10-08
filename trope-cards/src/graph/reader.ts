@@ -511,4 +511,20 @@ export interface TropeGraphReader {
 
   /** Read the row counts behind `/api/graph/views`. */
   readPopulation(): Promise<ViewPopulation>
+
+  /** List cards (read-only) for Explore/curation surfaces. */
+  listCards(params?: {
+    localeSlug?: string
+    limit?: number
+    offset?: number
+  }): Promise<{
+    items: readonly CardRow[]
+    total: number
+  }>
+
+  /** List sources (read-only) with basic attribution signal if present. */
+  listSources(params?: { limit?: number; offset?: number }): Promise<{
+    items: readonly (SourceRow & { claimSourceCount: number })[]
+    total: number
+  }>
 }

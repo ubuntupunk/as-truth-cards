@@ -5,6 +5,7 @@ import {
   GraphQueryError,
   describeViews,
   parseGraphQuery,
+  parseListQuery,
   parseSearchQuery,
 } from '../src/graph/query'
 import {
@@ -354,6 +355,114 @@ describe('parseSearchQuery', () => {
       (error: unknown) =>
         error instanceof GraphQueryError && error.status === 400,
     )
+  })
+})
+
+describe('parseListQuery', () => {
+  /** Assert a query parses to the expected limit, offset and filters. */
+  function expectList(
+    query: Record<string, unknown>,
+    filters: readonly string[],
+    expected: { limit: number; offset: number; filters?: Record<string, string> },
+  ) {
+    const parsed = parseListQuery(query, filters)
+    assert.equal(parsed.limit, expected.limit)
+    assert.equal(parsed.offset, expected.offset)
+    if (expected.filters) {
+      assert.deepEqual(parsed.filters, expected.filters)
+    } else {
+      assert.equal(parsed.filters, null)
+    }
+  }
+
+  it('defaults to limit 50 and offset 0 with no filters', () => {
+    expectList({}, [], { limit: 50, offset: 0 })
+  })
+
+  it('accepts a numeric limit and offset', () => {
+    expectList({ limit: '25', offset: '50' }, [], { limit: 25, offset: 50 })
+  })
+
+  it('clamps an oversized limit rather than rejecting a page-size knob', () => {
+    expectList({ limit: '100000' }, [], { limit: 200, offset: 0 })
+  })
+
+  it('clamps an absurd offset to the paging ceiling', () => {
+    expectList({ offset: '999999999' }, [], { limit: 50, offset: 10_000 })
+  })
+
+  it('keeps a dimension-qualified filter', () => {
+    expectList(
+      { locale: 'south-africa' },
+      ['locale'],
+      { limit: 50, offset: 0, filters: { locale: 'south-africa' } },
+    )
+  })
+
+  it('is null-filtered when no filter parameter is present', () => {
+    expectList({ limit: '5' }, ['locale'], { limit: 5, offset: 0 })
+  })
+
+  it('rejects a filter the route never advertised', () => {
+    assert.throws(
+      () => parseListQuery({ collection: 'zionism' }, ['locale']),
+      (error: unknown) =>
+        error instanceof GraphQueryError &&
+        error.status === 400 &&
+        error.detail.includes('unknown parameter "collection"'),
+    )
+  })
+
+  it('rejects a repeated filter', () => {
+    assert.throws(
+      () => parseListQuery({ locale: ['a', 'b'] }, ['locale']),
+      (error: unknown) =>
+        error instanceof GraphQueryError && error.status === 400,
+    )
+  })
+
+  it('rejects a filter value that is not a slug', () => {
+    for (const locale of ['South Africa', 'south africa', '', '  ', '../../etc']) {
+      assert.throws(
+        () => parseListQuery({ locale }, ['locale']),
+        (error: unknown) =>
+          error instanceof GraphQueryError && error.status === 400,
+        `locale "${locale}" must be rejected`,
+      )
+    }
+  })
+
+  it('rejects a repeated limit or offset instead of picking one', () => {
+    assert.throws(
+      () => parseListQuery({ limit: ['1', '2'] }, []),
+      (error: unknown) =>
+        error instanceof GraphQueryError && error.status === 400,
+    )
+    assert.throws(
+      () => parseListQuery({ offset: ['0', '1'] }, []),
+      (error: unknown) =>
+        error instanceof GraphQueryError && error.status === 400,
+    )
+  })
+
+  it('rejects a negative or non-numeric paging value', () => {
+    for (const query of [
+      { offset: '-1' },
+      { limit: '-1' },
+      { limit: 'many' },
+      { offset: '1.5' },
+    ]) {
+      assert.throws(
+        () => parseListQuery(query, []),
+        (error: unknown) =>
+          error instanceof GraphQueryError && error.status === 400,
+        `${JSON.stringify(query)} must be rejected`,
+      )
+    }
+  })
+
+  it('treats an empty-string paging value as absent', () => {
+    expectList({ limit: '', offset: '' }, [], { limit: 50, offset: 0 })
   })
 })
 

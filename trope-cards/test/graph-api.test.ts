@@ -432,6 +432,190 @@ describe('GET /api/graph/search', () => {
   })
 })
 
+describe('GET /api/graph/cards', () => {
+  let origin = ''
+  let close: () => Promise<void> = async () => {}
+
+  before(async () => {
+    const corpus: FakeCorpus = {
+      ...richCorpus(),
+      sources: [],
+      evidenceItems: [],
+      claimSources: [],
+    }
+    const server = await serve(corpus)
+    origin = server.origin
+    close = server.close
+  })
+
+  after(async () => {
+    await close()
+  })
+
+  it('returns a paginated envelope with a total', async () => {
+    const { status, body } = await get(origin, '/api/graph/cards')
+    assert.equal(status, 200)
+    const items = body['items'] as { id: string; title: string }[]
+    assert.equal(body['total'], 3)
+    assert.equal(body['limit'], 50)
+    assert.equal(body['offset'], 0)
+    assert.equal(items.length, 3)
+  })
+
+  it('returns read-only card fields and no graph internals', async () => {
+    const { body } = await get(origin, '/api/graph/cards')
+    const [first] = body['items'] as Record<string, unknown>[]
+    assert.ok(first)
+    assert.equal(typeof first.id, 'string')
+    assert.equal(typeof first.slug, 'string')
+    assert.equal(typeof first.title, 'string')
+    for (const forbidden of ['nodes', 'edges', 'cardLocales', 'claims']) {
+      assert.equal(forbidden in first, false, `${forbidden} must not leak to the client`)
+    }
+  })
+
+  it('pages with limit and offset', async () => {
+    const first = await get(origin, '/api/graph/cards?limit=2')
+    assert.equal((first.body['items'] as unknown[]).length, 2)
+    const second = await get(origin, '/api/graph/cards?limit=2&offset=2')
+    assert.equal((second.body['items'] as unknown[]).length, 1)
+    assert.equal(second.body['total'], 3)
+    const ids = [
+      ...(first.body['items'] as { id: string }[]).map((c) => c.id),
+      ...(second.body['items'] as { id: string }[]).map((c) => c.id),
+    ]
+    assert.equal(new Set(ids).size, 3, 'pages must not overlap or drop a row')
+  })
+
+  it('filters by locale', async () => {
+    const { status, body } = await get(
+      origin,
+      '/api/graph/cards?locale=south-africa',
+    )
+    assert.equal(status, 200)
+    assert.equal(body['total'], 2)
+    const ids = (body['items'] as { id: string }[]).map((c) => c.id)
+    assert.ok(ids.includes('card-1'))
+    assert.ok(ids.includes('card-3'))
+  })
+
+  it('combines the locale filter with paging', async () => {
+    const { body } = await get(
+      origin,
+      '/api/graph/cards?locale=south-africa&limit=1&offset=1',
+    )
+    assert.equal(body['total'], 2)
+    assert.equal((body['items'] as unknown[]).length, 1)
+  })
+
+  it('is 200 with an empty list for a locale no card carries', async () => {
+    const { status, body } = await get(origin, '/api/graph/cards?locale=nowhere')
+    assert.equal(status, 200)
+    assert.deepEqual(body['items'], [])
+    assert.equal(body['total'], 0)
+  })
+
+  it('is 400 for an unknown parameter', async () => {
+    const { status } = await get(origin, '/api/graph/cards?collection=sionism')
+    assert.equal(status, 400)
+  })
+
+  it('is 400 for a repeated parameter', async () => {
+    const { status } = await get(origin, '/api/graph/cards?locale=a&locale=b')
+    assert.equal(status, 400)
+  })
+
+  it('is 400 for a locale that is not a slug', async () => {
+    const { status } = await get(origin, '/api/graph/cards?locale=South Africa')
+    assert.equal(status, 400)
+  })
+
+  it('is 400 for a negative offset', async () => {
+    const { status } = await get(origin, '/api/graph/cards?offset=-1')
+    assert.equal(status, 400)
+  })
+
+  it('clamps an oversized limit instead of rejecting it', async () => {
+    const { status, body } = await get(origin, '/api/graph/cards?limit=100000')
+    assert.equal(status, 200)
+    assert.equal(body['limit'], 200)
+  })
+})
+
+describe('GET /api/graph/sources', () => {
+  let origin = ''
+  let close: () => Promise<void> = async () => {}
+
+  before(async () => {
+    const server = await serve(richCorpus())
+    origin = server.origin
+    close = server.close
+  })
+
+  after(async () => {
+    await close()
+  })
+
+  it('returns a paginated envelope with a total', async () => {
+    const { status, body } = await get(origin, '/api/graph/sources')
+    assert.equal(status, 200)
+    assert.equal(typeof body['total'], 'number')
+    assert.equal(body['offset'], 0)
+    assert.ok((body['items'] as unknown[]).length > 0)
+  })
+
+  it('stamps every source with its claim count', async () => {
+    const { body } = await get(origin, '/api/graph/sources')
+    const items = body['items'] as { claimSourceCount: number }[]
+    for (const row of items) {
+      assert.equal(typeof row.claimSourceCount, 'number')
+      assert.ok(row.claimSourceCount >= 0)
+    }
+  })
+
+  it('returns read-only attribution fields', async () => {
+    const { body } = await get(origin, '/api/graph/sources')
+    const [first] = body['items'] as Record<string, unknown>[]
+    assert.ok(first)
+    assert.equal(typeof first.id, 'string')
+    assert.equal(typeof first.title, 'string')
+    assert.equal(typeof first.sourceType, 'string')
+    for (const forbidden of ['claimIds', 'evidenceIds', 'claims']) {
+      assert.equal(forbidden in first, false, `${forbidden} must not leak to the client`)
+    }
+  })
+
+  it('pages without overlap', async () => {
+    const all = await get(origin, '/api/graph/sources')
+    const total = all.body['total'] as number
+    const half = await get(origin, `/api/graph/sources?limit=${Math.max(1, Math.floor(total / 2))}`)
+    const rest = await get(
+      origin,
+      `/api/graph/sources?limit=${Math.max(1, Math.floor(total / 2))}&offset=${Math.max(1, Math.floor(total / 2))}`,
+    )
+    const ids = [
+      ...(half.body['items'] as { id: string }[]).map((s) => s.id),
+      ...(rest.body['items'] as { id: string }[]).map((s) => s.id),
+    ]
+    assert.equal(new Set(ids).size, ids.length, 'pages must not overlap')
+  })
+
+  it('rejects a filter this route does not accept', async () => {
+    const { status } = await get(origin, '/api/graph/sources?locale=south-africa')
+    assert.equal(status, 400)
+  })
+
+  it('is 400 for a repeated limit', async () => {
+    const { status } = await get(origin, '/api/graph/sources?limit=1&limit=2')
+    assert.equal(status, 400)
+  })
+
+  it('is 400 for a non-numeric limit', async () => {
+    const { status } = await get(origin, '/api/graph/sources?limit=many')
+    assert.equal(status, 400)
+  })
+})
+
 describe('read-only guarantee', () => {
   it('exposes no write route under /api/graph', async () => {
     const app = express()
@@ -441,16 +625,18 @@ describe('read-only guarantee', () => {
     const { port } = server.address() as AddressInfo
     try {
       for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
-        const response = await fetch(`http://127.0.0.1:${port}/api/graph`, {
-          method,
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ focus: 'card-1' }),
-        })
-        assert.equal(
-          response.status,
-          404,
-          `${method} /api/graph must not be routed: a projection cannot write`,
-        )
+        for (const path of ['', '/cards', '/sources']) {
+          const response = await fetch(`http://127.0.0.1:${port}/api/graph${path}`, {
+            method,
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ focus: 'card-1' }),
+          })
+          assert.equal(
+            response.status,
+            404,
+            `${method} /api/graph${path} must not be routed: a projection cannot write`,
+          )
+        }
       }
     } finally {
       await new Promise((resolve) => server.close(() => resolve(undefined)))

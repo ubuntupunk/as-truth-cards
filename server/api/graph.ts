@@ -28,6 +28,7 @@ import {
   GraphQueryError,
   describeViews,
   parseGraphQuery,
+  parseListQuery,
   parseSearchQuery,
 } from '../../trope-cards/src/graph/query.js';
 import type { TropeGraphReader } from '../../trope-cards/src/graph/reader.js';
@@ -93,6 +94,46 @@ export function createGraphRouter(reader?: TropeGraphReader): Router {
       })
     }
   })
+
+  graphRouter.get('/cards', async (req, res) => {
+    try {
+      const { filters, limit, offset } = parseListQuery(
+        req.query as Record<string, unknown>,
+        ['locale'],
+      );
+      const { items, total } = await port().listCards({
+        localeSlug: filters?.locale,
+        limit,
+        offset,
+      });
+      res.json({ items, total, limit, offset });
+    } catch (error) {
+      if (error instanceof GraphQueryError) {
+        res.status(error.status).json({ error: error.detail });
+        return;
+      }
+      console.error('Error listing cards:', error);
+      res.status(500).json({ error: 'Failed to list cards' });
+    }
+  });
+
+  graphRouter.get('/sources', async (req, res) => {
+    try {
+      const { limit, offset } = parseListQuery(
+        req.query as Record<string, unknown>,
+        [],
+      );
+      const { items, total } = await port().listSources({ limit, offset });
+      res.json({ items, total, limit, offset });
+    } catch (error) {
+      if (error instanceof GraphQueryError) {
+        res.status(error.status).json({ error: error.detail });
+        return;
+      }
+      console.error('Error listing sources:', error);
+      res.status(500).json({ error: 'Failed to list sources' });
+    }
+  });
 
   graphRouter.get('/', async (req, res) => {
     try {
