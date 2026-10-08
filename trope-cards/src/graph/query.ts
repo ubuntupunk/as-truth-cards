@@ -514,6 +514,109 @@ function parseSearchLimit(raw: unknown): number {
   return Math.min(value, SEARCH_RESULTS_MAX)
 }
 
+/** Default and hard-cap page sizes for the read-side listing routes. */
+const LIST_LIMIT_DEFAULT = 50
+const LIST_LIMIT_MAX = 200
+const LIST_OFFSET_MAX = 10_000
+
+/** A parsed, validated read-side listing request. */
+export type ParsedListQuery = {
+  /** Dimension-qualified filters, keyed as given (`locale` → `south-africa`). `null` when none. */
+  readonly filters: Readonly<Record<string, string>> | null
+  readonly limit: number
+  readonly offset: number
+}
+
+/**
+ * Parse and validate the query string of the read-side listing routes
+ * (`GET /api/graph/cards`, `GET /api/graph/sources`).
+ *
+ * These are *listings*, not projections: they page over a table with no
+ * `focus`, no `view` and no `depth`, so the projection's parsing rules do not
+ * apply. `limit` and `offset` are clamped rather than rejected — a page size
+ * is a UX knob, not a safety boundary — while a repeated parameter is a 400
+ * because it makes the caller's intent ambiguous.
+ *
+ * Filter keys stay dimension-qualified: `locale=` can never be confused with
+ * `suit=` or `collection=`, and a bare `slug=` is deliberately not accepted
+ * because the shared `south-africa` slug names both a locale and a collection.
+ *
+ * @param query Express-style query object.
+ * @param allowedFilters The dimension keys this route accepts.
+ * @returns The validated filter, limit and offset.
+ * @throws {GraphQueryError} `400` for a repeated parameter, an unknown filter
+ * key, a non-numeric value, or a filter value of the wrong shape.
+ * @example
+ * ```ts
+ * parseListQuery({ locale: 'south-africa', limit: '10' }, ['locale'])
+ * // { filters: { locale: 'south-africa' }, limit: 10, offset: 0 }
+ * ```
+ */
+export function parseListQuery(
+  query: Record<string, unknown>,
+  allowedFilters: readonly string[],
+): ParsedListQuery {
+  const filter: Record<string, string> = {}
+  for (const [key, raw] of Object.entries(query)) {
+    if (key === 'limit' || key === 'offset') continue
+    if (!allowedFilters.includes(key)) {
+      throw new GraphQueryError(
+        400,
+        `unknown parameter "${key}". This route accepts: ${[...allowedFilters, 'limit', 'offset'].join(', ')}`,
+      )
+    }
+    if (Array.isArray(raw)) {
+      throw new GraphQueryError(400, `${key} must be given exactly once`)
+    }
+    const value = String(raw).trim()
+    if (value.length === 0) {
+      throw new GraphQueryError(400, `${key} must not be empty`)
+    }
+    if (value.length > 200) {
+      throw new GraphQueryError(400, `${key} must be at most 200 characters`)
+    }
+    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) {
+      throw new GraphQueryError(
+        400,
+        `${key} must be a kebab-case slug, for example "south-africa"`,
+      )
+    }
+    filter[key] = value
+  }
+
+  return {
+    filters: Object.keys(filter).length === 0 ? null : filter,
+    limit: parsePageInt(
+      query.limit,
+      'limit',
+      LIST_LIMIT_DEFAULT,
+      LIST_LIMIT_MAX,
+    ),
+    offset: parsePageInt(query.offset, 'offset', 0, LIST_OFFSET_MAX),
+  }
+}
+
+/** Parse one paging parameter, clamping it into range and defaulting when absent. */
+function parsePageInt(
+  raw: unknown,
+  name: string,
+  fallback: number,
+  max: number,
+): number {
+  if (raw === undefined || raw === null || raw === '') return fallback
+  if (Array.isArray(raw)) {
+    throw new GraphQueryError(400, `${name} must be given exactly once`)
+  }
+  const value = Number(String(raw))
+  if (!Number.isInteger(value) || value < 0) {
+    throw new GraphQueryError(
+      400,
+      `${name} must be a non-negative whole number`,
+    )
+  }
+  return Math.min(value, max)
+}
+
 /**
  * The `GET /api/graph/views` payload: every registered view, its adjacency rules, and the
  * current row counts behind it.
