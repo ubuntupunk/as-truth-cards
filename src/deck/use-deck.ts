@@ -18,7 +18,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'preact/hooks'
+import { useCallback, useEffect, useState } from 'preact/hooks'
 import type { CardListingRow } from '../../trope-cards/src/graph/reader.ts'
 import { DEFAULT_VIEW_NAME } from '../../trope-cards/src/graph/views.ts'
 import type { GraphViewDescriptor } from '../graph/projection-guards'
@@ -32,6 +32,7 @@ import {
   type DeckScope,
   type DeckSession,
   deckProjectionDepth,
+  jumpToCard,
   previousCard,
   reconcileSession,
   shuffleNextCard,
@@ -111,6 +112,8 @@ export type DeckNavigation = {
   readonly session: DeckSession
   readonly goPrevious: () => void
   readonly shuffle: () => void
+  /** Land on a card by slug (a deep link); no-op when the deck lacks it. */
+  readonly jumpTo: (slug: string) => void
 }
 
 /**
@@ -118,7 +121,7 @@ export type DeckNavigation = {
  *
  * @param scoped The cards after {@link applyScope}, in listing order.
  * @param scope The scope that produced them, including the repeat policy.
- * @returns The current session plus Previous/Shuffle handlers.
+ * @returns The current session plus Previous/Shuffle/jumpTo handlers.
  */
 export function useDeckSession(
   scoped: readonly CardListingRow[],
@@ -132,10 +135,18 @@ export function useDeckSession(
     setSession((current) => reconcileSession(current, scoped, scope))
   }, [scoped, scope])
 
+  // Memoised because the page calls it from an effect that must not re-run on
+  // every render; goPrevious/shuffle are plain props and need no such care.
+  const jumpTo = useCallback(
+    (slug: string) => setSession((current) => jumpToCard(current, slug)),
+    [],
+  )
+
   return {
     session,
     goPrevious: () => setSession((current) => previousCard(current)),
     shuffle: () =>
       setSession((current) => shuffleNextCard(current, Math.random)),
+    jumpTo,
   }
 }

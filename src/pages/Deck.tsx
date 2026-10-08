@@ -25,6 +25,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'preact/hooks'
+import { useSearchParams } from 'react-router-dom'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { CardDiscovery } from '@/deck/card-discovery'
@@ -77,14 +78,41 @@ const Deck = () => {
   // never leave the previous card's reading expanded under a new card.
   const [readingFor, setReadingFor] = useState<string | null>(null)
 
+  // The deck is addressable: `/?focus=<slug>` (the handoff Explore makes) is
+  // read once on mount — later URL writes are this page's own sync, never a
+  // reason to re-jump — and only applied once cards exist to jump within.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [pendingFocus, setPendingFocus] = useState(() =>
+    searchParams.get('focus'),
+  )
+
   const cards = cardsQuery.data?.items ?? NO_CARDS
   const { axis, status } = scope
   const filters = useMemo(() => ({ ...NO_SCOPE, axis, status }), [axis, status])
   const scoped = useMemo(() => applyScope(cards, filters), [cards, filters])
-  const { session, goPrevious, shuffle } = useDeckSession(scoped, scope)
+  const { session, goPrevious, shuffle, jumpTo } = useDeckSession(scoped, scope)
 
   const featured = session.cards[session.position] ?? null
   const featuredId = featured?.id ?? null
+
+  useEffect(() => {
+    if (pendingFocus === null || scoped.length === 0) return
+    jumpTo(pendingFocus)
+    setPendingFocus(null)
+  }, [pendingFocus, scoped, jumpTo])
+
+  // The URL always names the card on screen, so a deep link survives reload
+  // and shuffling leaves no lying address behind. Replaced, not pushed: deck
+  // movement is not browser history.
+  useEffect(() => {
+    if (pendingFocus !== null) return
+    const slug = featured?.slug
+    if (slug === undefined) return
+    if (searchParams.get('focus') === slug) return
+    const next = new URLSearchParams(searchParams)
+    next.set('focus', slug)
+    setSearchParams(next, { replace: true })
+  }, [pendingFocus, featured?.slug, searchParams, setSearchParams])
 
   // Safety net for the ordering above: if the deck empties under an open
   // reading, nothing is left open.

@@ -171,6 +171,33 @@ export function shuffleNextCard(
 }
 
 /**
+ * Jump to a card by slug — the handoff a browse surface makes when it sends a
+ * reader to a specific card (`/?focus=<slug>`).
+ *
+ * The session owns position, so the jump goes through it rather than around
+ * it: the destination is marked `seen` exactly as stepping to it would, and a
+ * slug the deck does not contain leaves the session untouched instead of
+ * inventing a position. The caller's URL sync then reports whatever card is
+ * actually on screen, which is what makes a stale or out-of-scope deep link
+ * self-correct.
+ *
+ * @param session The current session.
+ * @param slug The card's slug.
+ * @returns The session positioned on that card, or `session` unchanged.
+ */
+export function jumpToCard(session: DeckSession, slug: string): DeckSession {
+  const position = session.cards.findIndex((card) => card.slug === slug)
+  if (position === -1 || position === session.position) return session
+  return {
+    ...session,
+    position,
+    seen: session.seen.includes(position)
+      ? session.seen
+      : [...session.seen, position],
+  }
+}
+
+/**
  * Reconcile a live session with the list and scope now in force.
  *
  * The one rule the deck's navigation state lives or dies by, kept pure so it
