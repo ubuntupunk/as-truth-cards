@@ -8,6 +8,7 @@ import { auth } from './auth.js';
 import cardsRouter from './api/cards.js';
 import interactionsRouter from './api/interactions.js';
 import graphRouter from './api/graph.js';
+import draftsRouter from './api/drafts.js';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -45,6 +46,7 @@ app.use(express.json());
 app.use('/api/cards', cardsRouter);
 app.use('/api/interactions', interactionsRouter);
 app.use('/api/graph', graphRouter);
+app.use('/api/drafts', draftsRouter);
 
 /**
  * Liveness probe, declared before the static handler and the SPA catch-all below.
