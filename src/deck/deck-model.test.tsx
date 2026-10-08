@@ -22,6 +22,7 @@ import {
   deriveCardPreview,
   deriveCardReading,
   discoveryPrompt,
+  jumpToCard,
   NO_SCOPE,
   positionLabel,
   positionRatio,
@@ -167,6 +168,26 @@ describe('deck session navigation', () => {
     assert.equal(positionLabel(startDeck([], NO_SCOPE)), '0 / 0')
     assert.equal(positionRatio(startDeck([], NO_SCOPE)), 0)
     assert.equal(positionRatio(startDeck(ALL_CARDS, NO_SCOPE)), 1 / 3)
+  })
+})
+
+describe('jumpToCard', () => {
+  it('lands on the named card and marks it seen', () => {
+    const session = startDeck(ALL_CARDS, NO_SCOPE)
+    const jumped = jumpToCard(session, 'a-contested-reading')
+    assert.equal(jumped.position, 2)
+    assert.ok(jumped.seen.includes(2))
+    assert.equal(session.position, 0)
+  })
+
+  it('leaves the session untouched for a slug the deck does not hold', () => {
+    const session = startDeck(ALL_CARDS, NO_SCOPE)
+    assert.equal(jumpToCard(session, 'no-such-card'), session)
+  })
+
+  it('is a no-op when that card is already on screen', () => {
+    const session = startDeck(ALL_CARDS, NO_SCOPE)
+    assert.equal(jumpToCard(session, 'an-open-question'), session)
   })
 })
 
