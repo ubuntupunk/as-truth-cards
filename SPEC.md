@@ -378,6 +378,24 @@ Requirements:
 - Switching treatments must remount/repaint presentation only.
 - Projection, URL, focus, selection, and graph semantics remain unchanged.
 
+
+
+### 9.4 Account and participation state
+
+Account interactions follow these state boundaries:
+
+| State | Can read research | Account menu | Save | Activity | Feedback |
+|---|---|---|---|---|---|
+| Anonymous | Yes | Sign in / Create account | Sign-in gate | Anonymous where supported | Contract-defined; remains anonymous |
+| Authenticated, unverified | Yes | Profile / Settings / Sign out | Yes | Yes | Contract-defined |
+| Verified | Yes | Full account menu | Yes | Yes | Verified participation capabilities |
+| Academic / Researcher | Yes | Status/capabilities | Yes | Yes | Academic feedback where authorised |
+| Moderator / Admin | Yes | Operational controls | Yes | Yes | Moderation where authorised |
+
+This table is a capability model, not an ontology classification.
+
+Account-required actions must return the user to the same research context after successful authentication whenever the route supports it. Authentication must not mutate graph focus, projection, depth, selection, or authored relationships.
+
 ## 10. Accessibility and responsive behavior
 
 - Minimum interactive target: 44px where practical; compact visual controls may use 32–38px but require adequate surrounding hit area.
@@ -560,5 +578,27 @@ The following Figma nodes are the visual references for implementation:
 | `7:4528` | Featured card |
 | `7:4558` | Card navigation |
 | `7:4571` | Discovery prompt |
+| `49:2` | Account / Sign In |
+| `49:30` | Account / Onboarding |
+| `49:63` | Account / Profile Dropdown |
+| `49:89` | Account / Profile |
+| `49:122` | Account / My Activity |
+| `49:156` | Account / Settings |
 
 When Figma changes, update this section and the affected UI contract before implementation. Do not silently diverge between the design and this specification.
+
+
+## 17. Account-layer acceptance criteria
+
+- [ ] Research session, user session, and user activity are represented as separate concepts.
+- [ ] Anonymous users can browse/read without authentication.
+- [ ] Account-required actions have an explicit sign-in/create-account transition.
+- [ ] Anonymous interaction rows are never silently reassigned to a user.
+- [ ] Authenticated activity is associated with `userId`.
+- [ ] Save is account-bound and visibly gated when anonymous.
+- [ ] Email verification and onboarding are distinct states.
+- [ ] Profile, activity, saved cards, settings, and sign-out are reachable from the account menu.
+- [ ] Academic/researcher status is presented as capability/status, not as an ontology classification.
+- [ ] Authentication does not mutate graph URL state, projection semantics, or research selection.
+- [ ] Public identity/participation data remains outside `trope_graph`.
+- [ ] The account screens in Figma are treated as the visual authority for this layer.
