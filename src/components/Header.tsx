@@ -6,9 +6,10 @@ import { ThemeToggle } from './ThemeToggle'
 /**
  * The global navigation, aligned to the approved product hierarchy:
  * Decks, Explorer, Graph, Research, Sources. Graph is visibly the current
- * section while it is mounted. Explorer / Research / Sources have no route
- * behind them yet, so they render as inert spans (never dead links) until
- * their pages exist — the Graph page must not invent its own second nav.
+ * section while it is mounted. Explorer now has a route (`/explore`);
+ * Research / Sources have no route behind them yet, so they render as inert
+ * spans (never dead links) until their pages exist — no page invents its own
+ * second nav.
  */
 type NavEntry =
   | { kind: 'link'; label: string; path: string }
@@ -16,7 +17,7 @@ type NavEntry =
 
 const NAV_ENTRIES: readonly NavEntry[] = [
   { kind: 'link', label: 'Decks', path: '/' },
-  { kind: 'inert', label: 'Explorer' },
+  { kind: 'link', label: 'Explorer', path: '/explore' },
   { kind: 'link', label: 'Graph', path: '/graph' },
   { kind: 'inert', label: 'Research' },
   { kind: 'inert', label: 'Sources' },
