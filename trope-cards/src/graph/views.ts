@@ -114,7 +114,8 @@ const CARD_ARGUMENT_TAXONOMY: GraphViewRule = {
     },
     {
       type: 'evidence_item',
-      reason: 'All five evidence_* tables have 0 rows.',
+      reason:
+        'No evidence is recorded in the corpus at all, so none is recorded against this claim — or any claim.',
     },
     {
       type: 'case',
@@ -192,7 +193,8 @@ const ARGUMENT: GraphViewRule = {
   excludedNodeTypes: [
     {
       type: 'evidence_item',
-      reason: 'All five evidence_* tables have 0 rows.',
+      reason:
+        'No evidence is recorded in the corpus at all, so none is recorded against this claim — or any claim.',
     },
   ],
   nonNodeStructures: [],

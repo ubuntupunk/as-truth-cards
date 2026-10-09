@@ -247,7 +247,7 @@ describe('deriveCardPreview', () => {
       cardId: FEATURED_CARD_ID,
     })
     assert.equal(preview.evidence.count, null)
-    assert.match(String(preview.evidence.note), /evidence_/)
+    assert.match(String(preview.evidence.note), /No evidence is recorded/)
     assert.ok(!String(preview.evidence.note).startsWith('0 '))
   })
 

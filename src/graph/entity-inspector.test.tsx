@@ -443,20 +443,20 @@ describe('entity-inspector provenance and evidence honesty', () => {
     assert.ok(!html.includes('Provenance'))
   })
 
-  it('names the empty evidence table instead of implying a load failure', () => {
+  it('reports the empty evidence layer as a corpus fact, not schema language', () => {
     const html = renderClaimWith(CARD_PROJECTION, EVIDENCE_EMPTY_VIEW)
-    assert.ok(html.includes('No evidence in the corpus'))
-    assert.ok(html.includes('trope_graph.evidence_items has 0 rows'))
+    assert.ok(html.includes('No evidence is recorded in the corpus at all'))
+    assert.ok(!html.includes('trope_graph.evidence_items'))
   })
 
   it('reports an unsupported claim when the corpus has evidence rows but none here', () => {
     const html = renderClaimWith(CARD_PROJECTION, EVIDENCE_POPULATED_VIEW)
     assert.ok(
       html.includes(
-        'No evidence directed at this claim in the corpus. Nothing in evidence_* supports it — a corpus fact, not a load failure.',
+        'No evidence is recorded against this claim. A corpus fact, not a load failure.',
       ),
     )
-    assert.ok(!html.includes('evidence_items has 0 rows'))
+    assert.ok(!html.includes('evidence_'))
   })
 
   it('lists evidence against the claim with relation, strength and quote', () => {

@@ -163,7 +163,11 @@ describe('FeaturedCard', () => {
   it('reports the view\u2019s reason for evidence instead of a fabricated zero', () => {
     const html = render(<FeaturedCard {...fixture().props} />)
     assert.ok(html.includes('data-testid="evidence-state"'))
-    assert.ok(html.includes('All five evidence_* tables have 0 rows.'))
+    assert.ok(
+      html.includes(
+        'No evidence is recorded in the corpus at all, so none is recorded against this claim — or any claim.',
+      ),
+    )
     assert.ok(!html.includes('0 evidence'))
   })
 
