@@ -224,7 +224,7 @@ const Deck = () => {
     <div className="flex min-h-screen flex-col">
       <Header />
       <main className="flex-grow px-4 pb-16 pt-24">
-        <div className="mx-auto w-full max-w-4xl">
+        <div className="mx-auto w-full max-w-4xl xl:max-w-5xl">
           <nav
             data-testid="deck-context-bar"
             aria-label="Breadcrumb"
