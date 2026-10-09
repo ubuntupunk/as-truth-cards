@@ -111,7 +111,7 @@ const Sources = () => {
           heading="Sources"
           subtitle="The canonical bibliography behind the claims — attribution, not evidence."
           workspace={
-            <div className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
+            <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
               <div className="lg:sticky lg:top-24 lg:self-start">
                 <SourceIndexPanel
                   sources={sourcesQuery.data?.items ?? []}
@@ -162,10 +162,12 @@ const Sources = () => {
             </div>
           }
           status={
-            <GraphStatusStrip
-              projection={projectionQuery.data ?? null}
-              descriptor={descriptor}
-            />
+            selectedId === null ? undefined : (
+              <GraphStatusStrip
+                projection={projectionQuery.data ?? null}
+                descriptor={descriptor}
+              />
+            )
           }
         />
       </div>
@@ -178,20 +180,24 @@ const Sources = () => {
 /**
  * The no-selection state for the provenance workspace.
  *
+ * Deliberately compact: before a source is chosen the workspace has nothing to
+ * report, so it points at the index rather than reserving a screen of blank
+ * canvas. The status strip is hidden in this state for the same reason.
+ *
  * @returns The prompt asking the researcher to choose a source.
  */
 function SourceWorkspacePrompt() {
   return (
     <div
       data-testid="sources-prompt"
-      className="flex h-full min-h-[320px] items-center justify-center rounded-xl border border-dashed border-graph-border bg-graph-surface p-8 text-center"
+      className="flex min-h-[220px] items-center justify-center rounded-xl border border-dashed border-graph-border bg-graph-surface p-6 text-center"
     >
-      <div>
+      <div className="max-w-md">
         <p className="text-sm font-medium text-foreground">
-          Select a source to trace its provenance
+          Choose a source from the index to trace its provenance
         </p>
         <p className="mt-1 text-xs text-graph-muted-foreground">
-          The workspace shows the source and the claims attributed to it. A
+          The workspace then shows the source and the claims attributed to it. A
           source is a provenance lead — not evidence for the claim.
         </p>
       </div>

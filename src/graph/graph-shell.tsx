@@ -80,7 +80,9 @@ const DEFAULT_SUBTITLE =
  * @param props.controls The control strip slot (`<GraphControls/>`); omitted on
  * surfaces that fix their view and have no controls.
  * @param props.workspace The workspace slot (graph + inspector grid).
- * @param props.status The status strip slot (`<GraphStatusStrip/>`).
+ * @param props.status The status strip slot (`<GraphStatusStrip/>`); omitted on
+ * surfaces whose readout is not yet meaningful (e.g. Sources before a source is
+ * selected), so an all-pending strip never renders as noise.
  * @param props.contextLabel The last breadcrumb segment.
  * @param props.eyebrow The small uppercase kicker above the heading.
  * @param props.heading The page `<h1>`.
@@ -100,7 +102,7 @@ export function GraphShell({
   treatment: GraphTreatment
   controls?: ComponentChildren
   workspace: ComponentChildren
-  status: ComponentChildren
+  status?: ComponentChildren
   contextLabel?: string
   eyebrow?: string
   heading?: string
@@ -124,7 +126,9 @@ export function GraphShell({
         <div className="mt-6">{controls}</div>
       ) : null}
       <div className="mt-4">{workspace}</div>
-      <div className="mt-4">{status}</div>
+      {status !== undefined && status !== null ? (
+        <div className="mt-4">{status}</div>
+      ) : null}
     </main>
   )
 }
