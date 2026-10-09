@@ -124,9 +124,11 @@ describe('entity-inspector card node', () => {
     assert.ok(!html.includes('data-relationship-family="claim_relation"'))
   })
 
-  it('renders the status with its vocabulary source', () => {
+  it('renders the approved status token beside its vocabulary in words', () => {
     assert.ok(html.includes('ESTABLISHED'))
-    assert.ok(html.includes('epistemic_status'))
+    assert.ok(html.includes('Epistemic status'))
+    assert.ok(html.includes('data-status="ESTABLISHED"'))
+    assert.ok(html.includes('data-status-source="epistemic_status"'))
   })
 })
 
@@ -202,21 +204,23 @@ describe('entity-inspector non-card nodes', () => {
   it('renders taxonomy nodes with the no-claim status truthfully', () => {
     const html = renderInspector({ kind: 'node', id: ID.suitSouthAfrica })
     assert.ok(html.includes('data-node-type="collection"'))
-    assert.ok(html.includes('· none'))
+    assert.ok(html.includes('data-status="none"'))
+    assert.ok(html.includes('>none<'))
+    assert.ok(!html.includes('· None'))
   })
 
   it('renders a case with lifecycle status tagged by its vocabulary', () => {
     const html = renderInspector({ kind: 'node', id: ID.caseC })
     assert.ok(html.includes('data-node-type="case"'))
     assert.ok(html.includes('ACTIVE'))
-    assert.ok(html.includes('lifecycle_status'))
+    assert.ok(html.includes('Lifecycle status'))
     assert.ok(html.includes('case_status'))
   })
 
   it('renders an inference step with free-text status tagged uncontrolled', () => {
     const html = renderInspector({ kind: 'node', id: ID.stepTwo })
     assert.ok(html.includes('>UNSUPPORTED<'))
-    assert.ok(html.includes('independent_inference_status'))
+    assert.ok(html.includes('Independent inference status'))
     assert.ok(!html.includes('inference_step_relation_type'))
   })
 })

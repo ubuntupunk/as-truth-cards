@@ -10,11 +10,13 @@
  *
  * Rendering rules that keep the ontology honest:
  *
- * - **Status is per node type and never rolled up.** Every status row prints
- *   the value *and* its `source` vocabulary tag (`CONTESTED · epistemic_status`,
- *   `draft · independent_inference_status`, `none`), so a reader cannot absorb a
- *   value while missing which vocabulary it belongs to — the exact collapse Q4
- *   forbids.
+ * - **Status is per node type and never rolled up.** Every status row prints the
+ *   value *and* the words for its source vocabulary (`CONTESTED · Epistemic
+ *   status`), so a reader cannot absorb a value while missing which vocabulary
+ *   it belongs to — the exact collapse Q4 forbids. An `epistemic_status` value
+ *   is rendered through {@link cardStatusLabel}, the same approved token Decks
+ *   and Explore use (`OPEN · UNVERIFIED`, `CONTEXT-DEPENDENT`), never as the
+ *   raw enum; the schema token itself stays in the row's `data-*` attributes.
  * - **Suit and Locale are separate dimensions.** A node classified under the
  *   `south-africa` Suit and set in the `south-africa` Locale renders two
  *   distinct facet lists, each showing its own `id` next to the shared slug —
@@ -38,6 +40,7 @@
  * those).
  */
 
+import { cardStatusLabel } from '@/deck/deck-status'
 import type {
   CardClassification,
   CardNode,
@@ -433,24 +436,45 @@ function DataRow({
 /**
  * The status row, always labelled with its vocabulary source (Q4).
  *
- * Every `NodeStatus` variant is rendered verbatim: `value`, a tag naming
- * `status.source`, and the vocabulary when the variant declares one. There is
- * no status text that appears without its provenance.
+ * The value is the approved user-facing token: an `epistemic_status` renders
+ * through {@link cardStatusLabel} (`OPEN · UNVERIFIED`, `CONTEXT-DEPENDENT`),
+ * matching Decks and Explore, so the same status never reads two ways across
+ * surfaces. Other variants keep their authored value — an inference step's
+ * status is uncontrolled free text and must not be relabelled. The source
+ * vocabulary is named in words (`Epistemic status`), never as a raw schema
+ * token, while the untranslated value and source stay addressable through the
+ * row's `data-*` attributes.
+ *
+ * @param props.node The inspected node, carrying its tagged status.
  */
 function StatusRow({ node }: { node: GraphNode }) {
   const { status } = node
-  const value = status.value === null ? 'none' : String(status.value)
+  const value =
+    status.value === null
+      ? 'none'
+      : status.source === 'epistemic_status'
+        ? cardStatusLabel(status.value)
+        : String(status.value)
   return (
     <div className="flex items-baseline justify-between gap-3">
       <dt className="shrink-0 text-xs text-muted-foreground">Status</dt>
-      <dd className="text-right">
-        <span>{value}</span>{' '}
-        <code className="text-xs text-muted-foreground">
-          · {status.source}
-          {'vocabulary' in status && status.vocabulary
-            ? ` (${status.vocabulary})`
-            : ''}
-        </code>
+      <dd
+        className="text-right"
+        data-status={status.value ?? 'none'}
+        data-status-source={status.source}
+      >
+        <span>{value}</span>
+        {status.source === 'none' ? null : (
+          <>
+            {' '}
+            <code className="text-xs text-muted-foreground">
+              · {humanizeToken(status.source)}
+              {'vocabulary' in status && status.vocabulary
+                ? ` (${status.vocabulary})`
+                : ''}
+            </code>
+          </>
+        )}
       </dd>
     </div>
   )
