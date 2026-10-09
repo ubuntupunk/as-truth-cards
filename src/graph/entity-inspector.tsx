@@ -46,6 +46,10 @@ import type {
   GraphProjection,
 } from '../../trope-cards/src/graph/types.ts'
 import {
+  ARGUMENT_VIEW_NAME,
+  EVIDENCE_VIEW_NAME,
+} from '../../trope-cards/src/graph/views.ts'
+import {
   AXIS_LABELS,
   AXIS_ORDER,
   SUIT_DOT_COLORS,
@@ -79,6 +83,24 @@ const REFOCUS_LABELS: Record<RefocusTarget, string> = {
   argument_chain: 'Focus argument',
   source: 'Focus source',
   evidence_item: 'Focus evidence',
+}
+
+/**
+ * The view a refocus target must open in.
+ *
+ * `claim` and `argument_chain` belong to the argument view; `source` and
+ * `evidence_item` to the evidence view. Co-located with {@link RefocusTarget}
+ * and its labels so the type, its copy and its destination cannot drift apart —
+ * and so both the Graph Explorer and the Sources surface refocus through one
+ * mapping rather than two copies of the same ternary.
+ *
+ * @param type A refocusable node type.
+ * @returns The registered view name that accepts it.
+ */
+export function refocusView(type: RefocusTarget): string {
+  return type === 'claim' || type === 'argument_chain'
+    ? ARGUMENT_VIEW_NAME
+    : EVIDENCE_VIEW_NAME
 }
 
 /**

@@ -77,7 +77,8 @@ const DEFAULT_SUBTITLE =
  * cannot drift in disclaimer, spacing, or variable wiring.
  *
  * @param props.treatment The active appearance treatment.
- * @param props.controls The control strip slot (`<GraphControls/>`).
+ * @param props.controls The control strip slot (`<GraphControls/>`); omitted on
+ * surfaces that fix their view and have no controls.
  * @param props.workspace The workspace slot (graph + inspector grid).
  * @param props.status The status strip slot (`<GraphStatusStrip/>`).
  * @param props.contextLabel The last breadcrumb segment.
@@ -97,7 +98,7 @@ export function GraphShell({
   subtitle = DEFAULT_SUBTITLE,
 }: {
   treatment: GraphTreatment
-  controls: ComponentChildren
+  controls?: ComponentChildren
   workspace: ComponentChildren
   status: ComponentChildren
   contextLabel?: string
@@ -119,7 +120,9 @@ export function GraphShell({
       <GraphContextBar contextLabel={contextLabel} />
       <GraphHeading eyebrow={eyebrow} heading={heading} subtitle={subtitle} />
       <ResearchDisclaimer />
-      <div className="mt-6">{controls}</div>
+      {controls !== undefined && controls !== null ? (
+        <div className="mt-6">{controls}</div>
+      ) : null}
       <div className="mt-4">{workspace}</div>
       <div className="mt-4">{status}</div>
     </main>
