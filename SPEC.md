@@ -22,7 +22,7 @@ The implementation must preserve the ontology and graph semantics already establ
 4. **Server-authoritative semantics.** Views, focus resolution, depth, projection contents, and graph relationships come from the graph API/projection contract.
 5. **Honest absence.** A schema-empty layer is rendered as unavailable/empty rather than fabricated as zero evidence for a claim.
 6. **Presentation is replaceable.** Appearance treatments can change without changing URL state, projection, selection, or ontology semantics.
-7. **Cards are research interfaces.** A card is no longer a physical 3D flip metaphor; it is an editorial research object with front/back reading actions.
+7. **Cards are research interfaces.** A card has an image-led discovery cover where suitable imagery exists, followed by a structured Claim face and an Analysis face. These are three presentation stages for one canonical card, not three separate records or a literal three-sided object. A physical 3D flip is never required.
 
 ## 2. Technology baseline
 
@@ -246,19 +246,24 @@ Badges are compact, muted, and interactive where the corresponding filter exists
 
 ### 6.2 Featured card
 
-The featured card contains:
+The discovery card uses an image-led **Cover** when a suitable image is available, then opens into the structured reading experience defined in §7. The cover contains:
 
-- `Card / ID-XX` metadata
-- evidence/research status badge, e.g. `OPEN · UNVERIFIED`
-- title
-- research-oriented summary
-- classification tags
-- provenance/reasoning preview
-- evidence state
-- `Read front & back`
-- `Save card`
+- optional card image or neutral typographic fallback
+- card title, as the primary recognition label
+- optional compact ID/classification marker where it aids orientation
+- `Examine card` (or equivalent clear action) to open the Claim face
 
-The card must be able to represent hypotheses and open questions without visually implying verification.
+The Claim face contains:
+
+- claim/assertion formulation or core research question
+- canonical classification tags
+- human-readable research/epistemic status, e.g. `OPEN · UNVERIFIED`
+- concise research framing/summary
+- `Read analysis` action
+
+The Analysis face contains the analysis, provenance/reasoning preview, evidence state, and source/evidence navigation. The `Save card` action remains independent and account-bound; when unavailable, explain why rather than simulating persistence.
+
+The card must represent hypotheses and open questions without visually implying verification. The image is a recognition aid, not evidence by default.
 
 ### 6.3 Card navigation
 
@@ -279,20 +284,64 @@ A secondary prompt may suggest a different analytical lens, e.g.:
 
 The prompt should encourage a question-first exploration and must not manufacture a conclusion.
 
-## 7. Card reading model
+## 7. Card cover and reading model
 
-The former specification required a 700ms 3D flip and a physical 2:3 card. This is **removed**.
+The former requirement for a fixed 2:3 physical card and mandatory 700ms 3D flip remains **removed**. The approved model is **Cover → Claim → Analysis**. These are three presentation stages of one canonical card; they are not separate entities, and the card is not a literal three-sided object.
 
-The new interaction is:
+### 7.1 Cover — recognition and discovery
 
-1. Featured card presents the research-facing front.
-2. `Read front & back` opens or reveals the complete card reading experience.
-3. Front/back content is editorial and scroll-safe.
-4. Source and evidence links remain distinct.
-5. Save is an independent user action.
-6. No emoji is required for card identity.
+- The Cover is the browse/discovery representation and should use a card image where a suitable, rights-cleared, adequately described image is available.
+- The title is the primary textual identity and remains visible with the image.
+- An optional compact identifier or classification marker may aid orientation but must not overwhelm the title.
+- The Cover has a clear `Examine card` (or equivalent) action.
+- If no suitable image exists, fails to load, or has not been reviewed, render a deliberate neutral/typographic fallback. Missing imagery must not change the card's canonical identity, classification, or epistemic status.
 
-If a flip animation is later introduced, it is an implementation detail and must not dictate the data model or layout.
+### 7.2 Claim face — what is being asserted
+
+Opening the Cover reveals the Claim face. It presents:
+
+- the claim/assertion formulation or core research question;
+- canonical classification tags, without conflating Axis, Suit/Collection, Mechanism, Concept, or Locale;
+- a human-readable research/epistemic status (for example `OPEN · UNVERIFIED` where appropriate);
+- concise research framing sufficient to understand what is under examination;
+- an explicit `Read analysis` action.
+
+This face states what is being examined; it does not endorse the claim or imply that an assertion is true merely because it is prominent.
+
+### 7.3 Analysis face — how it is examined
+
+The Analysis face presents the analytical reading experience, including where available:
+
+- analysis and relevant concepts/mechanisms;
+- sources and evidence as distinct entity types, with provenance/context;
+- reasoning/inference and argument-chain links where supported;
+- counterevidence, uncertainty, limitations, and unresolved questions where known;
+- clear return-to-Claim and close/back-to-discovery actions.
+
+Do not fabricate missing analysis, evidence, sources, or counterevidence. Represent unavailable or unpopulated sections honestly. Source and evidence links must remain distinct and preserve research context when followed.
+
+### 7.4 Transitions and state
+
+1. Deck browsing displays the Cover.
+2. Selecting `Examine card` opens the same card at its Claim face.
+3. Selecting `Read analysis` moves to the Analysis face.
+4. The reader can return to the Claim face or close the card.
+5. Closing returns to the same deck position and preserves the active filters/repeat policy and card identity.
+6. On constrained mobile layouts, opening directly to the Claim face is acceptable if the Cover remains available as the discovery representation.
+7. The image may persist as a small visual anchor on the Claim/Analysis faces, but must not compete with long-form reading.
+8. Saving is an independent action and must not be coupled to stage transitions.
+
+Use explicit, discoverable controls and scroll-safe editorial content. A subtle transition or animation is optional; no interaction may depend on animation, a 3D transform, hover, or a physical-card metaphor. If motion is used, respect `prefers-reduced-motion`.
+
+### 7.5 Image provenance and epistemic separation
+
+- Recognition/illustration imagery is not a Source or Evidence item merely because it appears on the Cover.
+- Evidence-bearing images must be represented through the appropriate source/evidence model with provenance and context; do not silently promote a decorative image into evidence.
+- Store or otherwise track the image's source/rights/attribution metadata and descriptive alternative text wherever an image is used.
+- Do not present generated, illustrative, reconstructed, or generic imagery as an authentic historical/documentary image.
+- Images are optional. Rights, provenance, or accessibility gaps must trigger a fallback, not fabricated metadata or a misleading image.
+
+The three-stage model changes presentation only; it does not create a second card model or alter canonical ontology/API semantics.
 
 ## 8. Ontology and provenance requirements
 
@@ -403,6 +452,11 @@ Account-required actions must return the user to the same research context after
 - Disabled/inert navigation must expose disabled state appropriately.
 - Status labels must not rely on color alone.
 - Amber "unverified/open" state must have textual status.
+- Cover images require meaningful alternative text when informative; decorative imagery uses empty alt text only when appropriate. Fallbacks must remain understandable without an image.
+- Image crops must preserve the subject where practical and must not obscure card titles/status or cause layout shifts when loading fails.
+- Cover → Claim → Analysis must be operable by keyboard and screen readers with explicit action names and predictable focus; return/close restores the prior deck context.
+- Reduced-motion preferences must be respected; no 3D transition is required.
+- Claim and Analysis reading surfaces must remain scroll-safe on narrow screens.
 - Keyboard navigation must reach controls, card actions, inspector actions, and graph selection affordances.
 - On narrow viewports, graph and inspector stack vertically.
 - Card discovery content becomes a single-column flow.
@@ -521,10 +575,16 @@ Administrative tooling may continue to exist, but it is not the Figma-defined pr
 ### Card discovery
 
 - [ ] Scope/filter badges render above the featured card.
-- [ ] Featured card uses editorial research-object styling.
+- [ ] Discovery presents a Cover with title and a suitable optional image or neutral fallback.
+- [ ] Cover image source/rights/attribution and alt-text requirements are met; failed/missing images produce a deliberate fallback.
+- [ ] Recognition imagery is not misrepresented as a Source or Evidence item; documentary/historical authenticity is not fabricated.
+- [ ] `Examine card` opens the Claim face for the same canonical card.
+- [ ] Claim face presents the claim/formulation, canonical classification, human-readable status, and research framing.
+- [ ] `Read analysis` opens the Analysis face; analysis, source, evidence, reasoning, and limitations remain semantically distinct.
+- [ ] Claim ↔ Analysis navigation and close/back-to-discovery work and preserve card identity, active filters, and deck position.
 - [ ] Card status visibly distinguishes open/unverified material.
 - [ ] Title, summary, classification, provenance, and evidence are separate regions.
-- [ ] Read front & back action exists.
+- [ ] No physical 3D flip is required; transitions remain optional and accessible.
 - [ ] Save card action exists.
 - [ ] Previous / position / Shuffle next navigation exists.
 - [ ] Discovery prompt encourages question-first exploration.
@@ -534,6 +594,8 @@ Administrative tooling may continue to exist, but it is not the Figma-defined pr
 
 - [ ] Graph and inspector stack on narrow screens.
 - [ ] Card discovery becomes single-column.
+- [ ] Cover image and fallback behave correctly across narrow/wide viewports and failed loads.
+- [ ] Cover → Claim → Analysis works with keyboard, screen reader, and reduced-motion settings.
 - [ ] Interactive controls have usable hit areas.
 - [ ] Status is communicated textually as well as visually.
 - [ ] No content is clipped at supported responsive widths.
