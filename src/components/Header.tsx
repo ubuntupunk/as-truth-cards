@@ -5,27 +5,22 @@ import { ThemeToggle } from './ThemeToggle'
 
 /**
  * The global navigation, aligned to the approved product hierarchy:
- * Decks, Explorer, Graph, Research, Sources. Graph is visibly the current
- * section while it is mounted. Explorer (`/explore`) and Research (`/research`,
- * including the `/research/compose` sub-route) now have routes; Sources has no
- * route behind it yet, so it renders as an inert span (never a dead link) until
- * its page exists — no page invents its own second nav.
+ * Decks, Explorer, Graph, Research, Sources. Each entry is the current section
+ * while its prefix is mounted; every surface now has a route behind it, so no
+ * entry renders as a dead link and no page invents its own second nav.
  */
-type NavEntry =
-  | { kind: 'link'; label: string; path: string; prefixes?: readonly string[] }
-  | { kind: 'inert'; label: string }
+type NavEntry = {
+  label: string
+  path: string
+  prefixes?: readonly string[]
+}
 
 const NAV_ENTRIES: readonly NavEntry[] = [
-  { kind: 'link', label: 'Decks', path: '/' },
-  { kind: 'link', label: 'Explorer', path: '/explore' },
-  { kind: 'link', label: 'Graph', path: '/graph' },
-  {
-    kind: 'link',
-    label: 'Research',
-    path: '/research',
-    prefixes: ['/research'],
-  },
-  { kind: 'inert', label: 'Sources' },
+  { label: 'Decks', path: '/' },
+  { label: 'Explorer', path: '/explore' },
+  { label: 'Graph', path: '/graph' },
+  { label: 'Research', path: '/research', prefixes: ['/research'] },
+  { label: 'Sources', path: '/sources', prefixes: ['/sources'] },
 ]
 
 /**
@@ -68,17 +63,6 @@ const Header = () => {
         <div className="flex items-center space-x-4">
           <nav className="flex space-x-8" aria-label="Global navigation">
             {NAV_ENTRIES.map((entry) => {
-              if (entry.kind !== 'link') {
-                return (
-                  <span
-                    key={entry.label}
-                    aria-disabled="true"
-                    className="cursor-not-allowed"
-                  >
-                    <NavLink label={entry.label} />
-                  </span>
-                )
-              }
               const active = entry.prefixes
                 ? entry.prefixes.some((prefix) =>
                     location.pathname.startsWith(prefix),

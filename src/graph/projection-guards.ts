@@ -331,6 +331,76 @@ export function assertCardListResponse(
   }
 }
 
+/**
+ * One canonical source as `GET /api/graph/sources` reports it.
+ *
+ * `claimSourceCount` is the number of `claim_sources` rows that name this
+ * source. It is an *attribution* count, not an evidence count: a source
+ * attached to a claim is a provenance lead, never a verified support edge, and
+ * the page must not let the two blur.
+ */
+export type SourceSummary = {
+  readonly id: string
+  readonly title: string
+  readonly author: string | null
+  readonly publisher: string | null
+  readonly citation: string | null
+  readonly url: string | null
+  readonly sourceType: string
+  readonly claimSourceCount: number
+}
+
+/**
+ * The `GET /api/graph/sources` body: one page of sources globally, plus the
+ * paging envelope.
+ */
+export type SourcesResponse = {
+  readonly items: readonly SourceSummary[]
+  readonly total: number
+  readonly limit: number
+  readonly offset: number
+}
+
+/**
+ * Assert that a decoded JSON body is a `SourcesResponse`.
+ *
+ * Presence-level only: `citation`, `url`, `author` and `publisher` may be
+ * `null` (the corpus leaves most metadata unpopulated), but the key must exist
+ * and hold a string or `null`. What a `sourceType` *means* is the ontology's
+ * contract; re-deriving the vocabulary here would be a second copy of it.
+ *
+ * @param value The decoded body.
+ * @throws {ProjectionShapeError} If the envelope, a source field or the count
+ * is missing or of the wrong primitive type.
+ * @example
+ * ```ts
+ * const body: unknown = await res.json()
+ * assertSourcesResponse(body) // narrows to SourcesResponse
+ * ```
+ */
+export function assertSourcesResponse(
+  value: unknown,
+): asserts value is SourcesResponse {
+  const root = asRecord(value, '')
+  asNumber(root.total, 'total')
+  asNumber(root.limit, 'limit')
+  asNumber(root.offset, 'offset')
+
+  const items = asArray(root.items, 'items')
+  for (let index = 0; index < items.length; index++) {
+    const path = `items[${index}]`
+    const item = asRecord(items[index], path)
+    asString(item.id, `${path}.id`)
+    asString(item.title, `${path}.title`)
+    asNullableString(item.author, `${path}.author`)
+    asNullableString(item.publisher, `${path}.publisher`)
+    asNullableString(item.citation, `${path}.citation`)
+    asNullableString(item.url, `${path}.url`)
+    asString(item.sourceType, `${path}.sourceType`)
+    asNumber(item.claimSourceCount, `${path}.claimSourceCount`)
+  }
+}
+
 /** Presence-level node check; vocabulary membership is the adapter's job. */
 function assertNode(value: unknown, path: string): void {
   const node = asRecord(value, path)

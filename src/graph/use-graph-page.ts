@@ -14,10 +14,8 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useSearchParams } from 'react-router-dom'
 import type { GraphNode } from '../../trope-cards/src/graph/types.ts'
 import {
-  ARGUMENT_VIEW_NAME,
   DEFAULT_DEPTH,
   DEFAULT_VIEW_NAME,
-  EVIDENCE_VIEW_NAME,
   HARD_MAX_DEPTH,
 } from '../../trope-cards/src/graph/views.ts'
 import {
@@ -25,7 +23,7 @@ import {
   type GraphTreatment,
   readGraphTreatment,
 } from './appearance'
-import type { RefocusTarget } from './entity-inspector'
+import { type RefocusTarget, refocusView } from './entity-inspector'
 import { buildGraphStylesheet } from './graph-stylesheet'
 import { clampDepth, parseGraphParams } from './query-params'
 import { useCardSearch, useGraphProjection, useGraphViews } from './use-graph'
@@ -142,12 +140,7 @@ export function useGraphPage() {
   const refocusEntity = (id: string, type: RefocusTarget) => {
     const next = new URLSearchParams(searchParams)
     next.set('focus', id)
-    next.set(
-      'view',
-      type === 'claim' || type === 'argument_chain'
-        ? ARGUMENT_VIEW_NAME
-        : EVIDENCE_VIEW_NAME,
-    )
+    next.set('view', refocusView(type))
     setSearchParams(next)
   }
 

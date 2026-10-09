@@ -15,6 +15,7 @@ import {
   assertGraphProjection,
   assertGraphSearchResponse,
   assertGraphViewsResponse,
+  assertSourcesResponse,
   isRecord,
   ProjectionShapeError,
 } from './projection-guards'
@@ -228,6 +229,92 @@ describe('assertGraphSearchResponse', () => {
       () => assertGraphSearchResponse(asWire({ results: 'nope' })),
       (error: unknown) =>
         error instanceof ProjectionShapeError && error.path === 'results',
+    )
+  })
+})
+
+describe('assertSourcesResponse', () => {
+  const response = {
+    items: [
+      {
+        id: 's1',
+        title: 'The Merneptah Stele',
+        author: 'Commissioned by Pharaoh Merneptah',
+        publisher: null,
+        citation: null,
+        url: null,
+        sourceType: 'PRIMARY_DOCUMENT',
+        claimSourceCount: 1,
+      },
+      {
+        id: 's2',
+        title: 'The Qur’an',
+        author: null,
+        publisher: null,
+        citation: null,
+        url: 'https://example.org/quran',
+        sourceType: 'PRIMARY_DOCUMENT',
+        claimSourceCount: 3,
+      },
+    ],
+    total: 3,
+    limit: 50,
+    offset: 0,
+  }
+
+  it('accepts a valid response after a JSON round trip', () => {
+    assert.doesNotThrow(() => assertSourcesResponse(asWire(response)))
+  })
+
+  it('narrows the value in place', () => {
+    const value: unknown = asWire(response)
+    assertSourcesResponse(value)
+    assert.equal(value.items[0].claimSourceCount, 1)
+  })
+
+  it('rejects a body missing the paging envelope', () => {
+    assert.throws(
+      () => assertSourcesResponse(asWire({ items: [] })),
+      (error: unknown) =>
+        error instanceof ProjectionShapeError && error.path === 'total',
+    )
+  })
+
+  it('rejects a source missing its attribution count', () => {
+    const body = {
+      items: [
+        {
+          id: 's1',
+          title: 'No Count',
+          author: null,
+          publisher: null,
+          citation: null,
+          url: null,
+          sourceType: 'PRIMARY_DOCUMENT',
+        },
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    }
+    assert.throws(
+      () => assertSourcesResponse(asWire(body)),
+      (error: unknown) =>
+        error instanceof ProjectionShapeError &&
+        error.path === 'items[0].claimSourceCount',
+    )
+  })
+
+  it('rejects a non-string, non-null author', () => {
+    const body = {
+      ...response,
+      items: [{ ...response.items[0], author: 7 }],
+    }
+    assert.throws(
+      () => assertSourcesResponse(asWire(body)),
+      (error: unknown) =>
+        error instanceof ProjectionShapeError &&
+        error.path === 'items[0].author',
     )
   })
 })
