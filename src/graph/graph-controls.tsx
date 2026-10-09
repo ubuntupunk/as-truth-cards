@@ -30,6 +30,7 @@ import {
   type DeckFacets,
   type FacetFilter,
   hasActiveFacets,
+  humanizeToken,
   SUIT_DOT_COLORS,
 } from './deck-facets'
 import { ViewsStatus } from './graph-states'
@@ -127,77 +128,113 @@ export function GraphControls({
   return (
     <div
       data-testid="graph-controls"
-      className="flex flex-wrap items-end gap-4 rounded-xl border border-graph-border bg-graph-controls p-4"
+      className="rounded-xl border border-graph-border bg-graph-controls p-4"
     >
-      <form className="flex items-end gap-2" onSubmit={onSubmitFocus}>
-        <div className="relative">
-          <label className="block text-xs font-medium text-muted-foreground">
-            Focus
-            <input
-              type="text"
-              value={focusInput}
-              onInput={(event) => onFocusInput(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Escape') onSearchClose()
-              }}
-              placeholder="card slug or uuid"
-              role="combobox"
-              aria-expanded={searchOpen}
-              aria-haspopup="listbox"
-              aria-autocomplete="list"
-              aria-controls={searchOpen ? 'focus-suggestions-list' : undefined}
-              className="mt-1 h-9 w-56 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-graph-focus/30"
-            />
-          </label>
-          {searchOpen ? (
-            <FocusSuggestions
-              pending={searchPending}
-              results={searchResults}
-              onSelect={onSelectCard}
-            />
-          ) : null}
-        </div>
-        <button
-          type="submit"
-          className="inline-flex h-9 items-center gap-1.5 rounded-md bg-graph-accent px-3 text-sm font-medium text-graph-accent-foreground hover:opacity-90"
-        >
-          <SearchIcon className="h-4 w-4" aria-hidden="true" /> Expand
-        </button>
-      </form>
+      <div className="flex flex-wrap items-end gap-x-5 gap-y-4">
+        <ControlGroup>
+          <form className="flex items-end gap-2" onSubmit={onSubmitFocus}>
+            <div className="relative">
+              <label className="block text-xs font-medium text-muted-foreground">
+                Focus
+                <input
+                  type="text"
+                  value={focusInput}
+                  onInput={(event) => onFocusInput(event.currentTarget.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Escape') onSearchClose()
+                  }}
+                  placeholder="card slug or uuid"
+                  role="combobox"
+                  aria-expanded={searchOpen}
+                  aria-haspopup="listbox"
+                  aria-autocomplete="list"
+                  aria-controls={
+                    searchOpen ? 'focus-suggestions-list' : undefined
+                  }
+                  className="mt-1 h-9 w-56 rounded-md border border-input bg-background px-2 text-sm outline-none focus:ring-2 focus:ring-graph-focus/30"
+                />
+              </label>
+              {searchOpen ? (
+                <FocusSuggestions
+                  pending={searchPending}
+                  results={searchResults}
+                  onSelect={onSelectCard}
+                />
+              ) : null}
+            </div>
+            <button
+              type="submit"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md bg-graph-accent px-3 text-sm font-medium text-graph-accent-foreground hover:opacity-90"
+            >
+              <SearchIcon className="h-4 w-4" aria-hidden="true" /> Expand
+            </button>
+          </form>
+        </ControlGroup>
 
-      <ViewSelect
-        views={views}
-        viewsError={viewsError}
-        view={defaultView}
-        onViewChange={onViewChange}
-      />
+        <ControlGroup>
+          <ViewSelect
+            views={views}
+            viewsError={viewsError}
+            view={defaultView}
+            onViewChange={onViewChange}
+          />
 
-      <DepthSelect
-        maxDepth={maxDepth}
-        depth={depth}
-        onDepthChange={onDepthChange}
-      />
+          <DepthSelect
+            maxDepth={maxDepth}
+            depth={depth}
+            onDepthChange={onDepthChange}
+          />
+        </ControlGroup>
 
-      <FacetPopover
-        facets={facets}
-        filter={filter}
-        onChange={onFacetChange}
-        onClear={onClearFacets}
-      />
+        <ControlGroup>
+          <FacetPopover
+            facets={facets}
+            filter={filter}
+            onChange={onFacetChange}
+            onClear={onClearFacets}
+          />
+        </ControlGroup>
 
-      <AppearanceSwitcher treatment={treatment} onChange={onTreatmentChange} />
+        <ControlGroup>
+          <AppearanceSwitcher
+            treatment={treatment}
+            onChange={onTreatmentChange}
+          />
+        </ControlGroup>
 
-      {descriptor && descriptor.blockingGaps.length > 0 ? (
+        {descriptor !== null ? (
+          <ColorLegend
+            descriptor={descriptor}
+            nodeColors={nodeColors}
+            edgeColors={edgeColors}
+          />
+        ) : null}
+      </div>
+
+      {descriptor !== null && descriptor.blockingGaps.length > 0 ? (
         <ViewGapsNote descriptor={descriptor} />
       ) : null}
+    </div>
+  )
+}
 
-      {descriptor ? (
-        <ColorLegend
-          descriptor={descriptor}
-          nodeColors={nodeColors}
-          edgeColors={edgeColors}
-        />
-      ) : null}
+/**
+ * A purpose cluster in the control strip (focus, scope, refine, display).
+ *
+ * Groups are separated by a hairline rule so the strip reads as a few short
+ * clauses instead of one long row; the first group drops its left rule.
+ *
+ * @param props.children The controls belonging to this cluster.
+ * @returns The divider-wrapped cluster.
+ */
+function ControlGroup({
+  children,
+}: {
+  children: import('preact').ComponentChildren
+}) {
+  return (
+    <div className="flex items-end gap-3 border-l border-graph-border/60 pl-5 first:border-l-0 first:pl-0">
+      {children}
     </div>
   )
 }
@@ -647,7 +684,8 @@ function ViewGapsNote({ descriptor }: { descriptor: GraphViewDescriptor }) {
  *
  * Only shows what the selected view actually emits; a node type or edge family
  * outside the descriptor is omitted, so the legend never promises a colour for
- * a class the current view cannot draw.
+ * a class the current view cannot draw. Two captioned rows ("Nodes" / "Edges")
+ * make the swatches readable at a glance; the raw token stays in `data-*`.
  *
  * @param descriptor The selected view's rule.
  * @param nodeColors The active treatment's node fills (same map the stylesheet keys).
@@ -658,33 +696,47 @@ function ColorLegend({
   nodeColors,
   edgeColors,
 }: {
-  descriptor: GraphViewDescriptor
+  descriptor: GraphViewDescriptor | null
   nodeColors: Record<GraphNodeType, string>
   edgeColors: Record<EdgeFamily, string>
 }) {
+  if (descriptor === null) return null
   return (
-    <div className="ml-auto max-w-sm space-y-1.5 text-xs text-muted-foreground">
-      <div className="flex flex-wrap gap-2">
+    <div
+      data-testid="color-legend"
+      className="ml-auto max-w-sm space-y-1.5 text-xs text-muted-foreground"
+    >
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="font-medium text-foreground">Nodes</span>
         {descriptor.nodeTypes.map((type) => (
-          <span key={type} className="inline-flex items-center gap-1">
+          <span
+            key={type}
+            data-node-type={type}
+            className="inline-flex items-center gap-1"
+          >
             <span
               className="h-2.5 w-2.5 rounded-full"
               style={{ backgroundColor: nodeColors[type] ?? '#94a3b8' }}
               aria-hidden="true"
             />
-            {type}
+            {humanizeToken(type)}
           </span>
         ))}
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="font-medium text-foreground">Edges</span>
         {descriptor.edgeFamilies.map((family) => (
-          <span key={family} className="inline-flex items-center gap-1">
+          <span
+            key={family}
+            data-edge-family={family}
+            className="inline-flex items-center gap-1"
+          >
             <span
               className="h-0.5 w-4 rounded"
               style={{ backgroundColor: edgeColors[family] ?? '#94a3b8' }}
               aria-hidden="true"
             />
-            {family}
+            {humanizeToken(family)}
           </span>
         ))}
       </div>

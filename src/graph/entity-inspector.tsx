@@ -59,6 +59,7 @@ import {
 import {
   AXIS_LABELS,
   AXIS_ORDER,
+  humanizeToken,
   SUIT_DOT_COLORS,
   SUIT_LABELS,
 } from './deck-facets'
@@ -108,23 +109,6 @@ export function refocusView(type: RefocusTarget): string {
   return type === 'claim' || type === 'argument_chain'
     ? ARGUMENT_VIEW_NAME
     : EVIDENCE_VIEW_NAME
-}
-
-/**
- * Render an ontology token as readable words (`HAS_CONCEPT` → `Has concept`).
- *
- * Presentation only: the raw token still travels in the `data-*` attributes
- * and the `Vocabulary` row, so nothing becomes un-addressable — the reader
- * sees prose where the wire sees a token. Derives nothing: a token maps to
- * the same words every time, and an unrecognised one still renders as words
- * rather than being guessed at.
- *
- * @param token A relation word, edge family or source tag from the graph.
- * @returns The token with underscores as spaces and a leading capital.
- */
-function humanizeToken(token: string): string {
-  const words = token.replace(/_/g, ' ').toLowerCase()
-  return words.charAt(0).toUpperCase() + words.slice(1)
 }
 
 /**
