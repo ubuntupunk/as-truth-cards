@@ -419,7 +419,7 @@ describe('entity-inspector provenance and evidence honesty', () => {
     const html = renderClaimWith(PROJECTION_WITH_SOURCE, SOURCE_DECLARING_VIEW)
     assert.ok(html.includes('data-provenance-edge='))
     assert.ok(html.includes('data-source-table="claim_sources"'))
-    assert.ok(html.includes('ATTRIBUTED_TO'))
+    assert.ok(html.includes('Attributed to'))
     assert.ok(html.includes('a quotation the claim was read from'))
     assert.ok(html.includes('p. 12'))
     assert.ok(html.includes('Pilgrims and Patriots'))

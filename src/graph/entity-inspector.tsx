@@ -19,17 +19,21 @@
  *   raw enum; the schema token itself stays in the row's `data-*` attributes.
  * - **Suit and Locale are separate dimensions.** A node classified under the
  *   `south-africa` Suit and set in the `south-africa` Locale renders two
- *   distinct facet lists, each showing its own `id` next to the shared slug —
- *   the ids are how a consumer tells them apart, per the projection contract.
+ *   distinct facet lists under their own headings; the underlying ids are kept
+ *   for tooling in each row's `data-id`, not shown in the default read.
  * - **Concept and Mechanism come from different sources** and stay separate:
  *   Mechanisms from the card's `classification.mechanismIds`, Concepts from the
  *   incident `HAS_CONCEPT` classification edges.
- * - **A claim relation is not an inference.** The edge panel shows `family` and
- *   `sourceTable` beside every relation word, so `claim_relation: SUPPORTS` and
- *   `card_relationship: SUPPORTS` cannot be visually merged.
- * - **`legacyPrimaryType` is labelled legacy.** It is shown because dropping
- *   authored data is silent loss, and tagged `(legacy, not an axis)` because
- *   nothing may read it as one.
+ * - **A claim relation is not an inference.** The edge panel names each relation
+ *   in words and shows its `family` beside it, so `claim_relation: SUPPORTS` and
+ *   `card_relationship: SUPPORTS` cannot be visually merged. The backing table
+ *   name is schema detail, kept behind Technical details.
+ * - **`legacyPrimaryType` is secondary.** It is retained for migration but moved
+ *   behind Technical details, labelled `(legacy, not an axis)`, because dropping
+ *   authored data is silent loss while nothing may read it as a classification.
+ * - **Canonical ids and backing tables are opt-in.** Schema identifiers live in
+ *   `data-*` attributes and a collapsed Technical details disclosure, never in
+ *   the default research read (SPEC §10: presentation does not leak the model).
  *
  * The component is pure — props in, string out — which is what lets
  * `preact-render-to-string` test it under Node. Interaction is limited to two
@@ -316,13 +320,29 @@ function NodePanel({
       ) : null}
 
       <dl className="mt-3 space-y-1.5 text-sm">
-        <DataRow label="Canonical id">
-          <code className="text-xs">{node.id}</code>
-        </DataRow>
         <DataRow label="Depth">{String(node.depth)}</DataRow>
         <DataRow label="Degree">{String(node.degree)}</DataRow>
         <StatusRow node={node} />
       </dl>
+
+      <TechnicalDetails>
+        <dl className="space-y-1.5 text-sm">
+          <DataRow label="Canonical id">
+            <code className="text-xs">{node.id}</code>
+          </DataRow>
+          {node.type === 'card' ? (
+            <DataRow label="Primary type (legacy)">
+              <span>
+                {node.metadata.legacyPrimaryType}
+                <span className="text-xs text-muted-foreground">
+                  {' '}
+                  — legacy authoring field, not an axis
+                </span>
+              </span>
+            </DataRow>
+          ) : null}
+        </dl>
+      </TechnicalDetails>
 
       {node.type === 'card' ? (
         <CardSections
@@ -374,40 +394,39 @@ function EdgePanel({
 
       <dl className="mt-3 space-y-1.5">
         <DataRow label="From">
-          <span className="font-medium">{fromLabel}</span>{' '}
-          <code className="text-xs text-muted-foreground">{edge.from}</code>
+          <span className="font-medium">{fromLabel}</span>
         </DataRow>
         <DataRow label="To">
-          <span className="font-medium">{toLabel}</span>{' '}
-          <code className="text-xs text-muted-foreground">{edge.to}</code>
+          <span className="font-medium">{toLabel}</span>
         </DataRow>
         <DataRow label="Family">{humanizeToken(edge.family)}</DataRow>
         <DataRow label="Relation">{humanizeToken(edge.type.value)}</DataRow>
         {vocabulary ? <DataRow label="Vocabulary">{vocabulary}</DataRow> : null}
-        <DataRow label="Source table">
-          <code className="text-xs">{edge.sourceTable}</code>
-        </DataRow>
-        <DataRow label="Traversal">
-          {edge.traversal === 'bidirectional'
-            ? 'bidirectional (may be walked against the authored direction)'
-            : 'directed (authored direction only)'}
-        </DataRow>
       </dl>
 
-      {Object.keys(edge.attributes).length > 0 ? (
-        <section className="mt-4">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Attributes
-          </h4>
-          <dl className="mt-2 space-y-1">
-            {Object.entries(edge.attributes).map(([key, value]) => (
-              <DataRow key={key} label={key}>
-                {String(value)}
-              </DataRow>
-            ))}
-          </dl>
-        </section>
-      ) : null}
+      <TechnicalDetails>
+        <dl className="space-y-1.5 text-sm">
+          <DataRow label="From id">
+            <code className="text-xs">{edge.from}</code>
+          </DataRow>
+          <DataRow label="To id">
+            <code className="text-xs">{edge.to}</code>
+          </DataRow>
+          <DataRow label="Source table">
+            <code className="text-xs">{edge.sourceTable}</code>
+          </DataRow>
+          <DataRow label="Traversal">
+            {edge.traversal === 'bidirectional'
+              ? 'bidirectional (may be walked against the authored direction)'
+              : 'directed (authored direction only)'}
+          </DataRow>
+          {Object.entries(edge.attributes).map(([key, value]) => (
+            <DataRow key={key} label={key}>
+              {String(value)}
+            </DataRow>
+          ))}
+        </dl>
+      </TechnicalDetails>
 
       <Note>
         Authored direction is always shown as given; a bidirectional edge means
@@ -520,15 +539,6 @@ function CardSections({
           {metadata.coreQuestion ? (
             <DataRow label="Core question">{metadata.coreQuestion}</DataRow>
           ) : null}
-          <DataRow label="Primary type (legacy)">
-            <span>
-              {metadata.legacyPrimaryType}
-              <span className="text-xs text-muted-foreground">
-                {' '}
-                — legacy authoring field, not an axis
-              </span>
-            </span>
-          </DataRow>
         </dl>
       </section>
 
@@ -754,8 +764,9 @@ function humanize(slug: string): string {
 /**
  * One parallel slug/id list (Suit, Locale or Mechanism).
  *
- * Slug and id are displayed *together* per item because the same slug can name
- * a Suit and a Locale; the id is what disambiguates them (Q3/Q7).
+ * Only the slug is shown: the section heading names the dimension, so the same
+ * slug under Suits and under Locales stays distinct without a raw id in the
+ * default read. The id remains on the row's `data-id` for tooling.
  */
 function FacetSection({
   heading,
@@ -781,8 +792,7 @@ function FacetSection({
             data-slug={pair.slug}
             data-id={pair.id}
           >
-            <span className="font-medium">{pair.slug}</span>{' '}
-            <code className="text-xs text-muted-foreground">({pair.id})</code>
+            <span className="font-medium">{pair.slug}</span>
           </li>
         ))}
       </ul>
@@ -827,10 +837,7 @@ function ConceptSection({
             >
               <span className="font-medium">
                 {resolveNodeLabel(projection, conceptId)}
-              </span>{' '}
-              <code className="text-xs text-muted-foreground">
-                ({conceptId})
-              </code>
+              </span>
             </li>
           )
         })}
@@ -923,7 +930,7 @@ function ProvenanceSection({
                 {resolveNodeLabel(projection, sourceId)}
               </div>
               <div className="text-muted-foreground">
-                {edge.type.value} · {edge.sourceTable}
+                {humanizeToken(edge.type.value)}
               </div>
               {typeof quote === 'string' && quote.length > 0 ? (
                 <div className="mt-0.5 italic">“{quote}”</div>
@@ -931,6 +938,11 @@ function ProvenanceSection({
               {typeof page === 'string' && page.length > 0 ? (
                 <div className="mt-0.5 text-muted-foreground">{page}</div>
               ) : null}
+              <TechnicalDetails>
+                <div>
+                  Source table: <code>{edge.sourceTable}</code>
+                </div>
+              </TechnicalDetails>
             </li>
           )
         })}
@@ -1011,7 +1023,7 @@ function EvidenceSection({
                 {resolveNodeLabel(projection, evidenceId)}
               </div>
               <div className="text-muted-foreground">
-                {humanizeToken(edge.type.value)} · {edge.sourceTable}
+                {humanizeToken(edge.type.value)}
                 {typeof strength === 'string' && strength.length > 0
                   ? ` · strength ${strength}`
                   : ''}
@@ -1019,6 +1031,11 @@ function EvidenceSection({
               {typeof quote === 'string' && quote.length > 0 ? (
                 <div className="mt-0.5 italic">“{quote}”</div>
               ) : null}
+              <TechnicalDetails>
+                <div>
+                  Source table: <code>{edge.sourceTable}</code>
+                </div>
+              </TechnicalDetails>
             </li>
           )
         })}
@@ -1274,21 +1291,53 @@ function RelationshipsSection({
               <div className="mt-0.5 text-muted-foreground">
                 {direction} {otherLabel}
               </div>
-              <div className="mt-0.5 text-muted-foreground">
-                {edge.sourceTable} · {edge.traversal}
-              </div>
-              {Object.keys(edge.attributes).length > 0 ? (
-                <div className="mt-0.5 text-muted-foreground">
-                  {Object.entries(edge.attributes).map(
-                    ([key, value]) => `${key}=${String(value)}`,
-                  )}
+              <TechnicalDetails>
+                <div>
+                  Source table: <code>{edge.sourceTable}</code>
                 </div>
-              ) : null}
+                <div>Traversal: {edge.traversal}</div>
+                {Object.keys(edge.attributes).length > 0 ? (
+                  <div>
+                    {Object.entries(edge.attributes).map(
+                      ([key, value]) => `${key}=${String(value)}`,
+                    )}
+                  </div>
+                ) : null}
+              </TechnicalDetails>
             </li>
           )
         })}
       </ul>
     </Section>
+  )
+}
+
+/**
+ * A collapsed disclosure for schema-level detail.
+ *
+ * Canonical ids, legacy authoring fields, backing-table names and raw edge
+ * attributes are kept for tooling and migration but do not belong in the
+ * default research read. They render inside a native `<details>` so the reader
+ * opts in; the markup is still server-rendered, so the copy and `data-*` hooks
+ * stay present for tests and for consumers that need the untranslated value.
+ *
+ * @param props.children The technical facts to reveal on demand.
+ */
+function TechnicalDetails({
+  children,
+}: {
+  children: import('preact').ComponentChildren
+}) {
+  return (
+    <details
+      data-testid="technical-details"
+      className="mt-3 text-xs text-muted-foreground"
+    >
+      <summary className="cursor-pointer select-none">
+        Technical details
+      </summary>
+      <div className="mt-1.5">{children}</div>
+    </details>
   )
 }
 
