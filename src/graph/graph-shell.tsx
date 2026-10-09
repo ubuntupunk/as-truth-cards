@@ -64,13 +64,26 @@ function treatmentVars(treatment: GraphTreatment): Record<string, string> {
   return vars
 }
 
+/** Shared copy defaults; both graph-backed pages use the same shell. */
+const DEFAULT_CONTEXT_LABEL = 'Graph Explorer'
+const DEFAULT_EYEBROW = 'Relationships / Graph'
+const DEFAULT_HEADING = 'Graph Explorer'
+const DEFAULT_SUBTITLE =
+  'Trace provenance and reasoning. Keep classification in view.'
+
 /**
- * Compose the Graph Explorer chrome.
+ * Compose the graph-backed page chrome. Defaults reproduce the Graph Explorer
+ * verbatim; the Research Workspace overrides only the copy, so the two pages
+ * cannot drift in disclaimer, spacing, or variable wiring.
  *
  * @param props.treatment The active appearance treatment.
  * @param props.controls The control strip slot (`<GraphControls/>`).
  * @param props.workspace The workspace slot (graph + inspector grid).
  * @param props.status The status strip slot (`<GraphStatusStrip/>`).
+ * @param props.contextLabel The last breadcrumb segment.
+ * @param props.eyebrow The small uppercase kicker above the heading.
+ * @param props.heading The page `<h1>`.
+ * @param props.subtitle The one-line description under the heading.
  * @returns The shell `<main>`.
  */
 export function GraphShell({
@@ -78,11 +91,19 @@ export function GraphShell({
   controls,
   workspace,
   status,
+  contextLabel = DEFAULT_CONTEXT_LABEL,
+  eyebrow = DEFAULT_EYEBROW,
+  heading = DEFAULT_HEADING,
+  subtitle = DEFAULT_SUBTITLE,
 }: {
   treatment: GraphTreatment
   controls: ComponentChildren
   workspace: ComponentChildren
   status: ComponentChildren
+  contextLabel?: string
+  eyebrow?: string
+  heading?: string
+  subtitle?: string
 }) {
   const style: JSX.CSSProperties = {
     ...treatmentVars(treatment),
@@ -95,8 +116,8 @@ export function GraphShell({
       style={style}
       className="mx-auto w-full max-w-7xl px-4 pb-16 lg:px-6"
     >
-      <GraphContextBar />
-      <GraphHeading />
+      <GraphContextBar contextLabel={contextLabel} />
+      <GraphHeading eyebrow={eyebrow} heading={heading} subtitle={subtitle} />
       <ResearchDisclaimer />
       <div className="mt-6">{controls}</div>
       <div className="mt-4">{workspace}</div>
@@ -109,7 +130,7 @@ export function GraphShell({
  * The context/breadcrumb bar — establishes that this is a research/graph
  * workspace rather than an isolated visualization. Not a page title.
  */
-function GraphContextBar() {
+function GraphContextBar({ contextLabel }: { contextLabel: string }) {
   return (
     <nav
       data-testid="graph-context-bar"
@@ -119,13 +140,21 @@ function GraphContextBar() {
       <BreadcrumbSeparator />
       <span>Research</span>
       <BreadcrumbSeparator />
-      <span className="font-medium text-foreground">Graph Explorer</span>
+      <span className="font-medium text-foreground">{contextLabel}</span>
     </nav>
   )
 }
 
-/** The heading block, verbatim from the Figma file. */
-function GraphHeading() {
+/** The heading block, verbatim from the Figma file when left at defaults. */
+function GraphHeading({
+  eyebrow,
+  heading,
+  subtitle,
+}: {
+  eyebrow: string
+  heading: string
+  subtitle: string
+}) {
   return (
     <header
       data-testid="graph-heading"
@@ -133,14 +162,12 @@ function GraphHeading() {
     >
       <div>
         <p className="text-xs font-semibold tracking-[0.18em] uppercase text-graph-muted-foreground">
-          Relationships / Graph
+          {eyebrow}
         </p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
-          Graph Explorer
+          {heading}
         </h1>
-        <p className="mt-1 text-sm text-graph-muted-foreground">
-          Trace provenance and reasoning. Keep classification in view.
-        </p>
+        <p className="mt-1 text-sm text-graph-muted-foreground">{subtitle}</p>
       </div>
     </header>
   )

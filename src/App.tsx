@@ -12,6 +12,7 @@ import Explore from './pages/Explore'
 import Graph from './pages/Graph'
 import LegacyDeck from './pages/LegacyDeck'
 import NotFound from './pages/NotFound'
+import Research from './pages/Research'
 
 const queryClient = new QueryClient()
 
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/" element={<Deck />} />
             <Route path="/legacy/deck" element={<LegacyDeck />} />
             <Route path="/explore" element={<Explore />} />
+            <Route path="/research" element={<Research />} />
             <Route path="/research/compose" element={<Compose />} />
             <Route path="/about" element={<About />} />
             <Route path="/graph" element={<Graph />} />
