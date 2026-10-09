@@ -576,9 +576,17 @@ describe('graph-controls legend', () => {
         edgeColors={GRAPH_TREATMENT_TOKENS.atmospheric.edgeColors}
       />,
     )
-    // DESCRIPTOR's families; the absent `source`/`evidence` families stay out.
-    assert.ok(html.includes('>domain<'))
-    assert.ok(html.includes('>claim_relation<'))
-    assert.ok(!html.includes('>evidence<'))
+    // DESCRIPTOR's families, humanized with captions; the absent
+    // `source`/`evidence` families stay out.
+    assert.ok(html.includes('data-testid="color-legend"'))
+    assert.ok(html.includes('>Nodes<'))
+    assert.ok(html.includes('>Edges<'))
+    assert.ok(html.includes('data-node-type="inference_step"'))
+    assert.ok(html.includes('>Inference step<'))
+    assert.ok(html.includes('data-edge-family="domain"'))
+    assert.ok(html.includes('>Domain<'))
+    assert.ok(html.includes('data-edge-family="claim_relation"'))
+    assert.ok(html.includes('>Claim relation<'))
+    assert.ok(!html.includes('data-edge-family="evidence"'))
   })
 })

@@ -300,3 +300,18 @@ export function humanize(value: string): string {
     )
     .join(' ')
 }
+
+/**
+ * Render an ontology token as readable words (`HAS_CONCEPT` → `Has concept`).
+ *
+ * Presentation only — the raw token stays in the `data-*` attributes wherever
+ * this is used, so nothing becomes un-addressable. Shared by the inspector and
+ * the control strip so a relation word or node type reads the same everywhere.
+ *
+ * @param token A relation word, edge family, node type or source tag.
+ * @returns The token with underscores as spaces and a leading capital.
+ */
+export function humanizeToken(token: string): string {
+  const words = token.replace(/_/g, ' ').toLowerCase()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
