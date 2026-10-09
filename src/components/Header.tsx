@@ -6,20 +6,25 @@ import { ThemeToggle } from './ThemeToggle'
 /**
  * The global navigation, aligned to the approved product hierarchy:
  * Decks, Explorer, Graph, Research, Sources. Graph is visibly the current
- * section while it is mounted. Explorer now has a route (`/explore`);
- * Research / Sources have no route behind them yet, so they render as inert
- * spans (never dead links) until their pages exist — no page invents its own
- * second nav.
+ * section while it is mounted. Explorer (`/explore`) and Research (`/research`,
+ * including the `/research/compose` sub-route) now have routes; Sources has no
+ * route behind it yet, so it renders as an inert span (never a dead link) until
+ * its page exists — no page invents its own second nav.
  */
 type NavEntry =
-  | { kind: 'link'; label: string; path: string }
+  | { kind: 'link'; label: string; path: string; prefixes?: readonly string[] }
   | { kind: 'inert'; label: string }
 
 const NAV_ENTRIES: readonly NavEntry[] = [
   { kind: 'link', label: 'Decks', path: '/' },
   { kind: 'link', label: 'Explorer', path: '/explore' },
   { kind: 'link', label: 'Graph', path: '/graph' },
-  { kind: 'inert', label: 'Research' },
+  {
+    kind: 'link',
+    label: 'Research',
+    path: '/research',
+    prefixes: ['/research'],
+  },
   { kind: 'inert', label: 'Sources' },
 ]
 
@@ -62,31 +67,34 @@ const Header = () => {
 
         <div className="flex items-center space-x-4">
           <nav className="flex space-x-8" aria-label="Global navigation">
-            {NAV_ENTRIES.map((entry) =>
-              entry.kind === 'link' ? (
+            {NAV_ENTRIES.map((entry) => {
+              if (entry.kind !== 'link') {
+                return (
+                  <span
+                    key={entry.label}
+                    aria-disabled="true"
+                    className="cursor-not-allowed"
+                  >
+                    <NavLink label={entry.label} />
+                  </span>
+                )
+              }
+              const active = entry.prefixes
+                ? entry.prefixes.some((prefix) =>
+                    location.pathname.startsWith(prefix),
+                  )
+                : location.pathname === entry.path
+              return (
                 <Link
                   key={entry.label}
                   to={entry.path}
-                  aria-current={
-                    location.pathname === entry.path ? 'page' : undefined
-                  }
+                  aria-current={active ? 'page' : undefined}
                   className="relative"
                 >
-                  <NavLink
-                    label={entry.label}
-                    active={location.pathname === entry.path}
-                  />
+                  <NavLink label={entry.label} active={active} />
                 </Link>
-              ) : (
-                <span
-                  key={entry.label}
-                  aria-disabled="true"
-                  className="cursor-not-allowed"
-                >
-                  <NavLink label={entry.label} />
-                </span>
-              ),
-            )}
+              )
+            })}
             {isAdmin ? (
               <Link
                 to="/admin"
