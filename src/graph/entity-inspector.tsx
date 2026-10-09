@@ -104,6 +104,23 @@ export function refocusView(type: RefocusTarget): string {
 }
 
 /**
+ * Render an ontology token as readable words (`HAS_CONCEPT` → `Has concept`).
+ *
+ * Presentation only: the raw token still travels in the `data-*` attributes
+ * and the `Vocabulary` row, so nothing becomes un-addressable — the reader
+ * sees prose where the wire sees a token. Derives nothing: a token maps to
+ * the same words every time, and an unrecognised one still renders as words
+ * rather than being guessed at.
+ *
+ * @param token A relation word, edge family or source tag from the graph.
+ * @returns The token with underscores as spaces and a leading capital.
+ */
+function humanizeToken(token: string): string {
+  const words = token.replace(/_/g, ' ').toLowerCase()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+/**
  * Look up a node in the projection by its canonical id.
  *
  * @param projection The loaded projection.
@@ -344,9 +361,11 @@ function EdgePanel({
       data-traversal={edge.traversal}
     >
       <header className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-semibold">{edge.type.value}</h3>
+        <h3 className="text-base font-semibold">
+          {humanizeToken(edge.type.value)}
+        </h3>
         <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
-          {edge.family}
+          {humanizeToken(edge.family)}
         </span>
       </header>
 
@@ -359,8 +378,8 @@ function EdgePanel({
           <span className="font-medium">{toLabel}</span>{' '}
           <code className="text-xs text-muted-foreground">{edge.to}</code>
         </DataRow>
-        <DataRow label="Family">{edge.family}</DataRow>
-        <DataRow label="Relation">{edge.type.value}</DataRow>
+        <DataRow label="Family">{humanizeToken(edge.family)}</DataRow>
+        <DataRow label="Relation">{humanizeToken(edge.type.value)}</DataRow>
         {vocabulary ? <DataRow label="Vocabulary">{vocabulary}</DataRow> : null}
         <DataRow label="Source table">
           <code className="text-xs">{edge.sourceTable}</code>
@@ -935,10 +954,10 @@ function EvidenceSection({
       descriptor?.blockingGaps.some((gap) => gap.includes('evidence_items')) ??
       false
     const note = corpusEmpty
-      ? 'No evidence in the corpus: trope_graph.evidence_items has 0 rows. Nothing is recorded against this claim — or any claim.'
+      ? 'No evidence is recorded in the corpus at all, so none is recorded against this claim — or any claim. A corpus fact, not a load failure.'
       : !nodeWasExpanded(projection, node)
         ? 'Not expanded at this depth: the claim sits at the frontier, so evidence may exist beyond the loaded depth.'
-        : 'No evidence directed at this claim in the corpus. Nothing in evidence_* supports it — a corpus fact, not a load failure.'
+        : 'No evidence is recorded against this claim. A corpus fact, not a load failure.'
     return (
       <Section title="Evidence">
         <Note>{note}</Note>
@@ -968,7 +987,7 @@ function EvidenceSection({
                 {resolveNodeLabel(projection, evidenceId)}
               </div>
               <div className="text-muted-foreground">
-                {edge.type.value} · {edge.sourceTable}
+                {humanizeToken(edge.type.value)} · {edge.sourceTable}
                 {typeof strength === 'string' && strength.length > 0
                   ? ` · strength ${strength}`
                   : ''}
@@ -1221,8 +1240,12 @@ function RelationshipsSection({
               data-relationship-relation={edge.type.value}
             >
               <div className="flex items-baseline justify-between gap-2">
-                <span className="font-medium">{edge.type.value}</span>
-                <span className="text-muted-foreground">{edge.family}</span>
+                <span className="font-medium">
+                  {humanizeToken(edge.type.value)}
+                </span>
+                <span className="text-muted-foreground">
+                  {humanizeToken(edge.family)}
+                </span>
               </div>
               <div className="mt-0.5 text-muted-foreground">
                 {direction} {otherLabel}
