@@ -237,14 +237,48 @@ flowchart TD
   | 375px | single column; rails hidden; toolbar shown | 0 | drawer | `screenshots/decks-375px.png` |
   | 320px | single column; rails hidden; toolbar shown | 0 | drawer | `screenshots/decks-320px.png` |
 
-  _Method note:_ headless Firefox enforces a 500px minimum window, so 375px/320px were measured through a same-origin `<iframe>` (media queries resolve against the iframe width), which reported `innerWidth` 375/320 and `overflow-x` 0.
+  _Method note (superseded):_ the original 375px/320px figures were measured through a same-origin `<iframe>` (media queries resolve against the iframe width). That is a **CSS-viewport measurement only**, not an interaction test. See the second follow-up below for real `browsingContext.setViewport` measurements at 320/375/768/1024/1280 on a live browser.
 
 - ✅ **3.2 Navigation route audit:** Every header/footer link resolves to a registered route in `src/App.tsx` — nav `/`, `/explore`, `/graph`, `/research`, `/research/compose`, `/sources` (+ `/admin` when authenticated); footer `/privacy`, `/terms`, `/sources`. All ten routes were loaded live and mount cleanly (non-empty `#root`, no `Cannot GET`, no error boundary; `/admin` correctly renders "Sign in required"). The privacy page's stored-data claims were checked against the audited architecture: it imports the canonical `RESEARCH_SESSION_STORAGE_KEY` from `@/research/research-session`, documents the browser-local session as never sent to servers, describes Better Auth account/session records (email, role, IP, user-agent, session cookie), and states the server runs no request-logging middleware — all accurate.
 - ✅ **3.3 Screenshot report:** Fresh Decks renderings captured at 320 / 375 / 768 / 1024 (base + browse drawer) / 1280 / 1440 / 1920 in `docs/issue-9/screenshots/`.
 
-- ⚠️ **Finding (out of scope, tracked):** the **global** `Header` (`src/components/Header.tsx:83-114`, `fixed top-0 w-full` with `nav.flex.space-x-8`) needs ~648px and, below ~500px, has no wrap/hamburger/scroll — so `Research` / `Compose` / `Sources` are clipped and unreachable at 320–375px. This is a pre-existing global-chrome gap, **not** introduced by the Decks page. Filed as `as-truth-cards-0vn`.
+- ⚠️ **Finding (resolved in `Header.tsx`):** the **global** `Header` previously needed ~648px and, below ~500px, clipped `Research` / `Compose` / `Sources` with no wrap/hamburger/scroll. Fixed: below `md` (768px) the primary entries move into a toggleable menu behind a hamburger (`data-testid="nav-menu-toggle"`, `aria-controls="global-nav-menu"`), Escape/route-change close it, and every primary destination is reachable at 320–375px. Tracked as `as-truth-cards-0vn` (kept open for reviewer sign-off).
 
 ### Stream 3 follow-up (reviewer-requested)
 - ✅ **Drawer accessibility completed and verified:** both drawers now trap Tab (`src/deck/drawer-a11y.ts`), mark every background branch `inert` while open, expose an accessible name (`aria-label`), and return focus to the invoking toolbar button on Escape / backdrop / Close dismissal. Verified live in Firefox at 1024px (see issue report).
 - ✅ **Privacy scope tightened:** `src/pages/Privacy.tsx` now names the two infrastructure providers (Render hosting, Neon database), scopes the "no logging" claim to the application itself, and states explicitly that provider-side logs are outside the application and not attested by the page.
-- ⚠️ **Responsive evidence limit:** the 320/375px results are CSS-viewport measurements via a same-origin `<iframe>` (headless Firefox enforces a 500px window minimum); they are **not** a substitute for a full narrow-window browser interaction test.
+- ⚠️ **Responsive evidence limit:** the 320/375px results are CSS-viewport measurements via a same-origin `<iframe>`; they are **not** a substitute for a full narrow-window browser interaction test. Addressed by the second follow-up below.
+
+### Stream 3 second follow-up — real-browser keyboard & viewport verification ✅
+A genuine interaction harness was built so the verification is **not** code-level and **not** iframe-emulated:
+- **Browser:** Mozilla Firefox 157.0 (Gecko/20100101), headed on the real X11 display `:0`, driven over **WebDriver BiDi**.
+- **Input:** **XTest** X11 events (OS-level `KeyPress`/`KeyRelease` — identical to a physical keyboard, `isTrusted`) for all keyboard steps; BiDi `input.performActions` for pointer; BiDi `script.evaluate` for assertions.
+- **Viewport:** real `browsingContext.setViewport` (no iframe), so `innerWidth` 320/375/768/1024/1280 are true viewports.
+
+- ✅ **Drawer keyboard pass (both drawers):** opening with a real `Enter` **from the focused trigger**, initial focus on Close, background `inert`, `Shift+Tab` wraps to the last control, 12× `Tab` never leaves the layer, `Escape` closes and restores focus to the trigger, backdrop click closes and restores, and `Enter` on Close closes and restores — **all pass** for **Browse categories** and **Research tray**.
+
+  | Check | Browse | Tray |
+  | --- | --- | --- |
+  | Real `Enter` on trigger opens | ✅ | ✅ |
+  | Initial focus on Close | ✅ | ✅ |
+  | Background `inert` (header/footer/workspace) | ✅ | ✅ |
+  | `Shift+Tab` wraps to last | ✅ | ✅ |
+  | 12× `Tab` stays trapped | ✅ | ✅ |
+  | `Escape` closes + restores focus | ✅ | ✅ |
+  | Backdrop click closes + restores focus | ✅ | ✅ |
+  | `Enter` on Close closes + restores focus | ✅ | ✅ |
+
+- ✅ **Viewport reachability matrix (real viewports):** at **320 / 375** the hamburger is visible, all six primary nav links are in the opened menu with `first`/`last` link `right-edge ≤ innerWidth` (no overflow), and both drawer triggers are visible/operable. At **768 / 1024** the hamburger is hidden and the horizontal header shows all six primary links. At **1280** the toolbar triggers are `xl:hidden` **by design** — the browse (232px) and tray (320px) rails are permanently visible instead, so the affordances remain reachable.
+
+  | Viewport | Hamburger | Primary nav | Drawer triggers |
+  | --- | --- | --- | --- |
+  | 320px | shown | all 6 in menu, no overflow | both visible |
+  | 375px | shown | all 6 in menu, no overflow | both visible |
+  | 768px | hidden | all 6 in header | both visible |
+  | 1024px | hidden | all 6 in header | both visible |
+  | 1280px | hidden | all 6 in header | replaced by persistent rails (`xl`) |
+
+- **Harness note (not an app defect):** BiDi synthetic `Enter`/`Space` key actions do **not** trigger default button activation in this headless/automation path (even a plain injected `<button onclick>` fails, and `document.hasFocus()` is `false`). Real **XTest** keyboard events activate the same buttons correctly, which is why the pass above uses OS-level input. This is a property of the automation channel, not the app.
+
+- ✅ **Privacy (unchanged):** `src/pages/Privacy.tsx` keeps provider-side (Render/Neon) logging explicitly **unverified**; no change made.
+- 🔐 **CORS/security follow-up:** the open `cors()` default and trusted-proxy/IP assumptions in `server/index.ts` are tracked as a **separate** security-review issue, not folded into this product-shell acceptance.
