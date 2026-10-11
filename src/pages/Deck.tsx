@@ -50,6 +50,7 @@ import {
 import { DeckScopeBadges } from '@/deck/deck-scope'
 import { type DeckDrawerKind, DeckWorkspace } from '@/deck/deck-workspace'
 import { DiscoveryPrompt } from '@/deck/discovery-prompt'
+import { inertBackground, trapTab } from '@/deck/drawer-a11y'
 import { ResearchTray } from '@/deck/research-tray'
 import {
   deckProjectionParams,
@@ -242,23 +243,40 @@ const Deck = () => {
   // The workspace rails collapse to drawers below `xl`; the page owns which
   // (if any) is open so Escape drains exactly one modal.
   const [drawer, setDrawer] = useState<DeckDrawerKind | null>(null)
+  const invokerRef = useRef<HTMLElement | null>(null)
   const navigate = useNavigate()
 
-  // Drawer keyboard + focus: Escape closes the modal drawer and opening hands
-  // focus to its close button, keeping the rail operable for keyboard users at
-  // the widths where the columns are hidden.
+  // Drawer keyboard + focus (SPEC §4.7): opening traps focus inside the dialog,
+  // makes the rest of the page inert (so neither Tab nor pointer reaches the
+  // background), and moves focus to Close; dismissing with Escape, the
+  // backdrop, or Close returns focus to the control that opened the drawer.
   useEffect(() => {
     if (drawer === null) return
+    const layer = document.querySelector<HTMLElement>(
+      '[data-testid="deck-drawer-layer"]',
+    )
+    const dialog = document.querySelector<HTMLElement>(
+      `[data-testid="deck-drawer-${drawer}"]`,
+    )
+    const restoreInert = layer ? inertBackground(layer) : () => {}
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setDrawer(null)
+      if (event.key === 'Escape') {
+        setDrawer(null)
+        return
+      }
+      if (dialog) trapTab(dialog, event)
     }
     window.addEventListener('keydown', onKeyDown)
     window.requestAnimationFrame(() => {
-      document
-        .querySelector<HTMLElement>('[data-testid="deck-drawer-close"]')
+      dialog
+        ?.querySelector<HTMLElement>('[data-testid="deck-drawer-close"]')
         ?.focus()
     })
-    return () => window.removeEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      restoreInert()
+      invokerRef.current?.focus?.()
+    }
   }, [drawer])
 
   // The tray is the browser-local research session (SPEC §4.4): adding a card
@@ -396,7 +414,13 @@ const Deck = () => {
 
           <DeckWorkspace
             drawer={drawer}
-            onOpenDrawer={setDrawer}
+            onOpenDrawer={(kind) => {
+              invokerRef.current =
+                document.activeElement instanceof HTMLElement
+                  ? document.activeElement
+                  : null
+              setDrawer(kind)
+            }}
             onCloseDrawer={() => setDrawer(null)}
             browseRail={
               <BrowseRail

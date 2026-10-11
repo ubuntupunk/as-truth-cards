@@ -102,7 +102,7 @@ export function DeckWorkspace({
       </div>
 
       {drawer !== null ? (
-        <>
+        <div data-testid="deck-drawer-layer">
           <button
             type="button"
             aria-label="Close drawer"
@@ -134,7 +134,7 @@ export function DeckWorkspace({
               {drawer === 'browse' ? browseRail : tray}
             </div>
           </div>
-        </>
+        </div>
       ) : null}
     </>
   )

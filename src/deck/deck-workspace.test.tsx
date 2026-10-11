@@ -82,6 +82,25 @@ describe('DeckWorkspace', () => {
     assert.equal(calls.close.length, 1)
   })
 
+  it('wraps the backdrop and dialog in one interactive layer', () => {
+    const { root } = renderWorkspace('tray')
+    const layer = walk(
+      root,
+      (vnode) => vnode.props?.['data-testid'] === 'deck-drawer-layer',
+    )
+    assert.equal(layer.length, 1)
+    const inside = walk(layer[0], (vnode) => {
+      const id = vnode.props?.['data-testid']
+      return (
+        typeof id === 'string' &&
+        id !== 'deck-drawer-layer' &&
+        id.startsWith('deck-drawer-')
+      )
+    }).map((vnode) => vnode.props?.['data-testid'])
+    assert.ok(inside.includes('deck-drawer-backdrop'))
+    assert.ok(inside.includes('deck-drawer-tray'))
+  })
+
   it('renders no drawer when both rows are closed', () => {
     const { root } = renderWorkspace(null)
     const dialogs = walk(root, (vnode) => vnode.type === 'button').filter(
