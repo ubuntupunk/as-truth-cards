@@ -1,3 +1,5 @@
+import { Menu, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
@@ -14,6 +16,11 @@ import { ThemeToggle } from './ThemeToggle'
  * behind Research: it is a fully implemented authoring surface, and the
  * approved IA requires it to be reachable in one click. Research therefore
  * matches its own path exactly, so the two never highlight at once.
+ *
+ * Below `md` the horizontal row cannot fit without clipping (the row needs
+ * ~648px), so the entries move into a toggleable menu behind a hamburger button.
+ * That keeps every primary destination reachable at 320–375px instead of
+ * overflowing a `fixed` header that produces no scroll to recover them.
  */
 type NavEntry = {
   label: string
@@ -71,7 +78,30 @@ const NavLink = ({ label, active }: { label: string; active?: boolean }) => (
 const Header = () => {
   const location = useLocation()
   const isVisible = useDelayedVisibility(100)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const lastPathname = useRef(location.pathname)
   const isAdmin = location.pathname.startsWith('/admin')
+
+  const entries: readonly NavEntry[] = isAdmin
+    ? [...NAV_ENTRIES, { label: 'Admin', path: '/admin' }]
+    : NAV_ENTRIES
+
+  // Closing on navigation keeps the menu from lingering across route changes,
+  // and Escape dismisses it like any other disclosure.
+  useEffect(() => {
+    if (lastPathname.current === location.pathname) return
+    lastPathname.current = location.pathname
+    setMenuOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [menuOpen])
 
   return (
     <header
@@ -85,9 +115,12 @@ const Header = () => {
           Trope Deck
         </Link>
 
-        <div className="flex items-center space-x-4">
-          <nav className="flex space-x-8" aria-label="Global navigation">
-            {NAV_ENTRIES.map((entry) => {
+        <div className="flex items-center gap-2 md:gap-4">
+          <nav
+            className="hidden md:flex md:space-x-8"
+            aria-label="Global navigation"
+          >
+            {entries.map((entry) => {
               const active = isNavEntryActive(entry, location.pathname)
               return (
                 <Link
@@ -100,19 +133,54 @@ const Header = () => {
                 </Link>
               )
             })}
-            {isAdmin ? (
-              <Link
-                to="/admin"
-                aria-current={isAdmin ? 'page' : undefined}
-                className="relative"
-              >
-                <NavLink label="Admin" active={isAdmin} />
-              </Link>
-            ) : null}
           </nav>
           <ThemeToggle />
+          <button
+            type="button"
+            data-testid="nav-menu-toggle"
+            className="rounded-md border border-input p-2 text-muted-foreground hover:text-foreground md:hidden"
+            aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}
+            aria-expanded={menuOpen}
+            aria-controls="global-nav-menu"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            {menuOpen ? (
+              <X className="h-5 w-5" aria-hidden="true" />
+            ) : (
+              <Menu className="h-5 w-5" aria-hidden="true" />
+            )}
+          </button>
         </div>
       </div>
+
+      {menuOpen ? (
+        <nav
+          id="global-nav-menu"
+          data-testid="nav-menu"
+          aria-label="Global navigation"
+          className="container mx-auto mt-3 flex flex-col gap-1 rounded-lg border border-border bg-card p-2 shadow-lg md:hidden"
+        >
+          {entries.map((entry) => {
+            const active = isNavEntryActive(entry, location.pathname)
+            return (
+              <Link
+                key={entry.label}
+                to={entry.path}
+                aria-current={active ? 'page' : undefined}
+                onClick={() => setMenuOpen(false)}
+                className={cn(
+                  'rounded-md px-3 py-2 text-sm font-medium',
+                  active
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                )}
+              >
+                {entry.label}
+              </Link>
+            )
+          })}
+        </nav>
+      ) : null}
     </header>
   )
 }
