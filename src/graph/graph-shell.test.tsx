@@ -43,11 +43,11 @@ describe('graph-shell composition', () => {
     )
     assert.equal(
       order('data-testid="graph-heading"') <
-        order('data-testid="graph-disclaimer"'),
+        order('data-testid="research-disclaimer"'),
       true,
     )
     assert.equal(
-      order('data-testid="graph-disclaimer"') < order('[[controls]]'),
+      order('data-testid="research-disclaimer"') < order('[[controls]]'),
       true,
     )
     assert.equal(order('[[controls]]') < order('[[workspace]]'), true)

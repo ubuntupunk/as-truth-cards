@@ -12,8 +12,10 @@ import Explore from './pages/Explore'
 import Graph from './pages/Graph'
 import LegacyDeck from './pages/LegacyDeck'
 import NotFound from './pages/NotFound'
+import Privacy from './pages/Privacy'
 import Research from './pages/Research'
 import Sources from './pages/Sources'
+import Terms from './pages/Terms'
 
 const queryClient = new QueryClient()
 
@@ -32,6 +34,8 @@ const App = () => (
             <Route path="/research/compose" element={<Compose />} />
             <Route path="/sources" element={<Sources />} />
             <Route path="/about" element={<About />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
             <Route path="/graph" element={<Graph />} />
             <Route path="/admin" element={<Admin />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

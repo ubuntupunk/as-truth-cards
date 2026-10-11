@@ -21,6 +21,7 @@
 
 import type { ComponentChildren, JSX } from 'preact'
 
+import { ResearchDisclaimer } from '../components/ResearchDisclaimer'
 import { GRAPH_TREATMENT_TOKENS, type GraphTreatment } from './appearance'
 
 /** Every chrome token, as the `--graph-*` custom property it feeds. */
@@ -121,7 +122,10 @@ export function GraphShell({
     >
       <GraphContextBar contextLabel={contextLabel} />
       <GraphHeading eyebrow={eyebrow} heading={heading} subtitle={subtitle} />
-      <ResearchDisclaimer />
+      {/* The disclaimer copy lives in `components/ResearchDisclaimer` so every
+          research surface (Graph, Research, Sources, Decks) mounts identical
+          wording; this shell only supplies the treatment-driven chrome. */}
+      <ResearchDisclaimer className="mt-5 border-graph-disclaimer-border bg-graph-disclaimer text-graph-muted-foreground" />
       {controls !== undefined && controls !== null ? (
         <div className="mt-6">{controls}</div>
       ) : null}
@@ -177,27 +181,6 @@ function GraphHeading({
         <p className="mt-1 text-sm text-graph-muted-foreground">{subtitle}</p>
       </div>
     </header>
-  )
-}
-
-/**
- * The research disclaimer — always visible above the workspace, so the
- * collection's status as research (rather than a verdict) never scrolls away.
- * The copy is the approved Figma wording and claims exactly as much as the
- * graph data supports: nothing more.
- */
-function ResearchDisclaimer() {
-  return (
-    <div
-      data-testid="graph-disclaimer"
-      className="mt-5 rounded-lg border border-graph-disclaimer-border bg-graph-disclaimer px-4 py-3 text-sm text-graph-muted-foreground"
-    >
-      <span className="mr-1.5 font-semibold text-foreground">
-        Research disclaimer
-      </span>
-      Illustrative research collection. Claims, source leads, and inferences are
-      unverified; no historical conclusions are established.
-    </div>
   )
 }
 

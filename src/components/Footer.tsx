@@ -1,5 +1,19 @@
+import { Link } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
+
+/**
+ * The site-wide footer links. Each points at a real route — no placeholder
+ * `href="#"` anchors — so the footer never presents inert compliance links.
+ */
+export const FOOTER_LINKS: readonly {
+  readonly label: string
+  readonly path: string
+}[] = [
+  { label: 'Privacy', path: '/privacy' },
+  { label: 'Terms', path: '/terms' },
+  { label: 'Resources', path: '/sources' },
+]
 
 const Footer = () => {
   const isVisible = useDelayedVisibility(300)
@@ -19,24 +33,15 @@ const Footer = () => {
           </p>
 
           <div className="flex space-x-6">
-            <a
-              href="#"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Privacy
-            </a>
-            <a
-              href="#"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Terms
-            </a>
-            <a
-              href="#"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Resources
-            </a>
+            {FOOTER_LINKS.map((link) => (
+              <Link
+                key={link.label}
+                to={link.path}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
       </div>
