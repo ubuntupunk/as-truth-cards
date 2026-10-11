@@ -54,3 +54,6 @@ trope-cards/drizzle-kit/generated/
 
 # TypeScript incremental build info
 *.tsbuildinfo
+
+# Working-tool state, not project content
+.commandcode/

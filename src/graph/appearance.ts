@@ -304,3 +304,49 @@ export function readGraphTreatment(
   const raw = storage.getItem(GRAPH_TREATMENT_STORAGE_KEY)
   return isGraphTreatment(raw) ? raw : 'atmospheric'
 }
+
+/** Every chrome token, as the `--graph-*` custom property it feeds. */
+const GRAPH_CHROME_VARIABLES: Record<keyof GraphChromeTokens, string> = {
+  page: '--graph-page',
+  surface: '--graph-surface',
+  canvas: '--graph-canvas',
+  inspector: '--graph-inspector',
+  border: '--graph-border',
+  accent: '--graph-accent',
+  accentForeground: '--graph-accent-foreground',
+  muted: '--graph-muted',
+  mutedForeground: '--graph-muted-foreground',
+  focus: '--graph-focus',
+  statusOk: '--graph-status-ok',
+  statusWarn: '--graph-status-warn',
+  statusNone: '--graph-status-none',
+  controls: '--graph-controls',
+  disclaimer: '--graph-disclaimer',
+  disclaimerBorder: '--graph-disclaimer-border',
+}
+
+/**
+ * A treatment's chrome + typography as CSS custom property declarations.
+ *
+ * This is the single place a treatment becomes CSS variables: every surface
+ * (`page`, `surface`, `border`, `muted`, `accent`, `disclaimer`, …) maps to a
+ * `--graph-*` property, plus `--graph-font-family` for the workspace stack.
+ * Both `GraphShell` (Graph / Research) and the Decks page mount the same map
+ * on their `data-treatment` wrapper, so tokens never drift between surfaces.
+ *
+ * @param treatment The active treatment.
+ * @returns An object of `--graph-*` custom property names to HSL values.
+ */
+export function graphTreatmentVars(
+  treatment: GraphTreatment,
+): Record<string, string> {
+  const { chrome, typography } = GRAPH_TREATMENT_TOKENS[treatment]
+  const vars: Record<string, string> = {
+    '--graph-font-family': typography.fontFamily,
+  }
+  for (const [key, value] of Object.entries(chrome)) {
+    const name = GRAPH_CHROME_VARIABLES[key as keyof GraphChromeTokens]
+    if (name) vars[name] = value
+  }
+  return vars
+}

@@ -1,0 +1,110 @@
+/**
+ * `BrowseRail` — the left rail of the Deck workspace (Figma `7:4434`).
+ *
+ * Per §4.8 this rail is deliberately small: user-created deck CRUD
+ * ("Your decks", "New deck") is out of scope until a persistence contract and
+ * schema exist, so **no placeholder buttons render**. The one category that
+ * the cards listing can actually filter by is **Axis**, so the rail offers the
+ * axes present in the loaded cards (the same "never invent a filter" rule the
+ * scope strip obeys). The other graph categories (mechanism, concept, locale,
+ * collection) are facets of the Graph Explorer, not the deck listing API, so
+ * they are surfaced as a single pointer to the existing graph surface rather
+ * than dead links.
+ */
+
+import { cn } from '@/lib/utils'
+import type { CardAxisValue } from '../../trope-cards/src/graph/types.ts'
+import { AXIS_LABELS } from '../graph/deck-facets'
+
+/** Props for {@link BrowseRail}. */
+export type BrowseRailProps = {
+  /** Axes present in the loaded cards, in canonical order. */
+  readonly axes: readonly CardAxisValue[]
+  /** The axis the deck is currently scoped to, or `null` for all axes. */
+  readonly activeAxis: CardAxisValue | null
+  /** Report the next axis filter; `null` clears back to all axes. */
+  readonly onChange: (axis: CardAxisValue | null) => void
+  /** The existing surface the remaining categories live on. */
+  readonly graphHref: string
+}
+
+/** The row treatment: active rows are filled, inactive rows are quiet. */
+function axisRowClasses(active: boolean): string {
+  return cn(
+    'flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs font-medium transition-colors',
+    active
+      ? 'bg-graph-muted text-foreground'
+      : 'text-graph-muted-foreground hover:bg-graph-muted/60 hover:text-foreground',
+  )
+}
+
+/**
+ * The browse rail.
+ *
+ * @param props See {@link BrowseRailProps}.
+ * @returns An `<aside>` of working axis filters plus a graph pointer.
+ */
+export function BrowseRail({
+  axes,
+  activeAxis,
+  onChange,
+  graphHref,
+}: BrowseRailProps) {
+  return (
+    <aside
+      data-testid="deck-browse-rail"
+      aria-label="Browse categories"
+      className="rounded-xl border border-graph-border bg-graph-surface p-4"
+    >
+      <h2 className="text-sm font-semibold tracking-tight text-foreground">
+        Browse categories
+      </h2>
+      <p
+        data-testid="browse-rail-scope"
+        className="mt-1 text-xs leading-relaxed text-graph-muted-foreground"
+      >
+        Filter the deck by axis. Mechanism, concept, locale, and collection
+        browsing live in the Graph Explorer.
+      </p>
+
+      <nav aria-label="Axes" className="mt-3">
+        <ul data-testid="browse-rail-axes" className="space-y-1">
+          <li>
+            <button
+              type="button"
+              data-testid="browse-rail-axis"
+              data-axis="__all__"
+              aria-pressed={activeAxis === null}
+              onClick={() => onChange(null)}
+              className={axisRowClasses(activeAxis === null)}
+            >
+              All axes
+            </button>
+          </li>
+          {axes.map((axis) => (
+            <li key={axis}>
+              <button
+                type="button"
+                data-testid="browse-rail-axis"
+                data-axis={axis}
+                aria-pressed={activeAxis === axis}
+                onClick={() => onChange(activeAxis === axis ? null : axis)}
+                className={axisRowClasses(activeAxis === axis)}
+              >
+                {AXIS_LABELS[axis]}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      <a
+        data-testid="browse-rail-graph-link"
+        href={graphHref}
+        className="mt-4 inline-block text-xs font-medium text-graph-accent hover:underline"
+      >
+        Open the Graph Explorer
+      </a>
+    </aside>
+  )
+}
