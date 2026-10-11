@@ -81,6 +81,7 @@ The running Decks surface (`src/pages/Deck.tsx`, `src/deck/*`) already implement
 
 ### 4.4. "In your research tray" Session Sidebar
 - **Classification:** **3. Existing implementation capability**
+- **Status:** ✅ **Completed** — the browser-local session sidebar is implemented as `src/deck/research-tray.tsx` (`ResearchTray`): count badge, card-scoped Add (disabled when the card is already in the tray), Open→`/research?focus=…` handoff, per-entry Remove, Clear, and an explicit disclosure that items live only in this browser and are never sent to an account; `Save card` retains its separate account-bound semantics (Stream 2).
 - **User problem:** While shuffling and discovering cards on Decks, users want to retain candidate cards for temporary inquiry without losing their place or navigating away.
 - **Evidence / Authority:** Figma node `7:4434` displays a right-hand rail: `In your research tray (3)` and `Before you connect`. The Research Workspace implements browser-local working state via `useResearchSession` (`src/research/research-session.ts`, `RESEARCH_SESSION_STORAGE_KEY`).
 - **Dependency:** Reusing `useResearchSession` and `ResearchEntry` without duplicating state logic or conflating with account-level actions.
@@ -91,6 +92,7 @@ The running Decks surface (`src/pages/Deck.tsx`, `src/deck/*`) already implement
 
 ### 4.5. Appearance Selector (Atmospheric / Editorial / Workspace)
 - **Classification:** **3. Existing implementation capability / 2. Candidate design enhancement**
+- **Status:** ✅ **Completed** — the deck mounts the graph appearance system with URL-then-storage precedence: `?treatment=atmospheric|editorial|workspace` is canonical and shareable, `localStorage` (`trope-cards:graph-treatment`) is only the default, and changing it never touches the global light/dark theme. `graphTreatmentVars` (extracted into `src/graph/appearance.ts`) is now the single source of token→`--graph-*` mapping shared by `GraphShell` and `Deck.tsx`; the selector is `src/deck/deck-appearance-control.tsx` (Stream 2).
 - **User problem:** Researchers examining claims in different environments (reading prose vs. analytical inspection) benefit from tailored contrast and visual density.
 - **Evidence / Authority:** Implemented in the Graph subsystem (`src/graph/appearance.ts`, supporting `atmospheric`, `editorial`, `workspace`). Figma frames `12:1446`, `12:1644`, and `12:1841` demonstrate these modes on Decks.
 - **Dependency:** Clarifying whether Appearance on Decks represents visual theme tokens (like in Graph) or alternate page layouts/densities, and separating it from global light/dark mode (`ThemeProvider`).
@@ -119,6 +121,7 @@ The running Decks surface (`src/pages/Deck.tsx`, `src/deck/*`) already implement
 
 ### 4.7. Three-Column Workspace Layout (Deck Nav Rail + Discovery + Session Sidebar)
 - **Classification:** **2. Candidate design enhancement**
+- **Status:** ✅ **Completed** — the workspace grid is implemented in `src/deck/deck-workspace.tsx` (`DeckWorkspace`): at `xl` (≥1280px) the deck is `[232px, minmax(0,1fr), 320px]` with sticky rails; below `xl` the rails collapse and are reachable only through toolbar buttons that open them as modal drawers (`role="dialog"`, backdrop, Escape, focus to Close). The fluid middle column keeps the card's reading measure at every width, so no breakpoint forces viewport scroll (Stream 2).
 - **User problem:** High-density desktop users have ample horizontal space and could browse categories and view tray items alongside the featured card.
 - **Evidence / Authority:** Figma frame `7:4434` specifies a 1440px canvas divided into: Left rail (232px) + Card discovery (792px) + Session sidebar (320px). `SPEC.md` §3.3 specifies a centered single-column composition (`max-w-4xl xl:max-w-5xl`).
 - **Dependency:** Responsive breakpoint strategy; deciding if the navigation rails provide sufficient utility on Decks to justify layout complexity.
@@ -129,6 +132,7 @@ The running Decks surface (`src/pages/Deck.tsx`, `src/deck/*`) already implement
 
 ### 4.8. Deck Navigation Rail ("Your decks", "New deck", Categories)
 - **Classification:** **5. Out of scope / deferred (User CRUD) & 2. Candidate enhancement (Category browsing)**
+- **Status:** ✅ **Completed** — the rail is implemented as `src/deck/browse-rail.tsx` (`BrowseRail`). No placeholder CRUD renders. **Correction to the §4.8 proposal noted during implementation:** the deck listing API (`GET /api/graph/cards`) supports `locale`, `limit`, and `offset` only — `?axis=`, `?mechanism=`, and `?concept=` are not real deck filtering params. The rail therefore maps Axis to the deck's *existing* client-side axis scope filter (obeying the project's "never invent a filter" rule: it lists only the axes the loaded cards carry), and Mechanism / Concept / Locale / Collection — facets of the Graph Explorer, not the listing API — are surfaced as one honest pointer link to `/graph` rather than dead buttons (Stream 2).
 - **User problem:** Users may want to organize cards into custom sets or explore cards grouped by specific ontological categories.
 - **Evidence / Authority:** Figma left rail lists `Your decks` (4 items + `New deck`) and `Browse categories` (Axis, Mechanism, Concept, Locale, Collection). The database and API currently have no data model, CRUD endpoints, or persistence schema for user-created decks.
 - **Dependency:** Data model and schema migration for user collections; Better Auth authorization if user-owned.
@@ -215,10 +219,10 @@ flowchart TD
 - ✅ **1.4 Canonical IA for Compose:** `/research/compose` is reachable from global navigation (`src/components/Header.tsx`), with exact-match active highlighting.
 - ✅ **1.5 Three-stage card model (Cover → Claim → Analysis):** implemented per `SPEC.md` §7 with optional rights-cleared imagery, deliberate typographic fallback, and explicit `Examine card` / `Read analysis` / `Back to claim` transitions with focus and state invariance.
 
-### Stream 2: Deck Workspace & Layout Enhancements (Requires Product Approval)
-- **2.1 Three-column responsive workspace:** Prototype collapsible layout that collapses rails to drawers below 1280px to protect reading measure.
-- **2.2 Local research tray integration:** Connect `useResearchSession` on Decks with explicit browser-local disclosure, keeping it strictly distinct from account-bound saving (`Save card`).
-- **2.3 Appearance switcher:** Apply `src/graph/appearance.ts` tokens to Decks via canonical URL query parameter `?treatment=atmospheric|editorial|workspace` for reproducible, shareable states.
+### Stream 2: Deck Workspace & Layout Enhancements ✅ Complete
+- ✅ **2.1 Three-column responsive workspace:** `src/deck/deck-workspace.tsx` renders `[232px, minmax(0,1fr), 320px]` at `xl`, collapsing the rails into accessible modal drawers (`role="dialog"`, backdrop, Escape) below 1280px to protect reading measure.
+- ✅ **2.2 Local research tray integration:** `src/deck/research-tray.tsx` connects `useResearchSession` on Decks with an explicit browser-local disclosure, keeping it strictly distinct from account-bound saving (`Save card`); Open hands off to `/research?focus=…`.
+- ✅ **2.3 Appearance switcher:** `graphTreatmentVars` extracted in `src/graph/appearance.ts` (shared by `GraphShell` and `Deck.tsx`); `src/deck/deck-appearance-control.tsx` + `?treatment=atmospheric|editorial|workspace` (canonical, shareable) with `localStorage` as the default only.
 
 ### Stream 3: Visual Reconciliation & Quality Gates (Post-Approval)
 - **3.1 Responsive audit:** Verify mobile (320px–375px), tablet (768px–1024px), and desktop (1280px–1920px).

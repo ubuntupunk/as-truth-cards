@@ -12,8 +12,8 @@
  *
  * `data-treatment` marks the shell, and the treatment's chrome tokens ride the
  * element as inline `--graph-*` custom properties (plus `--graph-font-family`)
- * straight from `GRAPH_TREATMENT_TOKENS` in `appearance.ts` — that module is
- * the single source of truth; `tailwind.config.ts` maps the variables to
+ * straight from `graphTreatmentVars` in `appearance.ts` — that module is the
+ * single source of truth; `tailwind.config.ts` maps the variables to
  * `graph-*` color classes and `index.css` supplies `:root` defaults so
  * surfaces render sanely before the shell mounts. Switching a treatment
  * therefore repaints chrome without touching a single semantic value.
@@ -22,48 +22,7 @@
 import type { ComponentChildren, JSX } from 'preact'
 
 import { ResearchDisclaimer } from '../components/ResearchDisclaimer'
-import { GRAPH_TREATMENT_TOKENS, type GraphTreatment } from './appearance'
-
-/** Every chrome token, as the `--graph-*` custom property it feeds. */
-const CHROME_VARIABLES: Record<
-  keyof typeof GRAPH_TREATMENT_TOKENS.atmospheric.chrome,
-  string
-> = {
-  page: '--graph-page',
-  surface: '--graph-surface',
-  canvas: '--graph-canvas',
-  inspector: '--graph-inspector',
-  border: '--graph-border',
-  accent: '--graph-accent',
-  accentForeground: '--graph-accent-foreground',
-  muted: '--graph-muted',
-  mutedForeground: '--graph-muted-foreground',
-  focus: '--graph-focus',
-  statusOk: '--graph-status-ok',
-  statusWarn: '--graph-status-warn',
-  statusNone: '--graph-status-none',
-  controls: '--graph-controls',
-  disclaimer: '--graph-disclaimer',
-  disclaimerBorder: '--graph-disclaimer-border',
-}
-
-/**
- * The chrome + typography of a treatment as a CSS variable map.
- *
- * @param treatment The active treatment.
- * @returns An object of `--graph-*` custom property names to HSL values.
- */
-function treatmentVars(treatment: GraphTreatment): Record<string, string> {
-  const { chrome, typography } = GRAPH_TREATMENT_TOKENS[treatment]
-  const vars: Record<string, string> = {
-    '--graph-font-family': typography.fontFamily,
-  }
-  for (const [key, value] of Object.entries(chrome)) {
-    const name = CHROME_VARIABLES[key as keyof typeof CHROME_VARIABLES]
-    if (name) vars[name] = value
-  }
-  return vars
-}
+import { type GraphTreatment, graphTreatmentVars } from './appearance'
 
 /** Shared copy defaults; both graph-backed pages use the same shell. */
 const DEFAULT_CONTEXT_LABEL = 'Graph Explorer'
@@ -110,7 +69,7 @@ export function GraphShell({
   subtitle?: string
 }) {
   const style: JSX.CSSProperties = {
-    ...treatmentVars(treatment),
+    ...graphTreatmentVars(treatment),
     fontFamily: 'var(--graph-font-family)',
   }
   return (

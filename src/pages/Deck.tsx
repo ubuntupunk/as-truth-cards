@@ -25,12 +25,18 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { ResearchDisclaimer } from '@/components/ResearchDisclaimer'
+import { BrowseRail } from '@/deck/browse-rail'
 import { CardDiscovery } from '@/deck/card-discovery'
 import { type CardStage, DEFAULT_CARD_STAGE } from '@/deck/card-stage'
+import {
+  DECK_TREATMENT_QUERY_KEY,
+  parseDeckTreatment,
+} from '@/deck/deck-appearance'
+import { DeckAppearanceControl } from '@/deck/deck-appearance-control'
 import {
   applyScope,
   availableAxes,
@@ -42,16 +48,30 @@ import {
   NO_SCOPE,
 } from '@/deck/deck-model'
 import { DeckScopeBadges } from '@/deck/deck-scope'
+import { type DeckDrawerKind, DeckWorkspace } from '@/deck/deck-workspace'
 import { DiscoveryPrompt } from '@/deck/discovery-prompt'
+import { ResearchTray } from '@/deck/research-tray'
 import {
   deckProjectionParams,
   useDeckCards,
   useDeckSession,
 } from '@/deck/use-deck'
+import {
+  GRAPH_TREATMENT_STORAGE_KEY,
+  type GraphTreatment,
+  graphTreatmentVars,
+} from '@/graph/appearance'
 import { ApiErrorState, LoadingState } from '@/graph/graph-states'
+import { EMPTY_GRAPH_PARAMS, serializeGraphParams } from '@/graph/query-params'
 import { useGraphProjection, useGraphViews } from '@/graph/use-graph'
 import type { CardListingRow } from '../../trope-cards/src/graph/reader.ts'
 import { DEFAULT_VIEW_NAME } from '../../trope-cards/src/graph/views.ts'
+import {
+  entryFromNode,
+  entryToGraphParams,
+  type ResearchEntry,
+} from '../research/research-session'
+import { useResearchSession } from '../research/use-research-session'
 
 /** Stable identity for "no cards yet", so scope memos do not churn. */
 const NO_CARDS: readonly CardListingRow[] = []
@@ -64,6 +84,15 @@ function isDeckEmpty(cards: readonly CardListingRow[]): boolean {
 /** The identity label `Card / ID-XX`, padded from the card's deck position. */
 function idLabelFor(position: number): string {
   return `Card / ID-${String(position + 1).padStart(2, '0')}`
+}
+
+/** The appearance storage reader, or `null` when unavailable. */
+function deckStorage(): Pick<Storage, 'getItem'> | null {
+  try {
+    return typeof localStorage !== 'undefined' ? localStorage : null
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -187,6 +216,70 @@ const Deck = () => {
     setOpenStage({ id: featuredId, stage: next })
   }
 
+  // The page owns the appearance decision (SPEC §4.5): the URL is canonical —
+  // a shared `?treatment=` link reproduces the treatment exactly — and the
+  // stored choice is only the default when no parameter names one. Changing it
+  // rewrites the parameter (preserving any `?focus=` handoff) and remembers it.
+  const treatment = useMemo(
+    () =>
+      parseDeckTreatment(
+        searchParams.get(DECK_TREATMENT_QUERY_KEY),
+        deckStorage(),
+      ),
+    [searchParams],
+  )
+  const setTreatment = (next: GraphTreatment) => {
+    const params = new URLSearchParams(searchParams)
+    params.set(DECK_TREATMENT_QUERY_KEY, next)
+    setSearchParams(params, { replace: true })
+    try {
+      localStorage.setItem(GRAPH_TREATMENT_STORAGE_KEY, next)
+    } catch {
+      // Storage unavailable — the URL keeps the state shareable on its own.
+    }
+  }
+
+  // The workspace rails collapse to drawers below `xl`; the page owns which
+  // (if any) is open so Escape drains exactly one modal.
+  const [drawer, setDrawer] = useState<DeckDrawerKind | null>(null)
+  const navigate = useNavigate()
+
+  // Drawer keyboard + focus: Escape closes the modal drawer and opening hands
+  // focus to its close button, keeping the rail operable for keyboard users at
+  // the widths where the columns are hidden.
+  useEffect(() => {
+    if (drawer === null) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDrawer(null)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    window.requestAnimationFrame(() => {
+      document
+        .querySelector<HTMLElement>('[data-testid="deck-drawer-close"]')
+        ?.focus()
+    })
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [drawer])
+
+  // The tray is the browser-local research session (SPEC §4.4): adding a card
+  // is a working-memory action, and opening an entry hands off to `/research`
+  // with the same items, because both surfaces read the same storage key.
+  const tray = useResearchSession()
+  const trayFocus =
+    featured !== null ? { id: featured.id, label: featured.title } : null
+  const addToTray = () => {
+    if (featured === null) return
+    tray.add(
+      entryFromNode(
+        { id: featured.id, type: 'card', label: featured.title },
+        EMPTY_GRAPH_PARAMS,
+      ),
+    )
+  }
+  const openTrayEntry = (entry: ResearchEntry) => {
+    navigate(`/research?${serializeGraphParams(entryToGraphParams(entry))}`)
+  }
+
   let content: preact.ComponentChildren
   if (cardsQuery.isLoading) {
     content = <LoadingState labelled="Loading the deck…" />
@@ -194,9 +287,9 @@ const Deck = () => {
     content = <ApiErrorState error={cardsQuery.error} />
   } else if (isDeckEmpty(cards)) {
     content = (
-      <div className="rounded-xl border border-dashed p-10 text-center">
+      <div className="rounded-xl border border-dashed border-graph-border p-10 text-center">
         <h2 className="text-xl font-semibold">No cards yet</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-sm text-graph-muted-foreground">
           The graph returned an empty card listing. When cards are seeded, they
           appear here in listing order.
         </p>
@@ -204,16 +297,16 @@ const Deck = () => {
     )
   } else if (featured === null || promptModel === null) {
     content = (
-      <div className="rounded-xl border border-dashed p-10 text-center">
+      <div className="rounded-xl border border-dashed border-graph-border p-10 text-center">
         <h2 className="text-xl font-semibold">No cards match this scope</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-sm text-graph-muted-foreground">
           The deck holds {total} card{total === 1 ? '' : 's'}, but none carry
           the selected axis and research status at once.
         </p>
         <button
           type="button"
           onClick={() => setScope(NO_SCOPE)}
-          className="mt-4 min-h-[44px] rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium hover:bg-muted"
+          className="mt-4 min-h-[44px] rounded-lg border border-graph-border bg-graph-surface px-4 py-2.5 text-sm font-medium hover:bg-graph-muted"
         >
           Clear scope
         </button>
@@ -253,14 +346,23 @@ const Deck = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div
+      className="flex min-h-screen flex-col bg-graph-page"
+      data-treatment={treatment}
+      style={graphTreatmentVars(treatment)}
+    >
       <Header />
       <main className="flex-grow px-4 pb-16 pt-24">
-        <div className="mx-auto w-full max-w-4xl xl:max-w-5xl">
+        {/* The graph chrome tokens zone the deck + Rails; the header and
+            footer stay on the site stack because they sit outside it. */}
+        <div
+          className="mx-auto w-full max-w-4xl xl:max-w-7xl"
+          style={{ fontFamily: 'var(--graph-font-family)' }}
+        >
           <nav
             data-testid="deck-context-bar"
             aria-label="Breadcrumb"
-            className="mt-6 flex items-center gap-2 text-xs text-muted-foreground"
+            className="mt-6 flex items-center gap-2 text-xs text-graph-muted-foreground"
           >
             <span>Trope Cards</span>
             <span aria-hidden="true">·</span>
@@ -269,21 +371,54 @@ const Deck = () => {
             <span className="font-medium text-foreground">Decks</span>
           </nav>
 
-          <header className="mt-4" data-testid="deck-heading">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Research / Cards
-            </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
-              Decks
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Browse research cards by axis and research status.
-            </p>
+          <header
+            data-testid="deck-heading"
+            className="mt-4 flex items-end justify-between gap-4"
+          >
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-graph-muted-foreground">
+                Research / Cards
+              </p>
+              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
+                Decks
+              </h1>
+              <p className="mt-1 text-sm text-graph-muted-foreground">
+                Browse research cards by axis and research status.
+              </p>
+            </div>
+            <DeckAppearanceControl
+              treatment={treatment}
+              onChange={setTreatment}
+            />
           </header>
 
-          <ResearchDisclaimer className="mt-5 border-border bg-muted text-muted-foreground" />
+          <ResearchDisclaimer className="mt-5 border-graph-disclaimer-border bg-graph-disclaimer text-graph-muted-foreground" />
 
-          <div className="mt-6 space-y-4">{content}</div>
+          <DeckWorkspace
+            drawer={drawer}
+            onOpenDrawer={setDrawer}
+            onCloseDrawer={() => setDrawer(null)}
+            browseRail={
+              <BrowseRail
+                axes={availableAxes(cards)}
+                activeAxis={scope.axis}
+                onChange={(axis) => setScope({ ...scope, axis })}
+                graphHref="/graph"
+              />
+            }
+            tray={
+              <ResearchTray
+                entries={tray.entries}
+                focus={trayFocus}
+                onAdd={addToTray}
+                onOpen={openTrayEntry}
+                onRemove={tray.remove}
+                onClear={tray.clear}
+              />
+            }
+          >
+            <div className="space-y-4">{content}</div>
+          </DeckWorkspace>
         </div>
       </main>
       <Footer />
