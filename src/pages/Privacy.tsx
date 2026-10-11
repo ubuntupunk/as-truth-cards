@@ -129,6 +129,28 @@ const Privacy = () => (
 
           <section className="space-y-2">
             <h2 className="text-lg font-semibold tracking-tight">
+              Service providers
+            </h2>
+            <p className="text-muted-foreground">
+              The application relies on two infrastructure providers:{' '}
+              <strong>Render</strong> hosts the Express server and the static
+              site, and <strong>Neon</strong> hosts the PostgreSQL database
+              described above. No other third-party services are used — there is
+              no analytics, advertising, email, or CDN provider in the running
+              application.
+            </p>
+            <p className="text-muted-foreground">
+              These providers may retain their own infrastructure and access
+              logs (for example, HTTP access logs at the platform edge, or
+              database connection logs) independently of the application, under
+              their respective policies. This page describes what the
+              application itself does; it cannot attest to, and makes no claim
+              about, logs kept by those providers.
+            </p>
+          </section>
+
+          <section className="space-y-2">
+            <h2 className="text-lg font-semibold tracking-tight">
               What we do not do
             </h2>
             <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
@@ -137,9 +159,12 @@ const Privacy = () => (
                 or tracking scripts.
               </li>
               <li>
-                The server runs no request-logging middleware. Its output is
-                limited to a startup message and error reports; a hosting
-                provider may separately retain standard infrastructure logs.
+                The application performs no request logging of its own: the
+                server registers no logging middleware, and its only output is a
+                single startup line plus, on failure, an error stack written to
+                standard error. It does not write request bodies, query strings,
+                or IP addresses to any application-managed log. Provider-side
+                logs are addressed under “Service providers” above.
               </li>
               <li>We do not sell your personal data.</li>
             </ul>

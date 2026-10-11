@@ -121,7 +121,7 @@ The running Decks surface (`src/pages/Deck.tsx`, `src/deck/*`) already implement
 
 ### 4.7. Three-Column Workspace Layout (Deck Nav Rail + Discovery + Session Sidebar)
 - **Classification:** **2. Candidate design enhancement**
-- **Status:** ✅ **Completed** — the workspace grid is implemented in `src/deck/deck-workspace.tsx` (`DeckWorkspace`): at `xl` (≥1280px) the deck is `[232px, minmax(0,1fr), 320px]` with sticky rails; below `xl` the rails collapse and are reachable only through toolbar buttons that open them as modal drawers (`role="dialog"`, backdrop, Escape, focus to Close). The fluid middle column keeps the card's reading measure at every width, so no breakpoint forces viewport scroll (Stream 2).
+- **Status:** ✅ **Completed** — the workspace grid is implemented in `src/deck/deck-workspace.tsx` (`DeckWorkspace`): at `xl` (≥1280px) the deck is `[232px, minmax(0,1fr), 320px]` with sticky rails; below `xl` the rails collapse and are reachable only through toolbar buttons that open them as modal drawers (`role="dialog"`, accessible name, backdrop, Escape). The dialog layer also traps Tab, marks the rest of the page `inert` while open, and returns focus to the invoking control on dismissal (`src/deck/drawer-a11y.ts`; Stream 3 follow-up). The fluid middle column keeps the card's reading measure at every width, so no breakpoint forces viewport scroll (Stream 2).
 - **User problem:** High-density desktop users have ample horizontal space and could browse categories and view tray items alongside the featured card.
 - **Evidence / Authority:** Figma frame `7:4434` specifies a 1440px canvas divided into: Left rail (232px) + Card discovery (792px) + Session sidebar (320px). `SPEC.md` §3.3 specifies a centered single-column composition (`max-w-4xl xl:max-w-5xl`).
 - **Dependency:** Responsive breakpoint strategy; deciding if the navigation rails provide sufficient utility on Decks to justify layout complexity.
@@ -243,3 +243,8 @@ flowchart TD
 - ✅ **3.3 Screenshot report:** Fresh Decks renderings captured at 320 / 375 / 768 / 1024 (base + browse drawer) / 1280 / 1440 / 1920 in `docs/issue-9/screenshots/`.
 
 - ⚠️ **Finding (out of scope, tracked):** the **global** `Header` (`src/components/Header.tsx:83-114`, `fixed top-0 w-full` with `nav.flex.space-x-8`) needs ~648px and, below ~500px, has no wrap/hamburger/scroll — so `Research` / `Compose` / `Sources` are clipped and unreachable at 320–375px. This is a pre-existing global-chrome gap, **not** introduced by the Decks page. Filed as `as-truth-cards-0vn`.
+
+### Stream 3 follow-up (reviewer-requested)
+- ✅ **Drawer accessibility completed and verified:** both drawers now trap Tab (`src/deck/drawer-a11y.ts`), mark every background branch `inert` while open, expose an accessible name (`aria-label`), and return focus to the invoking toolbar button on Escape / backdrop / Close dismissal. Verified live in Firefox at 1024px (see issue report).
+- ✅ **Privacy scope tightened:** `src/pages/Privacy.tsx` now names the two infrastructure providers (Render hosting, Neon database), scopes the "no logging" claim to the application itself, and states explicitly that provider-side logs are outside the application and not attested by the page.
+- ⚠️ **Responsive evidence limit:** the 320/375px results are CSS-viewport measurements via a same-origin `<iframe>` (headless Firefox enforces a 500px window minimum); they are **not** a substitute for a full narrow-window browser interaction test.
