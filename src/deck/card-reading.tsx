@@ -1,5 +1,6 @@
 /**
- * The expanded reading behind `Read front & back` (SPEC §7).
+ * The card's Analysis face — how the claim is examined (SPEC §7.3), plus the
+ * three reading lists it presents.
  *
  * Three lists, never one: claims, reasoning steps, and sources. A source is
  * provenance *for* a claim — not evidence, not a claim, not a step — and the
@@ -9,11 +10,22 @@
  *
  * Every list reports an empty result as an empty result ("No sources in this
  * projection."), which is a real fact about the projection rather than a
- * missing region.
+ * missing region. Counterevidence and limitations are not carried by the deck
+ * projection at all, so that section says so instead of implying none exist.
  */
 
-import type { CardReading, ReadingEntry } from './deck-model'
+import type { CardPreview, CardReading, ReadingEntry } from './deck-model'
 import { cardStatusLabel } from './deck-status'
+import { EvidenceState } from './evidence-state'
+import { ProvenancePreview } from './provenance-preview'
+
+/** Props for {@link CardAnalysis}. */
+export type CardAnalysisProps = {
+  /** The derived reading, or `null` while the projection loads. */
+  readonly reading: CardReading | null
+  /** The derived provenance/evidence preview, or `null` while it loads. */
+  readonly preview: CardPreview | null
+}
 
 /** Props for {@link CardReadingPanel}. */
 export type CardReadingPanelProps = {
@@ -74,10 +86,10 @@ function ReadingList({
 }
 
 /**
- * The complete card reading, revealed by `Read front & back`.
+ * The three reading lists, revealed by `Read analysis`.
  *
  * @param props See {@link CardReadingPanelProps}.
- * @returns The three reading lists, or a pending note while they load.
+ * @returns The three lists, or a pending note while they load.
  */
 export function CardReadingPanel({ reading }: CardReadingPanelProps) {
   return (
@@ -90,12 +102,12 @@ export function CardReadingPanel({ reading }: CardReadingPanelProps) {
       ) : (
         <>
           <ReadingList
-            title="Front · Claims"
+            title="Claims"
             entries={reading.claims}
             empty="No claims in this projection."
           />
           <ReadingList
-            title="Back · Reasoning steps"
+            title="Reasoning steps"
             entries={reading.steps}
             empty="No reasoning steps in this projection."
           />
@@ -110,6 +122,40 @@ export function CardReadingPanel({ reading }: CardReadingPanelProps) {
           </p>
         </>
       )}
+    </div>
+  )
+}
+
+/**
+ * The Analysis face — how the claim is examined (SPEC §7.3).
+ *
+ * @param props See {@link CardAnalysisProps}.
+ * @returns A `<div>` with the provenance/evidence readouts, the reading
+ * lists, and an honest note about counterevidence.
+ */
+export function CardAnalysis({ reading, preview }: CardAnalysisProps) {
+  return (
+    <div data-testid="card-analysis">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        Analysis
+      </h3>
+
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <ProvenancePreview preview={preview} />
+        <EvidenceState readout={preview?.evidence ?? null} />
+      </div>
+
+      <CardReadingPanel reading={reading} />
+
+      <section aria-label="Counterevidence and limitations" className="mt-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Counterevidence &amp; limitations
+        </h3>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Counterevidence, uncertainty, and unresolved questions are not carried
+          by this deck projection, so none is reported here.
+        </p>
+      </section>
     </div>
   )
 }

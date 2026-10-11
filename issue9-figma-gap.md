@@ -48,6 +48,7 @@ The running Decks surface (`src/pages/Deck.tsx`, `src/deck/*`) already implement
 
 ### 4.1. Footer, Privacy, Terms, and Resources Routes
 - **Classification:** **1. Required product behaviour**
+- **Status:** ✅ **Completed** — `/privacy` and `/terms` pages added and routed; `Footer.tsx` links to real routes with no `href="#"` anchors (Stream 1.1–1.2).
 - **User problem:** Readers and institutional users clicking "Privacy", "Terms", or "Resources" in the footer encounter inert `href="#"` links, creating false compliance and a broken navigation experience.
 - **Evidence / Authority:** `src/components/Footer.tsx` lines 22–40 render `href="#"`. The router (`src/App.tsx`) has no destinations for policy or resource pages.
 - **Dependency:** Routing in `src/App.tsx`; audit of deployed services, server logging, Better Auth mechanics, and client storage to establish factual data flows.
@@ -58,6 +59,7 @@ The running Decks surface (`src/pages/Deck.tsx`, `src/deck/*`) already implement
 
 ### 4.2. Research Disclaimer Consistency
 - **Classification:** **1. Required product behaviour**
+- **Status:** ✅ **Completed** — shared `ResearchDisclaimer` extracted and mounted on Decks with identical copy to Sources/Research (Stream 1.3).
 - **User problem:** Readers encountering sensitive, unverified antisemitic claims on Decks do not receive the explicit epistemic context and research disclaimer visible on the Sources and Research surfaces.
 - **Evidence / Authority:** Sources (`src/pages/Sources.tsx`) and Research (`src/pages/Research.tsx`) both render `<ResearchDisclaimer />` via `GraphShell.tsx`: *"Illustrative research collection. Claims, source leads, and inferences are unverified; no historical conclusions are established."* Decks currently omits this disclaimer.
 - **Dependency:** Shared disclaimer component decoupled from `GraphShell` so it can be mounted cleanly in `Deck.tsx`.
@@ -68,6 +70,7 @@ The running Decks surface (`src/pages/Deck.tsx`, `src/deck/*`) already implement
 
 ### 4.3. Header Navigation & Compose Reachability
 - **Classification:** **1. Required product behaviour / 3. Existing implementation capability**
+- **Status:** ✅ **Completed** — `Compose` added to global navigation (`NAV_ENTRIES`) with exact-match active highlighting (Stream 1.4).
 - **User problem:** Users cannot discover or navigate to the Compose surface (`/research/compose`) from top-level navigation, leaving an authored capability orphaned.
 - **Evidence / Authority:** Compose is fully implemented in `src/pages/Compose.tsx` and routed in `src/App.tsx`, and Figma includes Compose in its navigation hierarchy. `src/components/Header.tsx` only lists Decks, Explorer, Graph, Research, and Sources.
 - **Dependency:** Information Architecture (IA) decision on whether Compose belongs in global navigation or as a primary sub-action on the Research surface.
@@ -98,6 +101,7 @@ The running Decks surface (`src/pages/Deck.tsx`, `src/deck/*`) already implement
 
 ### 4.6. Three-Stage Card Model: Cover → Claim → Analysis
 - **Classification:** **1. Required product behaviour** (Approved in canonical edit of [comment #6077590207](https://github.com/ubuntupunk/as-truth-cards/issues/9#issuecomment-6077590207) and codified in `SPEC.md` §1, §6.2, §7, §10, and §15).
+- **Status:** ✅ **Completed** — the three-stage `Cover → Claim → Analysis` flow is implemented in `src/deck/featured-card.tsx` (Cover/Claim faces), `src/deck/card-reading.tsx` (`CardAnalysis`), `src/deck/card-actions.tsx` (stage-aware actions), and `src/deck/card-stage.ts`; `src/pages/Deck.tsx` owns stage state and moves focus on transitions. Closing returns to the deck cover with position, filters, and card identity preserved (Stream 1.5).
 - **User problem:** Readers need clear visual recognition anchors to browse cards, but complex analytical arguments and provenance evidence overflow fixed physical card dimensions and hinder accessibility if forced into a literal 3D flip.
 - **Evidence / Authority:** Canonical decision in `SPEC.md` §7 and issue comment #6077590207 replaces the physical 3D flip metaphor with three distinct presentation stages for one canonical card:
   1. **Cover (Recognition/Discovery):** Displays card image (where rights-cleared, reviewed, and described) with title, optional compact ID, and explicit `Examine card` action. Neutral/typographic fallback when imagery is absent, unreviewed, or fails to load.
@@ -137,6 +141,7 @@ The running Decks surface (`src/pages/Deck.tsx`, `src/deck/*`) already implement
 
 ### 4.9. Generic Image Fallback & Cover Imagery Guardrails
 - **Classification:** **1. Required product behaviour** (Codified in `SPEC.md` §7.1 and §7.5).
+- **Status:** ✅ **Completed** — the Cover renders an optional, rights-cleared image with required alt text and attribution, and a deliberate typographic fallback when imagery is absent, undescribed, or fails; recognition imagery is never promoted to Source/Evidence (Stream 1.5).
 - **User problem:** Visual imagery anchors memory and recognition during discovery, but unverified, generic, or rights-violating images can mislead readers or distort historical facts.
 - **Evidence / Authority:** Canonical decision in `SPEC.md` §7.1, §7.5 and issue comment #6077590207 sets strict guardrails for Cover imagery:
   1. Recognition/illustration imagery on the Cover is not a Source or Evidence item and must never be silently promoted to evidence.
@@ -203,12 +208,12 @@ flowchart TD
     Stream2 --> Stream3
 ```
 
-### Stream 1: Concrete Functional Gaps & Spec Contracts (Ready for Implementation)
-- **1.1 Privacy & Terms routes:** Add `/privacy` and `/terms` pages in `src/pages/` and register in `src/App.tsx`. Populate with audited descriptions of `localStorage` research sessions, Better Auth mechanics, and server logging (acceptance tests validate content accuracy against deployed architecture, not merely HTTP 200).
-- **1.2 Footer link cleanup:** Update `src/components/Footer.tsx` to point to real routes; link Resources to `/sources` or remove until content exists.
-- **1.3 Shared research disclaimer:** Export `<ResearchDisclaimer />` as a shared component and add to `src/pages/Deck.tsx` to ensure uniform legal/epistemic disclaimers across all research surfaces.
-- **1.4 Canonical IA for Compose:** Ensure `/research/compose` is directly reachable from global navigation or the Research hub.
-- **1.5 Three-stage card model (Cover → Claim → Analysis):** Implement and validate the approved `Cover → Claim → Analysis` presentation lifecycle per `SPEC.md` §7, featuring optional rights-cleared imagery, deliberate typographic fallback, and explicit `Examine card` and `Read analysis` transitions with focus and state invariance.
+### Stream 1: Concrete Functional Gaps & Spec Contracts ✅ Complete
+- ✅ **1.1 Privacy & Terms routes:** `/privacy` and `/terms` pages added in `src/pages/` and registered in `src/App.tsx`, describing audited `localStorage` research sessions, Better Auth mechanics, and server logging.
+- ✅ **1.2 Footer link cleanup:** `src/components/Footer.tsx` points to real routes; no `href="#"` anchors remain.
+- ✅ **1.3 Shared research disclaimer:** `<ResearchDisclaimer />` exported as a shared component and mounted in `src/pages/Deck.tsx`, giving uniform epistemic disclaimers across research surfaces.
+- ✅ **1.4 Canonical IA for Compose:** `/research/compose` is reachable from global navigation (`src/components/Header.tsx`), with exact-match active highlighting.
+- ✅ **1.5 Three-stage card model (Cover → Claim → Analysis):** implemented per `SPEC.md` §7 with optional rights-cleared imagery, deliberate typographic fallback, and explicit `Examine card` / `Read analysis` / `Back to claim` transitions with focus and state invariance.
 
 ### Stream 2: Deck Workspace & Layout Enhancements (Requires Product Approval)
 - **2.1 Three-column responsive workspace:** Prototype collapsible layout that collapses rails to drawers below 1280px to protect reading measure.

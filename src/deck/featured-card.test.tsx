@@ -2,12 +2,14 @@
  * Tests for `featured-card.tsx` and the regions it composes — SPEC §6.2,
  * §7 and §15.
  *
- * The contract is the acceptance criteria: identity/status, title, summary,
- * classification, provenance and evidence must be *separate* regions; the
+ * The contract is the three-stage model: the Cover shows title + fallback and
+ * `Examine card`; the Claim face shows the formulation, status, classification
+ * and framing with `Read analysis`; the Analysis face shows provenance,
+ * evidence, the three reading lists and an honest limitations note. Title,
+ * summary, classification, provenance and evidence stay separate regions; the
  * status reaches the screen only as `OPEN · UNVERIFIED`; `Save card` is
- * disabled with its reason as visible text (no localStorage stand-in); and
- * `Read front & back` expands three lists that never merge sources into
- * claims or evidence.
+ * disabled with its reason as visible text; and the sources list never merges
+ * into claims or evidence.
  */
 
 import assert from 'node:assert/strict'
@@ -37,52 +39,125 @@ const READING: CardReading = deriveCardReading(
   FEATURED_CARD_ID,
 )
 
-/** The featured card wired to the open, unverified fixture card. */
+/** Counters for the four stage transitions, so a click can be proven. */
+type Transitions = {
+  examine: number
+  read: number
+  back: number
+  close: number
+}
+
+/** The featured card wired to the fixture card, at the Cover by default. */
 function fixture(overrides: Partial<FeaturedCardProps> = {}): {
   props: FeaturedCardProps
-  state: { toggles: number }
+  state: Transitions
 } {
-  const state = { toggles: 0 }
+  const state: Transitions = { examine: 0, read: 0, back: 0, close: 0 }
   const props: FeaturedCardProps = {
     card: OPEN_CARD,
     idLabel: 'Card / ID-07',
     preview: PREVIEW,
     reading: READING,
-    readingOpen: false,
-    onToggleRead: () => {
-      state.toggles += 1
+    stage: 'cover',
+    onExamine: () => {
+      state.examine += 1
+    },
+    onReadAnalysis: () => {
+      state.read += 1
+    },
+    onBackToClaim: () => {
+      state.back += 1
+    },
+    onClose: () => {
+      state.close += 1
     },
     ...overrides,
   }
   return { props, state }
 }
 
-describe('FeaturedCard', () => {
-  it('keeps title, summary, classification, provenance and evidence apart', () => {
+describe('FeaturedCard — Cover', () => {
+  it('opens on the Cover with the title and a deliberate fallback', () => {
     const html = render(<FeaturedCard {...fixture().props} />)
-    for (const testid of [
-      'featured-card',
-      'card-metadata',
-      'classification-tags',
-      'provenance-preview',
-      'evidence-state',
-      'card-actions',
-    ])
-      assert.ok(html.includes(`data-testid="${testid}"`), testid)
+    assert.match(html, /data-stage="cover"/)
+    assert.ok(html.includes('data-testid="card-cover"'))
+    assert.ok(html.includes('data-testid="card-cover-fallback"'))
+    assert.ok(html.includes('data-testid="card-cover-id"'))
+    assert.ok(html.includes('Card / ID-07'))
+    assert.ok(html.includes(OPEN_CARD.title as string))
+  })
+
+  it('keeps the claim, analysis and metadata regions off the Cover', () => {
+    const html = render(<FeaturedCard {...fixture().props} />)
+    assert.ok(!html.includes('data-testid="card-claim"'))
+    assert.ok(!html.includes('data-testid="card-analysis"'))
+    assert.ok(!html.includes('data-testid="card-metadata"'))
     assert.ok(!html.includes('data-testid="card-reading"'))
   })
 
-  it('shows the composed id label and the spec’s status badge', () => {
-    const html = render(<FeaturedCard {...fixture().props} />)
+  it('renders a rights-cleared image with alt text and attribution', () => {
+    const html = render(
+      <FeaturedCard
+        {...fixture({
+          coverImage: {
+            src: 'https://example.test/cover.jpg',
+            alt: 'A photograph of a described subject',
+            attribution: 'Photo: Example Archive, public domain',
+          },
+        }).props}
+      />,
+    )
+    assert.ok(html.includes('data-testid="card-cover-image"'))
+    assert.ok(html.includes('alt="A photograph of a described subject"'))
+    assert.ok(html.includes('Photo: Example Archive, public domain'))
+    assert.ok(!html.includes('data-testid="card-cover-fallback"'))
+  })
+
+  it('falls back when the image has no descriptive alt text', () => {
+    const html = render(
+      <FeaturedCard
+        {...fixture({
+          coverImage: { src: 'https://example.test/cover.jpg', alt: '  ' },
+        }).props}
+      />,
+    )
+    assert.ok(!html.includes('data-testid="card-cover-image"'))
+    assert.ok(html.includes('data-testid="card-cover-fallback"'))
+  })
+
+  it('offers Examine card, and the button opens the Claim face', () => {
+    const { props, state } = fixture()
+    const tree = FeaturedCard(props)
+    const html = render(tree)
+    const examine = buttonByText(tree, 'Examine card')
+    assert.ok(examine)
+    assert.equal(examine?.props?.['data-testid'], 'examine-card')
+    assert.ok(html.includes('data-testid="examine-card"'))
+    ;(examine?.props?.onClick as () => void)()
+    assert.equal(state.examine, 1)
+    assert.equal(state.read, 0)
+  })
+})
+
+describe('FeaturedCard — Claim face', () => {
+  it('shows the formulation, status, classification and framing', () => {
+    const html = render(<FeaturedCard {...fixture({ stage: 'claim' }).props} />)
+    assert.match(html, /data-stage="claim"/)
+    assert.ok(html.includes('data-testid="card-claim"'))
+    assert.ok(html.includes('data-testid="card-metadata"'))
     assert.ok(html.includes('data-testid="card-id-label"'))
-    assert.ok(html.includes('Card / ID-07'))
     assert.match(html, /data-testid="card-status-badge"[^>]*data-status="OPEN"/)
     assert.ok(html.includes('OPEN · UNVERIFIED'))
     assert.ok(html.includes('data-unverified="true"'))
+    assert.ok(html.includes('What is asserted'))
+    assert.ok(html.includes(OPEN_CARD.coreQuestion as string))
+    assert.ok(html.includes('Research framing'))
+    assert.ok(html.includes(OPEN_CARD.summary as string))
+    assert.ok(html.includes('data-testid="classification-tags"'))
   })
 
   it('never shows the raw enum as badge text', () => {
-    const html = render(<FeaturedCard {...fixture().props} />)
+    const html = render(<FeaturedCard {...fixture({ stage: 'claim' }).props} />)
     assert.ok(!html.includes('>OPEN<'))
     assert.ok(!html.includes('epistemic_status'))
   })
@@ -91,6 +166,7 @@ describe('FeaturedCard', () => {
     const html = render(
       <FeaturedCard
         {...fixture({
+          stage: 'claim',
           card: ESTABLISHED_CARD,
           idLabel: 'Card / ID-02',
         }).props}
@@ -100,29 +176,23 @@ describe('FeaturedCard', () => {
     assert.ok(!html.includes('data-unverified'))
   })
 
-  it('renders the title and the summary in their own regions', () => {
-    const html = render(<FeaturedCard {...fixture().props} />)
-    assert.ok(html.includes('<h2'))
-    assert.ok(html.includes(OPEN_CARD.title as string))
-    assert.ok(html.includes(OPEN_CARD.summary as string))
-  })
-
-  it('falls back to an honest line when neither summary nor question exists', () => {
+  it('falls back to an honest claim line when none is recorded', () => {
     const html = render(
       <FeaturedCard
         {...fixture({
+          stage: 'claim',
           card: ESTABLISHED_CARD,
           idLabel: 'Card / ID-02',
         }).props}
       />,
     )
-    assert.ok(html.includes('No summary recorded for this card.'))
+    assert.ok(html.includes('No claim formulation recorded for this card.'))
   })
 
   it('prefixes every classification chip with its dimension', () => {
-    const html = render(<FeaturedCard {...fixture().props} />)
+    const html = render(<FeaturedCard {...fixture({ stage: 'claim' }).props} />)
     const dimensions = walk(
-      FeaturedCard(fixture().props),
+      FeaturedCard(fixture({ stage: 'claim' }).props),
       (vnode) => vnode.props?.['data-dimension'] !== undefined,
     ).map((vnode) => String(vnode.props?.['data-dimension']))
     assert.deepEqual(dimensions, [
@@ -140,7 +210,7 @@ describe('FeaturedCard', () => {
   })
 
   it('keeps the south-africa Suit and the south-africa Locale distinct', () => {
-    const html = render(<FeaturedCard {...fixture().props} />)
+    const html = render(<FeaturedCard {...fixture({ stage: 'claim' }).props} />)
     assert.match(
       html,
       /data-dimension="Suit"[^>]*>[^<]*<span[^>]*>Suit<\/span>[\s\S]*?South Africa/,
@@ -152,8 +222,78 @@ describe('FeaturedCard', () => {
     assert.equal((html.match(/·/g) ?? []).length >= 6, true)
   })
 
+  it('offers Read analysis on the Claim face, and it opens the Analysis', () => {
+    const { props, state } = fixture({ stage: 'claim' })
+    const tree = FeaturedCard(props)
+    const read = buttonByText(tree, 'Read analysis')
+    assert.ok(read)
+    assert.equal(read?.props?.['data-testid'], 'read-analysis')
+    ;(read?.props?.onClick as () => void)()
+    assert.equal(state.read, 1)
+  })
+
+  it('closes the card back to the deck from the Claim face', () => {
+    const { props, state } = fixture({ stage: 'claim' })
+    const close = buttonByText(FeaturedCard(props), 'Back to deck')
+    assert.equal(close?.props?.['data-testid'], 'close-card')
+    ;(close?.props?.onClick as () => void)()
+    assert.equal(state.close, 1)
+  })
+
+  it('replaces the derived half with one error state when the projection fails', () => {
+    const html = render(
+      <FeaturedCard
+        {...fixture({
+          stage: 'claim',
+          preview: null,
+          reading: null,
+          projectionError: new Error('projection rejected'),
+        }).props}
+      />,
+    )
+    // One display for one failure: no preview, no open reading, and no read
+    // control that would open into nothing — but the listing half stays.
+    assert.ok(!html.includes('data-testid="provenance-preview"'))
+    assert.ok(!html.includes('data-testid="card-reading"'))
+    assert.ok(html.includes('projection rejected'))
+    assert.ok(html.includes(OPEN_CARD.title as string))
+  })
+
+  it('omits Read analysis when there is no projection to open', () => {
+    const tree = FeaturedCard(
+      fixture({ stage: 'claim', projectionError: new Error('down') }).props,
+    )
+    assert.equal(buttonByText(tree, 'Read analysis'), undefined)
+    // The close action stays, so the reader is never stranded on a dead face.
+    assert.ok(buttonByText(tree, 'Back to deck'))
+  })
+})
+
+describe('FeaturedCard — Analysis face', () => {
+  it('shows provenance, evidence and the three reading lists', () => {
+    const html = render(
+      <FeaturedCard {...fixture({ stage: 'analysis' }).props} />,
+    )
+    for (const testid of [
+      'card-analysis',
+      'provenance-preview',
+      'evidence-state',
+      'card-reading',
+      'card-actions',
+    ])
+      assert.ok(html.includes(`data-testid="${testid}"`), testid)
+    assert.ok(html.includes('Claims'))
+    assert.ok(html.includes('Reasoning steps'))
+    assert.ok(html.includes('aria-label="Sources"'))
+    assert.ok(html.includes('Jesus was born in Bethlehem'))
+    assert.ok(html.includes('Bridges the two claims.'))
+    assert.ok(html.includes('A. Author, A primary source (A Press, 2026).'))
+  })
+
   it('reports claims, steps and this card\u2019s sources as counts', () => {
-    const html = render(<FeaturedCard {...fixture().props} />)
+    const html = render(
+      <FeaturedCard {...fixture({ stage: 'analysis' }).props} />,
+    )
     assert.ok(html.includes('2 claims'))
     assert.ok(html.includes('2 steps'))
     assert.ok(html.includes('1 source'))
@@ -161,7 +301,9 @@ describe('FeaturedCard', () => {
   })
 
   it('reports the view\u2019s reason for evidence instead of a fabricated zero', () => {
-    const html = render(<FeaturedCard {...fixture().props} />)
+    const html = render(
+      <FeaturedCard {...fixture({ stage: 'analysis' }).props} />,
+    )
     assert.ok(html.includes('data-testid="evidence-state"'))
     assert.ok(
       html.includes(
@@ -175,6 +317,7 @@ describe('FeaturedCard', () => {
     const html = render(
       <FeaturedCard
         {...fixture({
+          stage: 'analysis',
           preview: deriveCardPreview(SHALLOW_PROJECTION, CARD_VIEW, {
             cardId: FEATURED_CARD_ID,
           }),
@@ -189,41 +332,78 @@ describe('FeaturedCard', () => {
 
   it('shows dashes and a loading caption while the projection is in flight', () => {
     const html = render(
-      <FeaturedCard {...fixture({ preview: null, reading: null }).props} />,
+      <FeaturedCard
+        {...fixture({ stage: 'analysis', preview: null, reading: null }).props}
+      />,
     )
     assert.ok(html.includes('Loading card details…'))
     assert.ok(html.includes('—'))
+    assert.ok(html.includes('Loading reading…'))
     assert.ok(!html.includes('0 claims'))
     assert.ok(!html.includes('0 sources'))
   })
 
-  it('says the view is still loading once the card details are there', () => {
+  it('says in words that a source is neither evidence nor a claim', () => {
+    const html = render(
+      <FeaturedCard {...fixture({ stage: 'analysis' }).props} />,
+    )
+    assert.ok(
+      html.includes(
+        'Sources document where a claim came from; they are not evidence and',
+      ),
+    )
+  })
+
+  it('reads a claim status through the presentation mapping only', () => {
+    const html = render(
+      <FeaturedCard {...fixture({ stage: 'analysis' }).props} />,
+    )
+    assert.ok(html.includes('data-claim-status="ESTABLISHED"'))
+    assert.ok(!html.includes('data-claim-status="OPEN"'))
+  })
+
+  it('represents counterevidence as not carried, not as absent', () => {
+    const html = render(
+      <FeaturedCard {...fixture({ stage: 'analysis' }).props} />,
+    )
+    assert.ok(html.includes('Counterevidence &amp; limitations'))
+    assert.ok(
+      html.includes(
+        'Counterevidence, uncertainty, and unresolved questions are not carried',
+      ),
+    )
+  })
+
+  it('returns to the Claim and closes to the deck from the Analysis face', () => {
+    const { props, state } = fixture({ stage: 'analysis' })
+    const tree = FeaturedCard(props)
+    const back = buttonByText(tree, 'Back to claim')
+    assert.equal(back?.props?.['data-testid'], 'back-to-claim')
+    ;(back?.props?.onClick as () => void)()
+    assert.equal(state.back, 1)
+    const close = buttonByText(tree, 'Back to deck')
+    ;(close?.props?.onClick as () => void)()
+    assert.equal(state.close, 1)
+  })
+
+  it('replaces the face with the error state when the projection fails', () => {
     const html = render(
       <FeaturedCard
         {...fixture({
-          preview: deriveCardPreview(SHALLOW_PROJECTION, null, {
-            cardId: FEATURED_CARD_ID,
-          }),
+          stage: 'analysis',
+          preview: null,
+          reading: null,
+          projectionError: new Error('projection rejected'),
         }).props}
       />,
     )
-    assert.ok(html.includes('Loading view details…'))
-    assert.ok(html.includes('1 claim'))
-    assert.ok(!html.includes('0 steps'))
-    assert.ok(!html.includes('0 sources'))
+    assert.ok(!html.includes('data-testid="card-analysis"'))
+    assert.ok(!html.includes('data-testid="card-reading"'))
+    assert.ok(html.includes('projection rejected'))
   })
+})
 
-  it('offers Read front & back with aria-expanded false when closed', () => {
-    const { props, state } = fixture()
-    const html = render(<FeaturedCard {...props} />)
-    const read = buttonByText(FeaturedCard(props), 'Read front & back')
-    assert.ok(read)
-    assert.equal(read?.props?.['aria-expanded'], false)
-    assert.ok(html.includes('aria-expanded="false"'))
-    ;(read?.props?.onClick as () => void)()
-    assert.equal(state.toggles, 1)
-  })
-
+describe('FeaturedCard — independent actions', () => {
   it('keeps Save card disabled with the account-layer reason as visible text', () => {
     const { props } = fixture()
     const tree = FeaturedCard(props)
@@ -237,72 +417,6 @@ describe('FeaturedCard', () => {
       ),
     )
     assert.equal(buttons(tree).filter((b) => b.props?.disabled).length, 1)
-  })
-
-  it('expands the reading into the three lists, kept separate', () => {
-    const html = render(
-      <FeaturedCard {...fixture({ readingOpen: true }).props} />,
-    )
-    assert.ok(html.includes('data-testid="card-reading"'))
-    assert.ok(html.includes('Front · Claims'))
-    assert.ok(html.includes('Back · Reasoning steps'))
-    assert.ok(html.includes('aria-label="Sources"'))
-    assert.ok(html.includes('Jesus was born in Bethlehem'))
-    assert.ok(html.includes('Bridges the two claims.'))
-    assert.ok(html.includes('A. Author, A primary source (A Press, 2026).'))
-  })
-
-  it('says in words that a source is neither evidence nor a claim', () => {
-    const html = render(
-      <FeaturedCard {...fixture({ readingOpen: true }).props} />,
-    )
-    assert.ok(
-      html.includes(
-        'Sources document where a claim came from; they are not evidence and',
-      ),
-    )
-  })
-
-  it('reads a claim status through the presentation mapping only', () => {
-    const html = render(
-      <FeaturedCard {...fixture({ readingOpen: true }).props} />,
-    )
-    assert.ok(html.includes('data-claim-status="ESTABLISHED"'))
-    assert.ok(!html.includes('data-claim-status="OPEN"'))
-  })
-
-  it('replaces the derived regions with one error state when the projection fails', () => {
-    const html = render(
-      <FeaturedCard
-        {...fixture({
-          readingOpen: true,
-          reading: null,
-          preview: null,
-          projectionError: new Error('projection rejected'),
-        }).props}
-      />,
-    )
-    // One display for one failure: no inline preview, no open reading, and no
-    // read control that would expand into nothing.
-    assert.ok(!html.includes('data-testid="provenance-preview"'))
-    assert.ok(!html.includes('data-testid="evidence-state"'))
-    assert.ok(!html.includes('data-testid="card-reading"'))
-    assert.ok(!html.includes('Loading reading…'))
-    assert.ok(html.includes('projection rejected'))
-    // The listing-served half of the card is still there to read.
-    assert.ok(html.includes(OPEN_CARD.title as string))
-    const read = buttonByText(
-      FeaturedCard(fixture().props),
-      'Read front & back',
-    )
-    assert.ok(read)
-  })
-
-  it('omits the read control entirely when there is no projection to open', () => {
-    const tree = FeaturedCard(
-      fixture({ projectionError: new Error('down') }).props,
-    )
-    assert.equal(buttonByText(tree, 'Read front & back'), undefined)
   })
 
   it('offers the transition into graph exploration on the same slug', () => {

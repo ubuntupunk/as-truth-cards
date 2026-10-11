@@ -1,29 +1,35 @@
 /**
- * The featured card's two actions (SPEC §6.2, §6.4–§7).
+ * The featured card's actions (SPEC §6.2, §7.4).
  *
- * `Read front & back` is the whole reading interaction: the 3D flip is gone,
- * so this button expands or collapses the reading in place, reported through
- * `aria-expanded` because the label alone does not tell a screen reader
- * whether the content is open.
+ * The three-stage model gives the row a different primary action per stage:
  *
- * `Save card` exists — the acceptance criteria require the action, and hiding
- * it would leave no way to discover the capability — but it is disabled until
- * account participation ships, with the reason as visible text beside it
- * rather than a tooltip. No localStorage stand-in: a save the account layer
- * cannot see is not a save.
+ * - Cover → `Examine card` opens the Claim face.
+ * - Claim → `Read analysis` opens the Analysis face, with `Back to deck` to
+ *   close the card.
+ * - Analysis → `Back to claim` and `Back to deck` (close/back-to-discovery).
  *
- * `Explore in graph` is the card's transition out of the deck (ROADMAP Phase
- * A). It reuses the Graph page's own `focus` param on the same slug the
- * listing served, so entering graph exploration goes through the canonical
- * projection rather than a card-shaped copy of it.
+ * `Explore in graph` and `Save card` sit beside whatever the stage offers.
+ * They are independent of the stage: exploring is a navigation handoff, and
+ * saving must never be coupled to a transition (SPEC §7.4). `Save card` exists
+ * — the acceptance criteria require the action — but is disabled until account
+ * participation ships, with the reason as visible text rather than a tooltip.
+ * No localStorage stand-in: a save the account layer cannot see is not a save.
  */
+
+import type { CardStage } from './card-stage'
 
 /** Props for {@link CardActions}. */
 export type CardActionsProps = {
-  /** Whether the full reading is currently expanded. */
-  readonly readingOpen: boolean
-  /** Toggles the reading. */
-  readonly onToggleRead: () => void
+  /** Which face the row belongs to. */
+  readonly stage: CardStage
+  /** Opens the Claim face. */
+  readonly onExamine: () => void
+  /** Opens the Analysis face. */
+  readonly onReadAnalysis: () => void
+  /** Returns from the Analysis face to the Claim face. */
+  readonly onBackToClaim: () => void
+  /** Closes the card back to deck browsing. */
+  readonly onClose: () => void
   /**
    * The featured card's slug, so the row can offer the transition into graph
    * exploration (ROADMAP Phase A: card detail must reach the graph without a
@@ -31,9 +37,9 @@ export type CardActionsProps = {
    */
   readonly slug: string
   /**
-   * Whether there is anything to read: the reading is derived from the card's
-   * projection, so while that request has failed the open control is omitted
-   * rather than left to expand into nothing.
+   * Whether the analysis is available: it is derived from the card's
+   * projection, so while that request has failed `Read analysis` is omitted
+   * rather than left to open into nothing.
    */
   readonly readingAvailable?: boolean
 }
@@ -41,16 +47,24 @@ export type CardActionsProps = {
 /** The save note id, referenced by the disabled button via `aria-describedby`. */
 const SAVE_CARD_NOTE_ID = 'save-card-note'
 
+const PRIMARY =
+  'min-h-[44px] rounded-lg border border-transparent bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90'
+const SECONDARY =
+  'min-h-[44px] rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted'
+
 /**
- * The action row under the card's readout regions.
+ * The action row under the card's current face.
  *
  * @param props See {@link CardActionsProps}.
- * @returns A `<div>` with the graph transition, the read toggle and the
- * disabled save action.
+ * @returns A `<div>` with the stage's transition controls, the graph
+ * transition, and the disabled save action.
  */
 export function CardActions({
-  readingOpen,
-  onToggleRead,
+  stage,
+  onExamine,
+  onReadAnalysis,
+  onBackToClaim,
+  onClose,
   slug,
   readingAvailable = true,
 }: CardActionsProps) {
@@ -59,23 +73,69 @@ export function CardActions({
       data-testid="card-actions"
       className="mt-4 flex flex-wrap items-start gap-4"
     >
-      {readingAvailable ? (
+      {stage === 'cover' ? (
         <button
           type="button"
-          aria-expanded={readingOpen}
-          onClick={onToggleRead}
-          className="min-h-[44px] rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          data-testid="examine-card"
+          onClick={onExamine}
+          className={PRIMARY}
         >
-          Read front &amp; back
+          Examine card
         </button>
       ) : null}
+
+      {stage === 'claim' ? (
+        <>
+          {readingAvailable ? (
+            <button
+              type="button"
+              data-testid="read-analysis"
+              onClick={onReadAnalysis}
+              className={PRIMARY}
+            >
+              Read analysis
+            </button>
+          ) : null}
+          <button
+            type="button"
+            data-testid="close-card"
+            onClick={onClose}
+            className={SECONDARY}
+          >
+            Back to deck
+          </button>
+        </>
+      ) : null}
+
+      {stage === 'analysis' ? (
+        <>
+          <button
+            type="button"
+            data-testid="back-to-claim"
+            onClick={onBackToClaim}
+            className={SECONDARY}
+          >
+            Back to claim
+          </button>
+          <button
+            type="button"
+            data-testid="close-card"
+            onClick={onClose}
+            className={SECONDARY}
+          >
+            Back to deck
+          </button>
+        </>
+      ) : null}
+
       <a
         href={`/graph?focus=${encodeURIComponent(slug)}`}
         data-testid="explore-in-graph"
-        className="min-h-[44px] rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted inline-flex items-center"
+        className={`${SECONDARY} inline-flex items-center`}
       >
         Explore in graph
       </a>
+
       <div className="flex flex-col gap-1">
         <button
           type="button"
