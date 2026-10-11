@@ -24,12 +24,13 @@
  * apart, rather than both landing on a generic "Network error".
  */
 
-import { useEffect, useMemo, useState } from 'preact/hooks'
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useSearchParams } from 'react-router-dom'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { ResearchDisclaimer } from '@/components/ResearchDisclaimer'
 import { CardDiscovery } from '@/deck/card-discovery'
+import { type CardStage, DEFAULT_CARD_STAGE } from '@/deck/card-stage'
 import {
   applyScope,
   availableAxes,
@@ -75,9 +76,17 @@ const Deck = () => {
   const viewsQuery = useGraphViews()
 
   const [scope, setScope] = useState<DeckScope>(NO_SCOPE)
-  // Which card's reading is open, rather than a boolean: a card change must
-  // never leave the previous card's reading expanded under a new card.
-  const [readingFor, setReadingFor] = useState<string | null>(null)
+  // Which card's stage is open, rather than a bare boolean: a card change must
+  // never leave the previous card's Analysis face under a new card, so the
+  // open stage is scoped to the card id it belongs to. Deck browsing shows the
+  // Cover, so `null` (or another card's id) reads as `cover`.
+  const [openStage, setOpenStage] = useState<{
+    readonly id: string
+    readonly stage: CardStage
+  } | null>(null)
+  // The card element, so opening a face can move focus to the card the reader
+  // just transitioned within (SPEC §10: predictable focus).
+  const cardRef = useRef<HTMLElement>(null)
 
   // The deck is addressable: `/?focus=<slug>` (the handoff Explore makes) is
   // read once on mount — later URL writes are this page's own sync, never a
@@ -95,6 +104,14 @@ const Deck = () => {
 
   const featured = session.cards[session.position] ?? null
   const featuredId = featured?.id ?? null
+
+  // The stage on screen: the open stage when it belongs to the featured card,
+  // otherwise the Cover. Derived rather than stored so a card change cannot
+  // strand a face open over a different card.
+  const stage: CardStage =
+    openStage !== null && openStage.id === featuredId
+      ? openStage.stage
+      : DEFAULT_CARD_STAGE
 
   useEffect(() => {
     if (pendingFocus === null || scoped.length === 0) return
@@ -118,8 +135,16 @@ const Deck = () => {
   // Safety net for the ordering above: if the deck empties under an open
   // reading, nothing is left open.
   useEffect(() => {
-    if (featuredId === null) setReadingFor(null)
+    if (featuredId === null) setOpenStage(null)
   }, [featuredId])
+
+  // Opening a face moves focus to the card the reader transitioned within, so
+  // the new face's controls are reachable without a scroll-hunt. Closing back
+  // to the Cover is a return to browsing and leaves focus alone.
+  useEffect(() => {
+    if (stage === DEFAULT_CARD_STAGE) return
+    cardRef.current?.focus()
+  }, [stage])
 
   const descriptor = useMemo(
     () =>
@@ -155,6 +180,12 @@ const Deck = () => {
 
   const total = cardsQuery.data?.total ?? cards.length
   const served = cards.length
+
+  /** Open a face for the featured card, scoped to its id. */
+  const showStage = (next: CardStage) => {
+    if (featuredId === null) return
+    setOpenStage({ id: featuredId, stage: next })
+  }
 
   let content: preact.ComponentChildren
   if (cardsQuery.isLoading) {
@@ -205,13 +236,13 @@ const Deck = () => {
           idLabel={idLabelFor(session.position)}
           preview={preview}
           reading={reading}
-          readingOpen={readingFor === featuredId}
+          stage={stage}
           projectionError={projectionQuery.error}
-          onToggleRead={() =>
-            setReadingFor((current) =>
-              current === featuredId ? null : featuredId,
-            )
-          }
+          onExamine={() => showStage('claim')}
+          onReadAnalysis={() => showStage('analysis')}
+          onBackToClaim={() => showStage('claim')}
+          onClose={() => setOpenStage(null)}
+          articleRef={cardRef}
           session={session}
           onPrevious={goPrevious}
           onShuffle={shuffle}
