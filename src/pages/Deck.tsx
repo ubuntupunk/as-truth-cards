@@ -28,6 +28,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useSearchParams } from 'react-router-dom'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
+import { ResearchDisclaimer } from '@/components/ResearchDisclaimer'
 import { CardDiscovery } from '@/deck/card-discovery'
 import {
   applyScope,
@@ -248,6 +249,8 @@ const Deck = () => {
               Browse research cards by axis and research status.
             </p>
           </header>
+
+          <ResearchDisclaimer className="mt-5 border-border bg-muted text-muted-foreground" />
 
           <div className="mt-6 space-y-4">{content}</div>
         </div>

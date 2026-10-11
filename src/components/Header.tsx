@@ -5,9 +5,15 @@ import { ThemeToggle } from './ThemeToggle'
 
 /**
  * The global navigation, aligned to the approved product hierarchy:
- * Decks, Explorer, Graph, Research, Sources. Each entry is the current section
- * while its prefix is mounted; every surface now has a route behind it, so no
- * entry renders as a dead link and no page invents its own second nav.
+ * Decks, Explorer, Graph, Research, Compose, Sources. Each entry is the
+ * current section while its path/prefix is mounted; every surface now has a
+ * route behind it, so no entry renders as a dead link and no page invents its
+ * own second nav.
+ *
+ * Compose (`/research/compose`) is listed as its own entry rather than hidden
+ * behind Research: it is a fully implemented authoring surface, and the
+ * approved IA requires it to be reachable in one click. Research therefore
+ * matches its own path exactly, so the two never highlight at once.
  */
 type NavEntry = {
   label: string
@@ -15,13 +21,32 @@ type NavEntry = {
   prefixes?: readonly string[]
 }
 
-const NAV_ENTRIES: readonly NavEntry[] = [
+export const NAV_ENTRIES: readonly NavEntry[] = [
   { label: 'Decks', path: '/' },
   { label: 'Explorer', path: '/explore' },
   { label: 'Graph', path: '/graph' },
-  { label: 'Research', path: '/research', prefixes: ['/research'] },
+  { label: 'Research', path: '/research' },
+  { label: 'Compose', path: '/research/compose' },
   { label: 'Sources', path: '/sources', prefixes: ['/sources'] },
 ]
+
+/**
+ * Whether a nav entry is the current section for a given path.
+ *
+ * An entry with `prefixes` matches any path under one of them (so Sources stays
+ * current while a source is selected); otherwise the match is exact, which is
+ * what keeps Research and Compose from both highlighting on
+ * `/research/compose`.
+ *
+ * @param entry A navigation entry.
+ * @param pathname The current `location.pathname`.
+ * @returns `true` when the entry is the current section.
+ */
+export function isNavEntryActive(entry: NavEntry, pathname: string): boolean {
+  return entry.prefixes
+    ? entry.prefixes.some((prefix) => pathname.startsWith(prefix))
+    : pathname === entry.path
+}
 
 /**
  * The shared nav link treatment (underline grows on hover and while current).
@@ -63,11 +88,7 @@ const Header = () => {
         <div className="flex items-center space-x-4">
           <nav className="flex space-x-8" aria-label="Global navigation">
             {NAV_ENTRIES.map((entry) => {
-              const active = entry.prefixes
-                ? entry.prefixes.some((prefix) =>
-                    location.pathname.startsWith(prefix),
-                  )
-                : location.pathname === entry.path
+              const active = isNavEntryActive(entry, location.pathname)
               return (
                 <Link
                   key={entry.label}
