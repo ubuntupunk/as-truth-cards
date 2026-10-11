@@ -224,7 +224,22 @@ flowchart TD
 - ✅ **2.2 Local research tray integration:** `src/deck/research-tray.tsx` connects `useResearchSession` on Decks with an explicit browser-local disclosure, keeping it strictly distinct from account-bound saving (`Save card`); Open hands off to `/research?focus=…`.
 - ✅ **2.3 Appearance switcher:** `graphTreatmentVars` extracted in `src/graph/appearance.ts` (shared by `GraphShell` and `Deck.tsx`); `src/deck/deck-appearance-control.tsx` + `?treatment=atmospheric|editorial|workspace` (canonical, shareable) with `localStorage` as the default only.
 
-### Stream 3: Visual Reconciliation & Quality Gates (Post-Approval)
-- **3.1 Responsive audit:** Verify mobile (320px–375px), tablet (768px–1024px), and desktop (1280px–1920px).
-- **3.2 Navigation route audit:** Automated/manual verification that every visible header and footer link resolves to a valid destination and privacy policy accurately reflects audited architecture.
-- **3.3 Screenshot report:** Capture updated Decks renderings across breakpoints for issue verification.
+### Stream 3: Visual Reconciliation & Quality Gates (Post-Approval) ✅ Complete
+- ✅ **3.1 Responsive audit:** The Decks page holds a `0` horizontal-overflow budget from 320px to 1920px. At `xl` (≥1280px) the three-column workspace applies (`232px · card · 320px`); below `xl` the rails collapse to toolbar buttons and the page is a single fluid column (`max-w-4xl`). The rail/tray drawers open as `role="dialog" aria-modal="true"` (Escape **and** backdrop click both close; focus moves to Close).
+
+  | Viewport | Layout | `overflow-x` | Rails | Artifact |
+  | --- | --- | --- | --- | --- |
+  | 1920px | xl 3-col `232 / 680 / 320` (container `max-w-content` centered) | 0 | both visible | `screenshots/decks-1920px.png` |
+  | 1440px | xl 3-col `232 / 680 / 320` | 0 | both visible | `screenshots/decks-1440px.png` |
+  | 1280px | xl 3-col `232 / 636 / 320` (breakpoint activates at exactly 1280) | 0 | both visible | `screenshots/decks-1280px.png` |
+  | 1024px | single column `896px`; rails hidden; toolbar shown | 0 | drawer | `screenshots/decks-1024px.png`, `decks-1024px-drawer-browse.png` |
+  | 768px | single column `724px`; rails hidden; toolbar shown | 0 | drawer | `screenshots/decks-768px.png` |
+  | 375px | single column; rails hidden; toolbar shown | 0 | drawer | `screenshots/decks-375px.png` |
+  | 320px | single column; rails hidden; toolbar shown | 0 | drawer | `screenshots/decks-320px.png` |
+
+  _Method note:_ headless Firefox enforces a 500px minimum window, so 375px/320px were measured through a same-origin `<iframe>` (media queries resolve against the iframe width), which reported `innerWidth` 375/320 and `overflow-x` 0.
+
+- ✅ **3.2 Navigation route audit:** Every header/footer link resolves to a registered route in `src/App.tsx` — nav `/`, `/explore`, `/graph`, `/research`, `/research/compose`, `/sources` (+ `/admin` when authenticated); footer `/privacy`, `/terms`, `/sources`. All ten routes were loaded live and mount cleanly (non-empty `#root`, no `Cannot GET`, no error boundary; `/admin` correctly renders "Sign in required"). The privacy page's stored-data claims were checked against the audited architecture: it imports the canonical `RESEARCH_SESSION_STORAGE_KEY` from `@/research/research-session`, documents the browser-local session as never sent to servers, describes Better Auth account/session records (email, role, IP, user-agent, session cookie), and states the server runs no request-logging middleware — all accurate.
+- ✅ **3.3 Screenshot report:** Fresh Decks renderings captured at 320 / 375 / 768 / 1024 (base + browse drawer) / 1280 / 1440 / 1920 in `docs/issue-9/screenshots/`.
+
+- ⚠️ **Finding (out of scope, tracked):** the **global** `Header` (`src/components/Header.tsx:83-114`, `fixed top-0 w-full` with `nav.flex.space-x-8`) needs ~648px and, below ~500px, has no wrap/hamburger/scroll — so `Research` / `Compose` / `Sources` are clipped and unreachable at 320–375px. This is a pre-existing global-chrome gap, **not** introduced by the Decks page. Filed as `as-truth-cards-0vn`.
