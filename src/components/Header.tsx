@@ -82,7 +82,7 @@ const Header = () => {
     >
       <div className="container mx-auto flex justify-between items-center">
         <Link to="/" className="text-2xl font-medium tracking-tight hover-lift">
-          Trope Cards
+          Trope Deck
         </Link>
 
         <div className="flex items-center space-x-4">
