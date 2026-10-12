@@ -98,8 +98,8 @@ const Resources = () => (
         <div className="mt-8 space-y-10 text-sm leading-relaxed text-foreground">
           <p className="text-muted-foreground">
             This tool is educational. The pages below are maintained by their
-            own organizations and are provided for further reading; they open
-            in a new tab when you follow them.
+            own organizations and are provided for further reading; they open in
+            a new tab when you follow them.
           </p>
 
           <ResourceSection

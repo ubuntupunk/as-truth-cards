@@ -75,8 +75,8 @@ const About = () => {
 
             <p>
               The information presented in these cards is based on historical
-              research and contemporary scholarship. We curate organizations
-              and materials for learning more on our{' '}
+              research and contemporary scholarship. We curate organizations and
+              materials for learning more on our{' '}
               <Link
                 to="/resources"
                 className="font-medium text-primary underline-offset-4 hover:underline"
