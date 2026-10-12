@@ -74,12 +74,9 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null
   }
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
+  const css = Object.entries(THEMES)
+    .map(
+      ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
@@ -91,10 +88,14 @@ ${colorConfig
   .join('\n')}
 }
 `,
-          )
-          .join('\n'),
-      }}
-    />
+    )
+    .join('\n')
+
+  return (
+    <>
+      {/* biome-ignore lint/security/noDangerouslySetInnerHtml: injects static CSS built from THEMES/ChartConfig (compile-time constants, never user input), so there is no XSS surface; this is the supported way to emit scoped CSS variables in a chart. */}
+      <style dangerouslySetInnerHTML={{ __html: css }} />
+    </>
   )
 }
 

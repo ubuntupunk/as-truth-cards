@@ -272,7 +272,7 @@ const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
           <div className="flex flex-wrap gap-2 mt-2">
             {editedCard.tags?.map((tag, index) => (
               <div
-                key={index}
+                key={tag}
                 className="flex items-center bg-muted rounded-full px-3 py-1 text-sm"
               >
                 {tag}
@@ -312,7 +312,7 @@ const CardEditor: React.FC<CardEditorProps> = ({ card, onSave, onCancel }) => {
           <div className="space-y-2">
             {editedCard.sources?.map((source, index) => (
               <div
-                key={index}
+                key={source.url || source.text}
                 className="flex flex-col space-y-2 p-3 border border-border rounded-md"
               >
                 <div className="flex items-start gap-2">

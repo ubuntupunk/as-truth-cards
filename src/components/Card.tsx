@@ -70,6 +70,7 @@ const Card: React.FC<CardProps> = ({
         'transition-all duration-700 ease-out',
       )}
     >
+      {/* biome-ignore lint/a11y/useSemanticElements: the flip surface must stay a div: it contains the voting buttons on the revealed face, and HTML forbids nesting interactive elements inside a button. */}
       <div
         className={cn(
           'relative w-full h-full cursor-pointer transform-gpu perspective-1000',
