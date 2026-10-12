@@ -390,6 +390,28 @@ Do not infer:
 - an inference merely because two claims are connected;
 - a source-to-evidence relationship where the schema does not provide one.
 
+### 8.4 External research metadata and metrics
+
+Research-source discovery and metrics are a provenance concern, never an assertion of
+support. Discovery proposes candidates; a human promotes one to a canonical Source; only
+the evidence layer (see §8.2, §8.3) can carry support. A candidacy, a citation count, a
+social-attention figure, or a discovery match is **never** evidence for a claim.
+
+**Authorization gate (PlumX / Elsevier).** No PlumX widget script and no PlumX or
+Elsevier API call may be enabled until written confirmation of eligibility and terms is
+obtained — including a privacy and consent review of what the third-party script loads and
+reports. The eligibility inquiry has been sent and is awaiting a response; until that
+response is recorded in writing, PlumX stays disabled. Inquiry status and the current
+report live in `docs/issue-12-plumx-research-report.md` and issue #12.
+
+**Independent path permitted.** The gate above covers only the third-party PlumX/Elsevier
+surface. Building and operating a provider-neutral research layer over openly licensed
+metadata (Crossref, DataCite, OpenAlex, OpenCitations, …) and first-party metrics derived
+from lawful, reproducible data is explicitly permitted and is the primary path. Its
+providers must respect each provider's terms, rate limits, attribution, and licence; store
+metric observations with their definition, source, window, and limitations; and present
+"no data" honestly rather than inventing numbers.
+
 ## 9. State and interaction contract
 
 ### 9.1 Graph page state order
