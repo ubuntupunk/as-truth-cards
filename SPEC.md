@@ -8,7 +8,9 @@ This specification supersedes the former "Truth Cards" UI contract. The current 
 
 - **Figma:** https://www.figma.com/design/qmVMnfR9DpQFyYtaiSizYD/Trope-Deck-UI
 - **Implementation mockup:** node `1:2`, "Graph Explorer — Implementation Mockup"
-- **Card discovery:** node `7:4518`, "Card discovery"
+- **Card discovery:** node `7:4518`, "Card discovery" (live component instance embedded in the current Deck frame `7:4434`)
+- **Card front/back model:** node `7:4617`, "Card Detail — Front / Back"
+- **Current deck frame:** node `7:4434`, "Deck / Shuffle"
 - **Atmospheric graph explorer:** node `38:3`
 - **Editorial graph explorer:** node `38:168`
 
@@ -22,7 +24,7 @@ The implementation must preserve the ontology and graph semantics already establ
 4. **Server-authoritative semantics.** Views, focus resolution, depth, projection contents, and graph relationships come from the graph API/projection contract.
 5. **Honest absence.** A schema-empty layer is rendered as unavailable/empty rather than fabricated as zero evidence for a claim.
 6. **Presentation is replaceable.** Appearance treatments can change without changing URL state, projection, selection, or ontology semantics.
-7. **Cards are research interfaces.** A card has an image-led discovery cover where suitable imagery exists, followed by a structured Claim face and an Analysis face. These are three presentation stages for one canonical card, not three separate records or a literal three-sided object. A physical 3D flip is never required.
+7. **Cards are research interfaces.** A card is one canonical research object with two faces. The **front** is the Cover — an image-led discovery face where suitable imagery exists, else a deliberately *designed* fallback. The **back** carries the reading faces: a structured Claim face and an Analysis face. The front and back are two presentations of one card, never two records or a literal three-sided artifact. The flip between them is a presentation affordance: it must be discoverable, keyboard-operable, and safe under `prefers-reduced-motion` and without 3D transform support.
 
 ## 2. Technology baseline
 
@@ -246,12 +248,12 @@ Badges are compact, muted, and interactive where the corresponding filter exists
 
 ### 6.2 Featured card
 
-The discovery card uses an image-led **Cover** when a suitable image is available, then opens into the structured reading experience defined in §7. The cover contains:
+The discovery card's **front** is an image-led **Cover** when a suitable image is available, otherwise a designed fallback; a visible flip affordance (`Read front & back`) opens the card's **back** into the structured reading experience defined in §7. The cover contains:
 
-- optional card image or neutral typographic fallback
+- optional card image or designed typographic/graphic fallback
 - card title, as the primary recognition label
 - optional compact ID/classification marker where it aids orientation
-- `Examine card` (or equivalent clear action) to open the Claim face
+- `Read front & back` (the flip) to open the Claim face on the card's back
 
 The Claim face contains:
 
@@ -261,7 +263,7 @@ The Claim face contains:
 - concise research framing/summary
 - `Read analysis` action
 
-The Analysis face contains the analysis, provenance/reasoning preview, evidence state, and source/evidence navigation. The `Save card` action remains independent and account-bound; when unavailable, explain why rather than simulating persistence.
+The card's back also carries the Analysis face (`Read analysis`) with the analysis, provenance/reasoning preview, evidence state, and source/evidence navigation, plus `Back to claim` and `Back to front` reverse controls. The `Save card` action remains independent and account-bound; when unavailable, explain why rather than simulating persistence.
 
 The card must represent hypotheses and open questions without visually implying verification. The image is a recognition aid, not evidence by default.
 
@@ -286,19 +288,19 @@ The prompt should encourage a question-first exploration and must not manufactur
 
 ## 7. Card cover and reading model
 
-The former requirement for a fixed 2:3 physical card and mandatory 700ms 3D flip remains **removed**. The approved model is **Cover → Claim → Analysis**. These are three presentation stages of one canonical card; they are not separate entities, and the card is not a literal three-sided object.
+The card is one canonical research object with two faces. The **front** is the Cover (recognition and discovery). The **back** carries the reading faces: the Claim face (what is asserted) and the Analysis face (how it is examined). Transitioning between the front and back is the **flip**: a presentation-only affordance that never changes the card's identity, classification, or epistemic status and does not convert the card into a literal playing card or a second record. A 3D animation is optional and may never be relied on: reduced-motion and non-3D contexts swap the faces statefully with no transform.
 
 ### 7.1 Cover — recognition and discovery
 
-- The Cover is the browse/discovery representation and should use a card image where a suitable, rights-cleared, adequately described image is available.
+- The Cover is the card's front and the browse/discovery representation. It should use a card image where a suitable, rights-cleared, adequately described image is available.
 - The title is the primary textual identity and remains visible with the image.
 - An optional compact identifier or classification marker may aid orientation but must not overwhelm the title.
-- The Cover has a clear `Examine card` (or equivalent) action.
-- If no suitable image exists, fails to load, or has not been reviewed, render a deliberate neutral/typographic fallback. Missing imagery must not change the card's canonical identity, classification, or epistemic status.
+- The Cover carries a visible flip affordance — `Read front & back` — so the reverse side is discoverable without hovering or guessing.
+- If no suitable image exists, fails to load, or has not been reviewed, render a deliberate **designed** fallback (a styled card band with folio/graphic motif), never an empty placeholder. Missing imagery must not change the card's canonical identity, classification, or epistemic status.
 
 ### 7.2 Claim face — what is being asserted
 
-Opening the Cover reveals the Claim face. It presents:
+The Claim face sits on the card's back. Opening the card (the flip) reveals it. It presents:
 
 - the claim/assertion formulation or core research question;
 - canonical classification tags, without conflating Axis, Suit/Collection, Mechanism, Concept, or Locale;
@@ -322,16 +324,16 @@ Do not fabricate missing analysis, evidence, sources, or counterevidence. Repres
 
 ### 7.4 Transitions and state
 
-1. Deck browsing displays the Cover.
-2. Selecting `Examine card` opens the same card at its Claim face.
-3. Selecting `Read analysis` moves to the Analysis face.
-4. The reader can return to the Claim face or close the card.
+1. Deck browsing displays the card's front (the Cover).
+2. Selecting `Read front & back` flips the card to its back at the Claim face.
+3. Selecting `Read analysis` moves within the back to the Analysis face.
+4. The reader can return to the Claim face or flip back to the front with `Back to front`.
 5. Closing returns to the same deck position and preserves the active filters/repeat policy and card identity.
 6. On constrained mobile layouts, opening directly to the Claim face is acceptable if the Cover remains available as the discovery representation.
 7. The image may persist as a small visual anchor on the Claim/Analysis faces, but must not compete with long-form reading.
-8. Saving is an independent action and must not be coupled to stage transitions.
+8. Saving is an independent action and must not be coupled to facing/flip transitions.
 
-Use explicit, discoverable controls and scroll-safe editorial content. A subtle transition or animation is optional; no interaction may depend on animation, a 3D transform, hover, or a physical-card metaphor. If motion is used, respect `prefers-reduced-motion`.
+Use explicit, discoverable controls and scroll-safe editorial content. The flip reads as front↔back and is presentation-only. A subtle transition or animation is optional; no interaction may depend on animation, a 3D transform, hover, or a physical-card metaphor. If 3D motion is used it must respect `prefers-reduced-motion`, and when motion is reduced or 3D transform support is unavailable the faces must still swap statefully with no transform and no loss of content.
 
 ### 7.5 Image provenance and epistemic separation
 
@@ -341,7 +343,7 @@ Use explicit, discoverable controls and scroll-safe editorial content. A subtle 
 - Do not present generated, illustrative, reconstructed, or generic imagery as an authentic historical/documentary image.
 - Images are optional. Rights, provenance, or accessibility gaps must trigger a fallback, not fabricated metadata or a misleading image.
 
-The three-stage model changes presentation only; it does not create a second card model or alter canonical ontology/API semantics.
+The two-faced (front/back) model changes presentation only; it does not create a second card model or alter canonical ontology/API semantics.
 
 ## 8. Ontology and provenance requirements
 
@@ -578,24 +580,24 @@ Administrative tooling may continue to exist, but it is not the Figma-defined pr
 - [ ] Discovery presents a Cover with title and a suitable optional image or neutral fallback.
 - [ ] Cover image source/rights/attribution and alt-text requirements are met; failed/missing images produce a deliberate fallback.
 - [ ] Recognition imagery is not misrepresented as a Source or Evidence item; documentary/historical authenticity is not fabricated.
-- [ ] `Examine card` opens the Claim face for the same canonical card.
+- [ ] The card's front shows a recognisable Cover (suitable image with attribution, or a designed fallback — never an empty placeholder) with a visible `Read front & back` flip affordance.
+- [ ] `Read front & back` flips the card to its back at the Claim face for the same canonical card.
 - [ ] Claim face presents the claim/formulation, canonical classification, human-readable status, and research framing.
 - [ ] `Read analysis` opens the Analysis face; analysis, source, evidence, reasoning, and limitations remain semantically distinct.
-- [ ] Claim ↔ Analysis navigation and close/back-to-discovery work and preserve card identity, active filters, and deck position.
+- [ ] Claim ↔ Analysis navigation, the `Back to front` reverse flip, and close/back-to-discovery work and preserve card identity, active filters, and deck position.
 - [ ] Card status visibly distinguishes open/unverified material.
 - [ ] Title, summary, classification, provenance, and evidence are separate regions.
-- [ ] No physical 3D flip is required; transitions remain optional and accessible.
+- [ ] The flip is presentation-only: reduced-motion and non-3D contexts swap faces without animation, and no content depends on hover.
 - [ ] Save card action exists.
 - [ ] Previous / position / Shuffle next navigation exists.
 - [ ] Discovery prompt encourages question-first exploration.
-- [ ] No physical-card flip is required.
 
 ### Responsive/accessibility
 
 - [ ] Graph and inspector stack on narrow screens.
 - [ ] Card discovery becomes single-column.
 - [ ] Cover image and fallback behave correctly across narrow/wide viewports and failed loads.
-- [ ] Cover → Claim → Analysis works with keyboard, screen reader, and reduced-motion settings.
+- [ ] Cover → Claim → Analysis (front ↔ back flip) works with keyboard, screen reader, and reduced-motion settings.
 - [ ] Interactive controls have usable hit areas.
 - [ ] Status is communicated textually as well as visually.
 - [ ] No content is clipped at supported responsive widths.

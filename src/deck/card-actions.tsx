@@ -1,15 +1,16 @@
 /**
  * The featured card's actions (SPEC §6.2, §7.4).
  *
- * The three-stage model gives the row a different primary action per stage:
+ * The two-faced card gives the row a different primary action per face:
  *
- * - Cover → `Examine card` opens the Claim face.
- * - Claim → `Read analysis` opens the Analysis face, with `Back to deck` to
- *   close the card.
- * - Analysis → `Back to claim` and `Back to deck` (close/back-to-discovery).
+ * - Front (Cover) → `Read front & back` flips the card to its back at the
+ *   Claim face — the Figma-verbatim affordance from the "Card discovery" frame.
+ * - Back, Claim → `Read analysis` opens the Analysis face, with `Back to
+ *   front` as the reverse flip.
+ * - Back, Analysis → `Back to claim` and `Back to front`.
  *
- * `Explore in graph` and `Save card` sit beside whatever the stage offers.
- * They are independent of the stage: exploring is a navigation handoff, and
+ * `Explore in graph` and `Save card` sit beside whatever the face offers.
+ * They are independent of the facing: exploring is a navigation handoff, and
  * saving must never be coupled to a transition (SPEC §7.4). `Save card` exists
  * — the acceptance criteria require the action — but is disabled until account
  * participation ships, with the reason as visible text rather than a tooltip.
@@ -22,13 +23,13 @@ import type { CardStage } from './card-stage'
 export type CardActionsProps = {
   /** Which face the row belongs to. */
   readonly stage: CardStage
-  /** Opens the Claim face. */
+  /** Flips the card to its back at the Claim face. */
   readonly onExamine: () => void
   /** Opens the Analysis face. */
   readonly onReadAnalysis: () => void
   /** Returns from the Analysis face to the Claim face. */
   readonly onBackToClaim: () => void
-  /** Closes the card back to deck browsing. */
+  /** Flips back to the front (closes the card back to deck browsing). */
   readonly onClose: () => void
   /**
    * The featured card's slug, so the row can offer the transition into graph
@@ -56,8 +57,8 @@ const SECONDARY =
  * The action row under the card's current face.
  *
  * @param props See {@link CardActionsProps}.
- * @returns A `<div>` with the stage's transition controls, the graph
- * transition, and the disabled save action.
+ * @returns A `<div>` with the face's transition controls, the graph transition,
+ * and the disabled save action.
  */
 export function CardActions({
   stage,
@@ -76,11 +77,11 @@ export function CardActions({
       {stage === 'cover' ? (
         <button
           type="button"
-          data-testid="examine-card"
+          data-testid="flip-card"
           onClick={onExamine}
           className={PRIMARY}
         >
-          Examine card
+          Read front &amp; back
         </button>
       ) : null}
 
@@ -98,11 +99,11 @@ export function CardActions({
           ) : null}
           <button
             type="button"
-            data-testid="close-card"
+            data-testid="back-to-front"
             onClick={onClose}
             className={SECONDARY}
           >
-            Back to deck
+            Back to front
           </button>
         </>
       ) : null}
@@ -119,11 +120,11 @@ export function CardActions({
           </button>
           <button
             type="button"
-            data-testid="close-card"
+            data-testid="back-to-front"
             onClick={onClose}
             className={SECONDARY}
           >
-            Back to deck
+            Back to front
           </button>
         </>
       ) : null}

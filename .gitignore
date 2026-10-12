@@ -55,5 +55,9 @@ trope-cards/drizzle-kit/generated/
 # TypeScript incremental build info
 *.tsbuildinfo
 
+# Python bytecode cache (tools/bidi-firefox harness)
+__pycache__/
+*.py[cod]
+
 # Working-tool state, not project content
 .commandcode/
