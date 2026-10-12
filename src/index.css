@@ -182,4 +182,69 @@
   .hover-lift:hover {
     @apply transform -translate-y-1;
   }
+
+  /* Deck card front/back flip (§7.4): presentation-only, never hover-dependent.
+     `data-flipped` on the stage swaps faces; the inactive face is additionally
+     `inert`+`aria-hidden` in the component. Reduced-motion and non-3D contexts
+     swap statefully with no transform. */
+  .deck-card-scene {
+    perspective: 1400px;
+  }
+
+  .deck-card-stage {
+    position: relative;
+    display: grid;
+    transform-style: preserve-3d;
+    transition: transform 500ms ease;
+  }
+
+  .deck-card-stage[data-flipped='true'] {
+    transform: rotateY(180deg);
+  }
+
+  .deck-card-face {
+    grid-area: 1 / 1;
+    min-width: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .deck-card-face--back {
+    transform: rotateY(180deg);
+  }
+
+  /* Designed cover fallback band: subtle editorial grid motif (§7.1) */
+  .deck-cover-grid {
+    background-image:
+      linear-gradient(hsl(var(--graph-border) / 0.45) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--graph-border) / 0.45) 1px, transparent 1px);
+    background-size: 26px 26px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .deck-card-stage,
+    .deck-card-stage[data-flipped='true'],
+    .deck-card-face--back {
+      transform: none;
+      transition: none;
+    }
+
+    .deck-card-stage[data-flipped='true'] .deck-card-face--front,
+    .deck-card-stage[data-flipped='false'] .deck-card-face--back {
+      visibility: hidden;
+    }
+  }
+
+  @supports not (transform-style: preserve-3d) {
+    .deck-card-stage,
+    .deck-card-stage[data-flipped='true'],
+    .deck-card-face--back {
+      transform: none;
+    }
+
+    .deck-card-stage[data-flipped='true'] .deck-card-face--front,
+    .deck-card-stage[data-flipped='false'] .deck-card-face--back {
+      visibility: hidden;
+    }
+  }
 }

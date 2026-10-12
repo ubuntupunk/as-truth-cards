@@ -7,15 +7,25 @@
 
 ## 1. Traceability & Figma References
 
-The node IDs originally cited in `SPEC.md` for card discovery (`7:4518`, `7:4528`, `7:4558`, `7:4571`) are obsolete in Figma file `qmVMnfR9DpQFyYtaiSizYD`. The active design frames are:
+> **Reconciliation (2026-10-12):** the live Figma file `qmVMnfR9DpQFyYtaiSizYD` (Trope Deck UI, version `2408252283547478624`, last touched 2026-10-09) was opened and inspected node-by-node (accessed as owner with view links). **The card discovery node IDs cited in `SPEC.md` (`7:4518`, `7:4528`, `7:4558`, `7:4571`) are NOT obsolete.** `7:4518` "Card discovery" is a live component instance embedded in the current Deck frame: `7:4434` → `7:4477` "Discovery workspace" → `7:4518`. The earlier claim of obsoleteness in this report was wrong; what the design actually superseded was the *interpretation* of those nodes — a fixed 2:3 physical card with a mandatory 700ms 3D flip — not the frame itself. Evidence renders saved under `docs/issue-9/screenshots/figma/`.
 
-| Node ID | Frame Name | Purpose / Surface |
-|---|---|---|
-| `7:4434` | Deck / Shuffle (base) | Three-column workspace layout with flip card |
-| `12:1446` | Deck / Shuffle — Atmospheric | Dark/tinted atmospheric presentation treatment |
-| `12:1644` | Deck / Shuffle — Editorial | High-contrast editorial presentation treatment |
-| `12:1841` | Deck / Shuffle — Workspace | Dense, tool-oriented workspace treatment |
-| `7:4617` | Card Detail — Front / Back | Extended two-sided card detail and inquiry decomposition |
+| Node ID | Frame Name | Purpose / Surface | Reconciliation result |
+|---|---|---|---|
+| `7:4434` | Deck / Shuffle (base) | Three-column workspace layout with flip card | Current canonical Deck frame (1440×1049) |
+| `7:4518` | Card discovery | Workspace component: Shuffle controls / Featured card / Shuffle navigation / Discovery prompt | **Live** instance embedded in `7:4434`; not obsolete |
+| `7:4528` | Featured card | The card itself (792×382, cornerRadius 10): Card metadata → Claim content → Classification tags → Divider → Research preview → Card actions | Primary action is labelled **`Read front & back`** |
+| `7:4558`, `7:4571` | Shuffle navigation / Discovery prompt | Deck browse controls | Present in the live `7:4518` instance |
+| `12:1446` | Deck / Shuffle — Atmospheric | Dark/tinted atmospheric presentation treatment | Appearance selector target |
+| `12:1644` | Deck / Shuffle — Editorial | High-contrast editorial presentation treatment | Appearance selector target |
+| `12:1841` | Deck / Shuffle — Workspace | Dense, tool-oriented workspace treatment | Appearance selector target |
+| `7:4617` | Card Detail — Front / Back | Paired `Card front` (514×422) and `Card back` (514×422) faces | Two-faced card model; belongs to the Card Detail surface (Phase A), not deck discovery |
+
+### 1.1 Reconciliation findings for the deck featured card
+
+- **The discovery card is an editorial two-sided object.** `7:4528` "Featured card" renders: `Card metadata` (`OPEN · UNVERIFIED` badge) → `Claim content` (title + description) → `Classification tags` (three dimension-prefixed badges) → divider → `Research preview` (`Provenance & reasoning`: *"2 claims · 2 source leads · 1 draft inference"* · `Evidence`: *"0 verified items"*) → `Card actions` with exactly two controls: **`Read front & back`** (arrow-right icon) and **`Save card`** (bookmark icon).
+- **The current design's primary affordance is literally the flip.** No `Examine card` label exists anywhere in the file. The concrete code/design diff to close is the cover's primary action label and semantics, not the visual chrome around it.
+- **`7:4617` models the front/back relationship directly** as two paired faces of the same card: `Card front` (`Front / working claim` + `ID-01` + status badge) and `Card back` (`Back / inquiry & limits` + `ID-01` + Ask / Test / Limit prompts + `NO VERIFIED EVIDENCE ATTACHED`). Same canvas, same card, two labelled faces — the "clear front/back visual relationship" the design intends. That frame belongs to Card Detail (ROADMAP Phase A); the deck discovery card adopts the *same model* on its own scale: front = Cover, back = the reading faces.
+- **No decorative cover image layer exists in the discovery card.** The card's recognition is editorial (typography + classification + folio), which supports the decision to make the no-image fallback a *designed graphic*, not a placeholder.
 
 ---
 
@@ -101,21 +111,22 @@ The running Decks surface (`src/pages/Deck.tsx`, `src/deck/*`) already implement
 
 ---
 
-### 4.6. Three-Stage Card Model: Cover → Claim → Analysis
-- **Classification:** **1. Required product behaviour** (Approved in canonical edit of [comment #6077590207](https://github.com/ubuntupunk/as-truth-cards/issues/9#issuecomment-6077590207) and codified in `SPEC.md` §1, §6.2, §7, §10, and §15).
-- **Status:** ✅ **Completed** — the three-stage `Cover → Claim → Analysis` flow is implemented in `src/deck/featured-card.tsx` (Cover/Claim faces), `src/deck/card-reading.tsx` (`CardAnalysis`), `src/deck/card-actions.tsx` (stage-aware actions), and `src/deck/card-stage.ts`; `src/pages/Deck.tsx` owns stage state and moves focus on transitions. Closing returns to the deck cover with position, filters, and card identity preserved (Stream 1.5).
-- **User problem:** Readers need clear visual recognition anchors to browse cards, but complex analytical arguments and provenance evidence overflow fixed physical card dimensions and hinder accessibility if forced into a literal 3D flip.
-- **Evidence / Authority:** Canonical decision in `SPEC.md` §7 and issue comment #6077590207 replaces the physical 3D flip metaphor with three distinct presentation stages for one canonical card:
-  1. **Cover (Recognition/Discovery):** Displays card image (where rights-cleared, reviewed, and described) with title, optional compact ID, and explicit `Examine card` action. Neutral/typographic fallback when imagery is absent, unreviewed, or fails to load.
-  2. **Claim Face (What is Asserted):** Revealed by `Examine card`. Displays core question/assertion formulation, canonical classification, human-readable epistemic status (`OPEN · UNVERIFIED` or other human-readable label), research framing, and explicit `Read analysis` action.
-  3. **Analysis Face (How it is Examined):** Revealed by `Read analysis`. Displays detailed analysis, distinct sources and evidence items with provenance context, reasoning chains, and known counterevidence/limitations. Clear return-to-Claim and close/back-to-discovery actions.
-- **Dependency:** Component architecture refactor (`src/deck/featured-card.tsx`, `card-discovery.tsx`, `card-reading.tsx`); image asset and fallback presentation; keyboard/screen-reader focus management.
-- **Proposed disposition:** Implement the three-stage `Cover → Claim → Analysis` flow directly:
-  - Closing returns to the same deck position, preserving active filters and card identity.
-  - Mobile may open directly to the Claim face if Cover remains available as the discovery representation.
-  - Image may persist as a small visual anchor on Claim/Analysis faces without competing with long-form prose.
-  - No 3D transform or hover animations required; respects `prefers-reduced-motion`; scroll-safe on mobile.
-- **Acceptance test:** Cover presents title, optional image with alt text (or typographic fallback), and `Examine card`; `Examine card` transitions to Claim face; `Read analysis` transitions to Analysis face; return/close actions preserve deck position, filters, and card identity; fully operable by keyboard and screen readers with zero content clipping on narrow viewports.
+### 4.6. Two-Faced Card Model: Front (Cover) ↔ Back (Claim → Analysis)
+- **Classification:** **1. Required product behaviour** (Approved in canonical edit of [comment #6077590207](https://github.com/ubuntupunk/as-truth-cards/issues/9#issuecomment-6077590207), reconciled with the live Figma file, and now codified in `SPEC.md` §1, §6.2, §7, §10, and §15). **Revised 2026-10-12 per the third follow-up:** the card's back is reachable through a visible flip affordance.
+- **Status:** ✅ **Completed** — the card is implemented in `src/deck/featured-card.tsx` as one two-faced object: the **front** renders the Cover (a designed discovery face), the **back** carries the reading faces `Claim` then `Analysis` (stage machine unchanged in `src/deck/card-stage.ts`, owned by `src/pages/Deck.tsx`). The flip is presentation-only: `data-flipped` on the flip stage swaps faces, the inactive face is `inert`, and reduced-motion / non-3D contexts swap statefully without a transform (Stream 1.5 + flip follow-up).
+- **User problem:** Readers need clear visual recognition anchors to browse cards, and must be able to discover that the card has a reverse side — without guessing that some other control opens it, and without a heavyweight literal 3D animation.
+- **Evidence / Authority:** Reconciled Figma facts (see §1.1):
+  - The design's card action is literally **`Read front & back`** (`7:4528`) — the flip affordance.
+  - `7:4617` "Card Detail — Front / Back" renders two labelled faces of one card (`Front / working claim`, `Back / inquiry & limits`).
+  - The old SPEC sentence ("a physical 3D flip is never required") contradicted the design; it is replaced (see §4.6 disposition).
+- **Dependency:** Component architecture refactor (`src/deck/featured-card.tsx`, `card-actions.tsx`); image asset and designed fallback presentation; keyboard/screen-reader focus management; `prefers-reduced-motion` handling.
+- **Proposed disposition:** Implement the two-faced card directly:
+  - **Front = Cover:** a recognisable card visual — a rights-cleared image when one exists, otherwise a *designed* typographic/graphic fallback (folio, grid motif, eyebrow) — never an empty dashed placeholder. The front's primary control is the flip affordance **`Read front & back`**.
+  - **Back = reading faces:** the existing `Claim → Analysis` stages, unchanged in semantics. The back always carries a **`Back to front`** control (the reverse flip).
+  - The flip is presentation-only; it never changes the card's identity, classification, or epistemic status. Claim/Analysis separation and status/provenance semantics are untouched.
+  - Closing still returns to the same deck position, preserving active filters and card identity. Mobile may open directly to a face if the Cover remains available as the discovery representation.
+  - Transition/3D animation is optional; if reduced motion or 3D is unavailable, faces swap statefully with no transform (or no animation at all). Never depend on hover; scroll-safe on mobile.
+- **Acceptance test:** Front presents a recognisable cover (image with alt/attribution, or designed fallback) and a visible `Read front & back` control that flips to the Claim face; the back presents `Back to front`; `Read analysis` transitions to Analysis; return/close actions preserve deck position, filters, and card identity; flip works by keyboard and for screen readers; reduced-motion and non-3D contexts render both faces correctly; zero content clipping on narrow viewports.
 
 ---
 
@@ -145,7 +156,7 @@ The running Decks surface (`src/pages/Deck.tsx`, `src/deck/*`) already implement
 
 ### 4.9. Generic Image Fallback & Cover Imagery Guardrails
 - **Classification:** **1. Required product behaviour** (Codified in `SPEC.md` §7.1 and §7.5).
-- **Status:** ✅ **Completed** — the Cover renders an optional, rights-cleared image with required alt text and attribution, and a deliberate typographic fallback when imagery is absent, undescribed, or fails; recognition imagery is never promoted to Source/Evidence (Stream 1.5).
+- **Status:** ✅ **Completed** — the Cover renders an optional, rights-cleared image with required alt text and attribution, and a **designed** typographic/graphic fallback (gradient band, grid motif, ghosted folio, eyebrow label) when imagery is absent, undescribed, or fails — the former empty dashed "Research card" placeholder was removed. Recognition imagery is never promoted to Source/Evidence (Stream 1.5 + flip follow-up).
 - **User problem:** Visual imagery anchors memory and recognition during discovery, but unverified, generic, or rights-violating images can mislead readers or distort historical facts.
 - **Evidence / Authority:** Canonical decision in `SPEC.md` §7.1, §7.5 and issue comment #6077590207 sets strict guardrails for Cover imagery:
   1. Recognition/illustration imagery on the Cover is not a Source or Evidence item and must never be silently promoted to evidence.
@@ -217,7 +228,7 @@ flowchart TD
 - ✅ **1.2 Footer link cleanup:** `src/components/Footer.tsx` points to real routes; no `href="#"` anchors remain.
 - ✅ **1.3 Shared research disclaimer:** `<ResearchDisclaimer />` exported as a shared component and mounted in `src/pages/Deck.tsx`, giving uniform epistemic disclaimers across research surfaces.
 - ✅ **1.4 Canonical IA for Compose:** `/research/compose` is reachable from global navigation (`src/components/Header.tsx`), with exact-match active highlighting.
-- ✅ **1.5 Three-stage card model (Cover → Claim → Analysis):** implemented per `SPEC.md` §7 with optional rights-cleared imagery, deliberate typographic fallback, and explicit `Examine card` / `Read analysis` / `Back to claim` transitions with focus and state invariance.
+- ✅ **1.5 Two-faced card model (front Cover ↔ back Claim → Analysis):** implemented per `SPEC.md` §7 as one two-faced object with a designed cover fallback (no dashed placeholder), the Figma-verbatim `Read front & back` flip affordance, a `Back to front` reverse control, and `prefers-reduced-motion` / non-3D fallbacks; `Read analysis` / `Back to claim` transitions and focus/state invariance preserved.
 
 ### Stream 2: Deck Workspace & Layout Enhancements ✅ Complete
 - ✅ **2.1 Three-column responsive workspace:** `src/deck/deck-workspace.tsx` renders `[232px, minmax(0,1fr), 320px]` at `xl`, collapsing the rails into accessible modal drawers (`role="dialog"`, backdrop, Escape) below 1280px to protect reading measure.

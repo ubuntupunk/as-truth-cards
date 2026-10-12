@@ -2,14 +2,16 @@
  * Tests for `featured-card.tsx` and the regions it composes — SPEC §6.2,
  * §7 and §15.
  *
- * The contract is the three-stage model: the Cover shows title + fallback and
- * `Examine card`; the Claim face shows the formulation, status, classification
- * and framing with `Read analysis`; the Analysis face shows provenance,
- * evidence, the three reading lists and an honest limitations note. Title,
- * summary, classification, provenance and evidence stay separate regions; the
- * status reaches the screen only as `OPEN · UNVERIFIED`; `Save card` is
- * disabled with its reason as visible text; and the sources list never merges
- * into claims or evidence.
+ * The contract is the two-faced card: the front (Cover) shows title +
+ * designed fallback and `Read front & back`; the back carries the Claim face
+ * (formulation, status, classification, framing, `Read analysis`) and then the
+ * Analysis face (provenance, evidence, the three reading lists, an honest
+ * limitations note) plus `Back to front`. The flip is presentation-only: the
+ * inactive face is `inert` + `aria-hidden` and `data-flipped` drives the
+ * transform. Title, summary, classification, provenance and evidence stay
+ * separate regions; the status reaches the screen only as `OPEN · UNVERIFIED`;
+ * `Save card` is disabled with its reason as visible text; and the sources
+ * list never merges into claims or evidence.
  */
 
 import assert from 'node:assert/strict'
@@ -125,17 +127,68 @@ describe('FeaturedCard — Cover', () => {
     assert.ok(html.includes('data-testid="card-cover-fallback"'))
   })
 
-  it('offers Examine card, and the button opens the Claim face', () => {
+  it('offers Read front & back, and the flip opens the card back', () => {
     const { props, state } = fixture()
     const tree = FeaturedCard(props)
     const html = render(tree)
-    const examine = buttonByText(tree, 'Examine card')
-    assert.ok(examine)
-    assert.equal(examine?.props?.['data-testid'], 'examine-card')
-    assert.ok(html.includes('data-testid="examine-card"'))
-    ;(examine?.props?.onClick as () => void)()
+    const flip = buttonByText(tree, 'Read front & back')
+    assert.ok(flip)
+    assert.equal(flip?.props?.['data-testid'], 'flip-card')
+    assert.ok(html.includes('data-testid="flip-card"'))
+    ;(flip?.props?.onClick as () => void)()
     assert.equal(state.examine, 1)
     assert.equal(state.read, 0)
+  })
+})
+
+describe('FeaturedCard — faces', () => {
+  it('keeps both faces in the DOM on the front, the back inert', () => {
+    const { props } = fixture({ stage: 'cover' })
+    const tree = FeaturedCard(props)
+    const html = render(tree)
+    const front = walk(
+      tree,
+      (v) => v.props?.['data-testid'] === 'card-face-front',
+    )
+    const back = walk(
+      tree,
+      (v) => v.props?.['data-testid'] === 'card-face-back',
+    )
+    assert.equal(front.length, 1)
+    assert.equal(back.length, 1)
+    assert.equal(front[0].props.inert, undefined)
+    assert.equal(front[0].props['aria-hidden'], undefined)
+    assert.equal(back[0].props.inert, true)
+    assert.equal(back[0].props['aria-hidden'], 'true')
+    assert.match(html, /data-testid="card-flip-stage"[^>]*data-flipped="false"/)
+  })
+
+  it('shows the back on a flipped stage, the front face inert', () => {
+    const { props } = fixture({ stage: 'claim' })
+    const tree = FeaturedCard(props)
+    const html = render(tree)
+    const front = walk(
+      tree,
+      (v) => v.props?.['data-testid'] === 'card-face-front',
+    )
+    const back = walk(
+      tree,
+      (v) => v.props?.['data-testid'] === 'card-face-back',
+    )
+    assert.equal(front[0].props.inert, true)
+    assert.equal(front[0].props['aria-hidden'], 'true')
+    assert.equal(back[0].props.inert, undefined)
+    assert.equal(back[0].props['aria-hidden'], undefined)
+    assert.match(html, /data-testid="card-flip-stage"[^>]*data-flipped="true"/)
+  })
+
+  it('renders the designed cover fallback with folio and grid band', () => {
+    const html = render(<FeaturedCard {...fixture().props} />)
+    assert.ok(html.includes('data-testid="card-cover-fallback"'))
+    assert.ok(html.includes('data-testid="card-cover-folio"'))
+    assert.ok(html.includes('deck-cover-grid'))
+    assert.ok(html.includes('ID-07'))
+    assert.ok(!html.includes('border-dashed'))
   })
 })
 
@@ -232,11 +285,11 @@ describe('FeaturedCard — Claim face', () => {
     assert.equal(state.read, 1)
   })
 
-  it('closes the card back to the deck from the Claim face', () => {
+  it('flips back to the front from the Claim face', () => {
     const { props, state } = fixture({ stage: 'claim' })
-    const close = buttonByText(FeaturedCard(props), 'Back to deck')
-    assert.equal(close?.props?.['data-testid'], 'close-card')
-    ;(close?.props?.onClick as () => void)()
+    const back = buttonByText(FeaturedCard(props), 'Back to front')
+    assert.equal(back?.props?.['data-testid'], 'back-to-front')
+    ;(back?.props?.onClick as () => void)()
     assert.equal(state.close, 1)
   })
 
@@ -264,8 +317,8 @@ describe('FeaturedCard — Claim face', () => {
       fixture({ stage: 'claim', projectionError: new Error('down') }).props,
     )
     assert.equal(buttonByText(tree, 'Read analysis'), undefined)
-    // The close action stays, so the reader is never stranded on a dead face.
-    assert.ok(buttonByText(tree, 'Back to deck'))
+    // The reverse flip stays, so the reader is never stranded on a dead face.
+    assert.ok(buttonByText(tree, 'Back to front'))
   })
 })
 
@@ -374,14 +427,14 @@ describe('FeaturedCard — Analysis face', () => {
     )
   })
 
-  it('returns to the Claim and closes to the deck from the Analysis face', () => {
+  it('returns to the Claim and flips back to the front from Analysis', () => {
     const { props, state } = fixture({ stage: 'analysis' })
     const tree = FeaturedCard(props)
     const back = buttonByText(tree, 'Back to claim')
     assert.equal(back?.props?.['data-testid'], 'back-to-claim')
     ;(back?.props?.onClick as () => void)()
     assert.equal(state.back, 1)
-    const close = buttonByText(tree, 'Back to deck')
+    const close = buttonByText(tree, 'Back to front')
     ;(close?.props?.onClick as () => void)()
     assert.equal(state.close, 1)
   })

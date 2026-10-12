@@ -1,26 +1,30 @@
 /**
- * The featured research card (SPEC §6.2, §7, §3.3) — an editorial panel, not a
- * 2:3 playing card and not a flip.
+ * The featured research card (SPEC §6.2, §7, §3.3) — an editorial panel with
+ * two faces from the Figma "Card Detail — Front / Back" model.
  *
- * SPEC §7 replaces the physical card with three presentation stages of one
- * canonical card:
+ * The **front** is the Cover — recognition and discovery: an optional,
+ * rights-cleared cover image (or a designed typographic fallback), the title
+ * as the primary identity, and a compact id marker.
  *
- * - **Cover** — recognition and discovery: an optional, rights-cleared cover
- *   image (or a deliberate typographic fallback), the title as the primary
- *   identity, a compact id marker, and `Examine card`.
+ * The **back** carries the reading faces of one canonical card:
+ *
  * - **Claim** — what is asserted: the claim/core question, canonical
  *   classification, the human-readable status, and the research framing.
  * - **Analysis** — how it is examined: provenance/reasoning preview, evidence,
  *   the reading lists, and honest notes where a dimension is not carried.
  *
- * The stage is presentation only. The same `card`, `preview` and `reading`
- * arrive whatever the stage, so title, summary, classification, provenance and
- * evidence stay separately addressable (SPEC §15) and the card's canonical
- * identity, classification and epistemic status never change with the stage.
+ * The flip between front and back is presentation-only (`data-flipped` on the
+ * flip stage; the inactive face is `inert` + `aria-hidden`). The same `card`,
+ * `preview` and `reading` arrive whatever the facing, so title, summary,
+ * classification, provenance and evidence stay separately addressable (SPEC
+ * §15) and the card's canonical identity, classification and epistemic status
+ * never change with the facing (SPEC §7.4). In reduced-motion or non-3D
+ * contexts the faces swap statefully with no transform (src/index.css).
  *
- * Close returns to the deck (`cover`); the card, its position and the active
- * filters are owned by the page, not here. Saving is an independent action and
- * is never coupled to a stage transition (SPEC §7.4).
+ * Close (flipping back to the front) returns to the deck (`cover`); the card,
+ * its position and the active filters are owned by the page, not here. Saving
+ * is an independent action and is never coupled to a facing transition (SPEC
+ * §7.4).
  */
 
 import type { Ref } from 'preact'
@@ -58,15 +62,15 @@ export type FeaturedCardProps = {
   readonly preview: CardPreview | null
   /** Projection-derived reading, or `null` while the projection loads. */
   readonly reading: CardReading | null
-  /** Which of the three faces is on screen (SPEC §7.4). */
+  /** Which of the three §7 faces is on screen (front reads as `cover`). */
   readonly stage: CardStage
-  /** Opens the Claim face from the Cover. */
+  /** Flips the card to its back at the Claim face (the `Read front & back`). */
   readonly onExamine: () => void
   /** Opens the Analysis face from the Claim face. */
   readonly onReadAnalysis: () => void
   /** Returns from the Analysis face to the Claim face. */
   readonly onBackToClaim: () => void
-  /** Closes the card back to deck browsing (the Cover). */
+  /** Flipping back to the front — closes the card back to deck browsing. */
   readonly onClose: () => void
   /**
    * An optional, rights-cleared cover image. When absent, or when its alt text
@@ -119,7 +123,7 @@ function ProjectionFailure({ error }: { error: unknown }) {
   )
 }
 
-/** Cover — recognition and discovery (SPEC §7.1). */
+/** Cover — recognition and discovery, the card's front (SPEC §7.1). */
 function CardCover({
   card,
   idLabel,
@@ -130,16 +134,30 @@ function CardCover({
   coverImage: CardCoverImage | null | undefined
 }) {
   const image = usableCoverImage(coverImage)
+  // A short folio for the designed fallback band, e.g. `ID-07` from
+  // `Card / ID-07`, so the graphic reads as the card's own mark.
+  const folio = idLabel.includes('/')
+    ? idLabel.slice(idLabel.lastIndexOf('/') + 1).trim()
+    : idLabel
   return (
     <div data-testid="card-cover">
       {image === null ? (
         <div
           data-testid="card-cover-fallback"
           aria-hidden="true"
-          className="flex min-h-[7rem] items-center justify-center rounded-xl border border-dashed border-graph-border bg-graph-muted/30 p-4"
+          className="deck-cover-grid relative flex min-h-[7rem] items-end overflow-hidden rounded-xl border border-graph-border bg-graph-surface p-4"
         >
-          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          <span
+            data-testid="card-cover-folio"
+            className="rounded-md border border-graph-border/70 bg-graph-muted/40 px-2.5 py-1 font-mono text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
+          >
+            {folio}
+          </span>
+          <span className="absolute right-4 top-3 text-[0.65rem] font-medium uppercase tracking-[0.24em] text-muted-foreground/60">
             Research card
+          </span>
+          <span className="pointer-events-none absolute -bottom-8 -right-5 select-none font-mono text-[6.5rem] font-bold leading-none tracking-tighter text-graph-border/50">
+            {folio.slice(0, 2)}
           </span>
         </div>
       ) : (
@@ -246,10 +264,11 @@ function CardClaim({
 }
 
 /**
- * The featured card panel.
+ * The featured card panel — one card, two faces (SPEC §7.4).
  *
  * @param props See {@link FeaturedCardProps}.
- * @returns An `<article>` presenting one of the three §7 stages.
+ * @returns An `<article>` showing the card's front (Cover) or its back
+ * (Claim then Analysis), with the action row always visible beneath.
  */
 export function FeaturedCard({
   card,
@@ -266,6 +285,9 @@ export function FeaturedCard({
   articleRef,
 }: FeaturedCardProps) {
   const failed = projectionError !== null
+  // The flip is presentation-only: any face other than the Cover is the card's
+  // back. `data-flipped` drives the CSS transform (or the stateful swap).
+  const flipped = stage !== 'cover'
   return (
     <article
       ref={articleRef}
@@ -275,26 +297,54 @@ export function FeaturedCard({
       data-stage={stage}
       className="scroll-mt-24 rounded-2xl border border-graph-border bg-card p-5 shadow-sm focus:outline-none sm:p-6"
     >
-      {stage === 'cover' ? (
-        <CardCover card={card} idLabel={idLabel} coverImage={coverImage} />
-      ) : null}
+      <div className="deck-card-scene">
+        <div
+          data-testid="card-flip-stage"
+          data-flipped={flipped ? 'true' : 'false'}
+          className="deck-card-stage"
+        >
+          <div
+            data-testid="card-face-front"
+            // The front face is inert whenever the card shows its back.
+            inert={flipped || undefined}
+            aria-hidden={flipped ? 'true' : undefined}
+            className="deck-card-face deck-card-face--front"
+          >
+            {stage === 'cover' ? (
+              <CardCover
+                card={card}
+                idLabel={idLabel}
+                coverImage={coverImage}
+              />
+            ) : null}
+          </div>
 
-      {stage === 'claim' ? (
-        <CardClaim
-          card={card}
-          idLabel={idLabel}
-          failed={failed}
-          projectionError={projectionError}
-        />
-      ) : null}
+          <div
+            data-testid="card-face-back"
+            // The back face is inert while the card shows its front.
+            inert={!flipped || undefined}
+            aria-hidden={!flipped ? 'true' : undefined}
+            className="deck-card-face deck-card-face--back"
+          >
+            {stage === 'claim' ? (
+              <CardClaim
+                card={card}
+                idLabel={idLabel}
+                failed={failed}
+                projectionError={projectionError}
+              />
+            ) : null}
 
-      {stage === 'analysis' ? (
-        failed ? (
-          <ProjectionFailure error={projectionError} />
-        ) : (
-          <CardAnalysis reading={reading} preview={preview} />
-        )
-      ) : null}
+            {stage === 'analysis' ? (
+              failed ? (
+                <ProjectionFailure error={projectionError} />
+              ) : (
+                <CardAnalysis reading={reading} preview={preview} />
+              )
+            ) : null}
+          </div>
+        </div>
+      </div>
 
       <CardActions
         stage={stage}
