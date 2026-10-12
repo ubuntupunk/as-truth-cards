@@ -323,7 +323,7 @@ A genuine interaction harness was built so the verification is **not** code-leve
 | 3 | **Explore / Browse `/explore`** | `src/pages/Explore.tsx` → `useDeckCards()` + `useCardSearch()` (`GET /api/graph/search`). Real canonical. | Nav entry "Explorer"; reachable ≤1 click. | **implemented**; surface acceptance outstanding | C · app — code inspection; `GET /api/graph/search` covered by graph tests. **Figma node `7:4787` (Explore) verified present** in `qmVMnfR9DpQFyYtaiSizYD` (this pass). | Documented + tested **search/filter semantics and limits**; in/out-of-result context preservation; responsive/a11y. Coordinate the shared search contract with **Issue #8** before page-specific search hardens (ROADMAP M3). |
 | 4 | **Compose / Decompose `/research/compose`** | `src/pages/Compose.tsx` → canonical projection + `GET/PUT/DELETE /api/drafts/*`. Real; writes are auth-gated (401 signed-out). | Nav entry "Compose"; reachable ≤1 click. | **partially implemented** | A · app — `drafts.test.ts` (401 signed-out, cross-user isolation ✓); `compose-editor.test.tsx` `PermissionGate`. | **Blocked by the account layer:** the "Sign in" handoff navigates to `/admin`, which renders "Sign in required" with **no sign-in form** — a dead end. Complete end-to-end composition + account gate once onboarding exists (ROADMAP M4). |
 | 5 | **Research Workspace `/research`** | `src/pages/Research.tsx` → graph page + `useResearchSession()` (browser `localStorage`). Explicitly **not** account-synced. | Nav entry "Research"; reachable ≤1 click. | **partially implemented** | A · app — `research-workspace-panel.test.tsx`, `research-tray.test.tsx` assert the "separate from your account" boundary. | Full workflow acceptance; tests for persistence, URL/context, and authorization; keep research vs auth vs durable-activity distinct (ROADMAP M5). |
-| 6 | **Sources `/sources`** | `src/pages/Sources.tsx` → `useSources()` (`GET /api/graph/sources`). Real canonical. | Nav entry "Sources"; reachable ≤1 click. | **partially implemented** | C · app — code inspection; `GET /api/graph/sources` covered by graph tests. | Source→claim/evidence inspection acceptance; responsive/a11y (ROADMAP M6). **Design checkpoint CLOSED (negative, this pass):** no dedicated Sources frame exists in `qmVMnfR9DpQFyYtaiSizYD`, so Sources is **design-underspecified** — do not claim visual completion from Figma. |
+| 6 | **Sources `/sources`** | `src/pages/Sources.tsx` → `useSources()` (`GET /api/graph/sources`). Real canonical. | Nav entry "Sources"; reachable ≤1 click. | **implemented**; **frame missing** → M6 design gap open | C · app — code inspection; `GET /api/graph/sources` covered by graph tests. | **No dedicated Sources frame exists** in `qmVMnfR9DpQFyYtaiSizYD`. Creation was **attempted via the Figma API**: the REST API exposes **no node/frame-creation endpoint**, so the frame must be authored in-editor (Plugin API). A **build-ready frame spec** was posted as an in-file comment (`1962148829`) and recorded in **§7**. Pending: human/editor authoring → record node ID(s); then responsive/a11y + source→claim/evidence acceptance (ROADMAP M6). |
 | 7 | **Account / participation integration** | Server: `server/auth.ts` (Better Auth email+password only), role enum `ANONYMOUS→…→ADMIN` on `User` with `input:false`; `UserInteraction`, `Session`, `Account`, `Verification` in `public`. | **No account UI:** no sign-in/sign-up/profile/settings/activity route, no header account affordance. `Save card` is unconditionally disabled. | **blocked** (inventory + proposal **now complete**; awaiting C1/C2/C3 decisions) | A/C · app — `auth-secret.test.ts`; `drafts.test.ts` (only authed API). Account Figma frames **identified** (improved `62:*`, 6 surfaces × 3 treatments; no Verification frame) — see proposal §F.6. | Resolve C1/C2/C3; then full lifecycle + one account-gated action (Save card). **Prerequisite:** `docs/issue-9/account-onboarding-inventory-and-proposal.md`. |
 | 8 | **Responsive navigation + drawer accessibility** | Routes mounted; header collapses to hamburger below `md`. | Reachability verified at 320/375/768/1024/1280 real viewports; drawer triggers operable; ≥1280 rails replace triggers by design. | **verified (automated)**; **reviewer sign-off pending** | A(XTest) · app — `tools/bidi-firefox/` document↔drawer keyboard pass (both drawers), viewport matrix; commits `ccd30eb`, `fe747bc`, `666f1e6` (all exist). | Reviewer sign-off of the acceptance checklist; a human screen-reader pass is **not** evidenced (only automated DOM/inert assertions). Mobile-header issue `as-truth-cards-0vn` stays **open** until signed off. |
 | 9 | **Privacy / security follow-ups** | `/privacy` renders audited app-side flows; provider (Render/Neon) logging explicitly labelled **unverified**. | Footer link (`FOOTER_LINKS`), reachable ≤1 click. | **partially implemented**; security **deferred → Issue #10** | M/C · app + provider — privacy copy tightened (`server/index.ts` has no request-logging middleware); provider behaviour **not** attested. | Issue #10: intentional CORS policy (default `cors()` today), trusted-proxy/IP, Better Auth cookie Secure/SameSite behind the Render proxy, and tests. **Not** folded into visual cleanup. |
@@ -362,3 +362,53 @@ Purpose: close the three "frame existence verified: yes/no" gaps flagged for M3/
 **Evidence limit (stated, not hidden):** file **discovery** succeeded (node names/ids/variants retrieved), but per-node **content** fetch was blocked by the Figma API returning `429 Rate limit exceeded` on every attempt after discovery. The model cannot render image nodes, so frame *contents* are **unverified**; the existence/inventory results above rest on node names, which are reliable. Pending follow-up: read Sign In (`62:12441`) + Onboarding (`62:13022`) once the rate limit clears, to confirm which C.1 states they draw.
 
 **HEAD note:** the matrix above was verified at code HEAD `e30898d`; the current HEAD is `b26cc00`, whose commits since `e30898d` are **docs-only** (proposal + this report). No code, test, or gate result in §6.3 is affected.
+
+### 6.5 Figma authoring attempt + account-frame authority (follow-up, 2026-10-12T11:22:44Z)
+
+**Tooling reality (why the Sources frame was not auto-created).** The available Figma tooling (REST via the connected integration) exposes **read** (file / nodes / styles / images), **comments**, and **dev resources** — there is **no node/frame-creation endpoint**. Authoring nodes requires the **Figma Plugin API** (running inside the editor) or a plugin/MCP that wraps it. Therefore "once tool access is available" does **not** unblock creation through REST; the frame must be built in the editor (or by a Plugin-API tool).
+
+**What was done instead.** A **build-ready Sources frame spec** was posted as an in-file comment on `qmVMnfR9DpQFyYtaiSizYD`: comment id **`1962148829`** (2026-10-12T12:02Z). It mirrors the running `/sources` route exactly (no invented data) and is reproduced in **§7** so it is reviewable in-repo.
+
+**Still blocked.** Node **content** reads (`GET /files/:key/nodes`) still return **`429 Rate limit exceeded`** on this account (the same class of Starter-plan limit the maintainer hit). The improved **Sign In (`62:12441`)** and **Onboarding (`62:12550`)** frame *contents* could **not** be inspected, so **which verification states those screens actually draw remains unverified**. Metadata reads (`/files/:key`) do succeed.
+
+**Account-frame authority.** The improved frames under **`62:*`** are the **current design targets**; the older **`49:*`** screens are **historical/reference only** — do not map new implementation to `49:*` by default.
+
+**Verification is design-underspecified.** There is **no dedicated Verification frame**, so `unverified` / `verification-pending` / `verification-failed` / `verification-expired` must be **mapped onto the improved Sign In / Onboarding screens, or explicitly specified** — they are not drawn anywhere today. This is a design gap, not a decided policy: **C1 / C2 / C3 remain open**, and design inspection does not decide them.
+
+---
+
+## 7. Sources surface — build-ready frame specification (M6)
+
+> **Context.** `/sources` is **implemented** (`src/pages/Sources.tsx`, `src/sources/*`) and is provenance-first by construction, but the Figma file has **no Sources frame** (see §6.4/§6.5). This spec exists so the frame can be authored to close the M6 design gap. It is derived from the running route, **not** invented: it must not add sources, counts, or relationships the canonical data does not support. Created node ID(s): **pending** (to be filled once the frame is authored).
+
+**Frame setup**
+- Name: **`Sources / Desktop`**; size **1440 × 1049** (matches the existing Deck canvas). Treatment: **Atmospheric only** — the route pins `atmospheric` and exposes **no switcher**, so **do not** add Editorial/Workspace variants for this screen.
+- Composition shell: `Header` → `GraphShell` (chrome + workspace) → `GraphStatusStrip` (only when a source is selected) → `Footer`.
+
+**Chrome (from `GraphShell`)**
+- Eyebrow: `Provenance / Sources`; Heading: `Sources`; Subtitle: `The canonical bibliography behind the claims — attribution, not evidence.`
+- Shared **`ResearchDisclaimer`**, verbatim (same copy as Deck/Research).
+
+**Workspace — two columns** `lg:[380px | minmax(0,1fr)]`
+
+| Region | Content (from `SourceIndexPanel`) | States |
+|---|---|---|
+| **Index rail** "Canonical sources" | Count chip (`N sources`); scope note *"Canonical bibliography. A source attributed to a claim is a provenance lead, not verified evidence."*; rows with: **title**, `sourceType` chip, metadata lines (**Author / Publisher / Citation** — omit when absent), optional **URL** link, **attribution summary** (`No claims attributed` / `N claims attributed`), actions **`Trace provenance`** + **`Save to research`** → **`In session`** (disabled when saved). | **loading** (`Loading sources…`), **error** (amber `Could not load sources: …`), **empty** (`No sources in the corpus yet.`) |
+| **Workspace** | No selection → prompt **"Choose a source from the index to trace its provenance"** (+ one-line scope). Selected → **source detail header** (title, `N claim attribution(s)` chip, metadata, source URL) → **provenance projection** (the `evidence` view: the source and the claims attributed to it) → **`Open this source in the Graph Explorer`**. | projection has its own loading/empty/error; the status strip is hidden when no source is selected |
+
+**Content rules (non-negotiable)**
+- **Source ≠ evidence.** Show **attribution** counts and `claim_sources` relationships; never render a source as verified evidence or invent `evidence_item`s. The evidence layer is intentionally empty and must render **honestly**.
+- No fabricated sources, metadata, URLs, counts, or source→claim edges. Absent metadata is omitted, not filled with placeholders.
+- Reuse existing components/typography/variables/patterns; do not introduce a second renderer for the same projection.
+
+**M6 acceptance mapping**
+
+| M6 criterion | Frame element |
+|---|---|
+| Provenance-first surface | Index rail scope note + source detail header ("attribution, not evidence") |
+| Source→claim/evidence inspection | Selected-source provenance projection (evidence view) + `Open this source in the Graph Explorer` |
+| Honest empty/loading/error | Index-rail states table above; projection states |
+| Reuse disclaimer + navigation | Shared `ResearchDisclaimer`; `Header`/`Footer`/`GraphShell` chrome |
+| Design traceability | **This frame** (node ID pending) — no prior Sources frame existed |
+
+*Implementation parity is **not** claimed: the frame, once authored, must be reviewed against the running `/sources` route before any parity assertion (per the maintainer's constraint).*
