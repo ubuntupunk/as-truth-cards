@@ -190,6 +190,18 @@ For every milestone, report each criterion as **implemented**, **verified**, **p
 
 **Status:** a Sources surface exists, but complete workflow and design acceptance remain outstanding.
 
+**Foundation (2026-10-12, issue #12):** migration `0012_research_sources.sql` ships the
+provider-neutral storage this milestone needs: `source_identifiers` (persistent
+identifiers, one identifier → one source), `discovery_candidates` (a human review queue —
+not a source and not evidence), `source_metrics` (transparent attention/use observations,
+each with a required definition), and provenance/verification columns on `sources`. No
+provider is wired up and no PlumX/Elsevier dependency was added; the layer is useful with
+open metadata on its own. Support semantics are unchanged: a discovered, cited, or popular
+source is not evidence, and the support chain still runs through
+`claim_sources`/`evidence_claims`. Discovery adapters (Crossref/DataCite/OpenAlex/
+OpenCitations), the Research Metrics component, and the discovery-review workflow remain
+outstanding.
+
 ---
 
 ## Milestone 7 — Account onboarding and participation
