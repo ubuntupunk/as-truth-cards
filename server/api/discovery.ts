@@ -65,12 +65,14 @@ const reviewBodySchema = z
   .object({
     decision: z.enum(REVIEW_DECISIONS),
     notes: z.string().trim().max(2000).nullish(),
+    expectedRevision: z.number().int().min(0),
   })
   .strict()
 
 const promoteBodySchema = z
   .object({
     sourceId: z.string().uuid(),
+    expectedRevision: z.number().int().min(0),
   })
   .strict()
 
@@ -271,6 +273,7 @@ export function createDiscoveryRouter(deps: DiscoveryRouterDeps = {}): Router {
         decision: parsed.data.decision as ReviewDecision,
         reviewedBy: (await (await resolveSession())(req))?.userId ?? 'unknown',
         notes: parsed.data.notes ?? null,
+        expectedRevision: parsed.data.expectedRevision,
       })
       sendOutcome(res, outcome)
     } catch (error) {
@@ -296,6 +299,7 @@ export function createDiscoveryRouter(deps: DiscoveryRouterDeps = {}): Router {
         id: req.params.id,
         sourceId: parsed.data.sourceId,
         reviewedBy: (await (await resolveSession())(req))?.userId ?? 'unknown',
+        expectedRevision: parsed.data.expectedRevision,
       })
       sendOutcome(res, outcome)
     } catch (error) {
@@ -321,6 +325,12 @@ function sendOutcome(
   }
   if (outcome.reason === 'source_not_found') {
     res.status(400).json({ error: 'Source not found' })
+    return
+  }
+  if (outcome.reason === 'stale') {
+    res.status(409).json({
+      error: 'Candidate changed since it was read; reload and retry',
+    })
     return
   }
   res.status(409).json({ error: 'Candidate was already promoted' })

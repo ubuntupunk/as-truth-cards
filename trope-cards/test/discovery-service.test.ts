@@ -68,6 +68,7 @@ class MemoryStore implements DiscoveryCandidateStore {
           reviewedAt: null,
           reviewNotes: null,
           promotedSourceId: null,
+          revision: 0,
           createdAt: new Date(),
         })
       }
@@ -103,6 +104,7 @@ class MemoryStore implements DiscoveryCandidateStore {
     decision: ReviewDecision
     reviewedBy: string
     notes: string | null
+    expectedRevision: number
   }): Promise<ReviewOutcome> {
     this.reviewCalls++
     const entry = [...this.rows.entries()].find(([, row]) => row.id === input.id)
@@ -110,12 +112,16 @@ class MemoryStore implements DiscoveryCandidateStore {
     if (entry[1].promotedSourceId !== null) {
       return { ok: false, reason: 'already_promoted' }
     }
+    if (entry[1].revision !== input.expectedRevision) {
+      return { ok: false, reason: 'stale' }
+    }
     const next: CandidateRow = {
       ...entry[1],
       reviewStatus: input.decision,
       reviewedBy: input.reviewedBy,
       reviewedAt: new Date(),
       reviewNotes: input.notes,
+      revision: entry[1].revision + 1,
     }
     this.rows.set(entry[0], next)
     return this.ok(next)
@@ -125,16 +131,24 @@ class MemoryStore implements DiscoveryCandidateStore {
     id: string
     sourceId: string
     reviewedBy: string
+    expectedRevision: number
   }): Promise<ReviewOutcome> {
     this.promoteCalls++
     const entry = [...this.rows.entries()].find(([, row]) => row.id === input.id)
     if (entry === undefined) return { ok: false, reason: 'not_found' }
+    if (entry[1].promotedSourceId !== null) {
+      return { ok: false, reason: 'already_promoted' }
+    }
+    if (entry[1].revision !== input.expectedRevision) {
+      return { ok: false, reason: 'stale' }
+    }
     const next: CandidateRow = {
       ...entry[1],
       promotedSourceId: input.sourceId,
       reviewStatus: 'APPROVED',
       reviewedBy: input.reviewedBy,
       reviewedAt: new Date(),
+      revision: entry[1].revision + 1,
     }
     this.rows.set(entry[0], next)
     return this.ok(next)
@@ -173,7 +187,6 @@ function record(id: string, provider = 'crossref'): DiscoveredRecord {
       requestedAt: new Date(0).toISOString(),
       rowsRequested: 1,
     },
-    rawPayload: { id },
     query: 'q',
   }
 }
@@ -257,6 +270,7 @@ describe('DiscoveryService review workflow', () => {
       decision: 'DEFERRED',
       reviewedBy: 'admin-1',
       notes: 'need a second look',
+      expectedRevision: listed.items[0]!.revision,
     })
     assert.equal(reviewed.ok, true)
     assert.equal(store.rows.get('crossref\u0000a')!.reviewStatus, 'DEFERRED')
@@ -265,6 +279,7 @@ describe('DiscoveryService review workflow', () => {
       id,
       sourceId: '00000000-0000-0000-0000-000000000000',
       reviewedBy: 'admin-1',
+      expectedRevision: store.rows.get('crossref\u0000a')!.revision,
     })
     assert.equal(promoted.ok, true)
     assert.equal(
@@ -277,6 +292,7 @@ describe('DiscoveryService review workflow', () => {
       decision: 'REJECTED',
       reviewedBy: 'admin-1',
       notes: null,
+      expectedRevision: store.rows.get('crossref\u0000a')!.revision,
     })
     assert.deepEqual(again, { ok: false, reason: 'already_promoted' })
   })

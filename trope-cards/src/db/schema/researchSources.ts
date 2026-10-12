@@ -3,6 +3,7 @@ import {
   check,
   date,
   index,
+  integer,
   jsonb,
   numeric,
   text,
@@ -100,8 +101,13 @@ export const sourceIdentifiers = tropeGraph.table(
  * This is a queue, not a source. It exists so discovery is *reviewable*: every row keeps
  * the provider that produced it, the provider's own record id, the query that found it, and
  * when it was retrieved, so a later reviewer can re-run the same query and get the same
- * candidate. `raw_payload` retains the provider record as received; it is subject to that
- * provider's licence and must not be republished beyond what the licence allows.
+ * candidate. `raw_payload` is **reserved and unpopulated**: retaining a provider record
+ * verbatim is subject to that provider's licence and the retention/republication review
+ * (`docs/issue-12-plumx-research-report.md` §5) is unresolved, so nothing writes it yet.
+ *
+ * `revision` is an optimistic-concurrency token, not a fact about the work. Every review or
+ * promotion increments it, so a reviewer acting on a stale read is rejected instead of
+ * silently overwriting a decision made in between.
  *
  * `unique (provider, provider_record_id)` makes ingest idempotent — re-running a discovery
  * query cannot duplicate a candidate — and is the second half of the duplicate-reconciliation
@@ -133,7 +139,10 @@ export const discoveryCandidates = tropeGraph.table(
     identifiers: jsonb('identifiers'),
     /** Provider, endpoint, and request metadata; never null, so provenance is always present. */
     provenance: jsonb('provenance').notNull(),
-    /** The provider record as received. Retained under the provider's licence terms. */
+    /**
+     * Reserved for the provider record as received. **Not written**: retention is unavailable
+     * until the licence review (report §5) resolves, so the column stays unpopulated.
+     */
     rawPayload: jsonb('raw_payload'),
     /** The query that surfaced this candidate, for reproducibility. */
     query: text('query'),
@@ -150,6 +159,12 @@ export const discoveryCandidates = tropeGraph.table(
     promotedSourceId: uuid('promoted_source_id').references(() => sources.id, {
       onDelete: 'set null',
     }),
+    /**
+     * Optimistic-concurrency token. Incremented by every review and promotion; a caller must
+     * present the revision it read, so a stale decision is refused rather than silently
+     * overwriting a decision made in between. Re-discovery never changes it.
+     */
+    revision: integer('revision').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

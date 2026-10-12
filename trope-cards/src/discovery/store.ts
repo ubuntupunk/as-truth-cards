@@ -66,6 +66,8 @@ export type CandidateRow = {
   readonly reviewedAt: Date | null
   readonly reviewNotes: string | null
   readonly promotedSourceId: string | null
+  /** Optimistic-concurrency token; present the value you read to review or promote. */
+  readonly revision: number
   readonly createdAt: Date
 }
 
@@ -86,11 +88,18 @@ export type CandidateListFilter = {
   readonly offset: number
 }
 
-/** Why a review or promotion could not be recorded. */
+/**
+ * Why a review or promotion could not be recorded.
+ *
+ * `already_promoted` is terminal — a promoted candidate cannot be re-reviewed.
+ * `stale` means the caller's `expectedRevision` predates a decision made in between; the
+ * caller should re-read the candidate and retry against the current revision.
+ */
 export type ReviewRefusal =
   | 'not_found'
   | 'already_promoted'
   | 'source_not_found'
+  | 'stale'
 
 /** The outcome of a review or promotion: the updated row, or a reason it was refused. */
 export type ReviewOutcome =
@@ -158,23 +167,31 @@ export interface DiscoveryCandidateStore {
   /**
    * Record a review decision. Reviewing a promoted candidate is refused, so the audit trail
    * of a promotion cannot be rewritten after the fact.
+   *
+   * `expectedRevision` is the revision the caller read. If the candidate has changed since,
+   * the review is refused as `stale` rather than overwriting the intervening decision.
    */
   review(input: {
     readonly id: string
     readonly decision: ReviewDecision
     readonly reviewedBy: string
     readonly notes: string | null
+    readonly expectedRevision: number
   }): Promise<ReviewOutcome>
 
   /**
    * Point a candidate at the canonical source a human created or matched. This is the only
    * operation that sets `promoted_source_id`; it does not create a source and does not
    * create any attribution or evidence row.
+   *
+   * `expectedRevision` guards against promoting a candidate whose review changed since the
+   * caller read it; a mismatch is refused as `stale`.
    */
   promote(input: {
     readonly id: string
     readonly sourceId: string
     readonly reviewedBy: string
+    readonly expectedRevision: number
   }): Promise<ReviewOutcome>
 }
 
@@ -198,6 +215,7 @@ const candidateColumns = {
   reviewedAt: discoveryCandidates.reviewedAt,
   reviewNotes: discoveryCandidates.reviewNotes,
   promotedSourceId: discoveryCandidates.promotedSourceId,
+  revision: discoveryCandidates.revision,
   createdAt: discoveryCandidates.createdAt,
 }
 
@@ -238,6 +256,36 @@ function isForeignKeyViolation(error: unknown): boolean {
     current = (current as { cause?: unknown }).cause
   }
   return false
+}
+
+/** The transaction handle a store write runs on. */
+type Transaction = Parameters<
+  Parameters<ReturnType<typeof getDb>['transaction']>[0]
+>[0]
+
+/**
+ * Explain why a conditional review/promotion update matched no row.
+ *
+ * Runs only after a zero-row update, so it cannot itself race a decision: it reads the row
+ * that the failed `WHERE` was compared against and classifies the mismatch. A promoted
+ * candidate is terminal (`already_promoted`); otherwise the revision moved, so the caller's
+ * read is `stale`.
+ */
+async function classifyRefusal(
+  tx: Transaction,
+  id: string,
+): Promise<ReviewOutcome> {
+  const rows = await tx
+    .select({ promotedSourceId: discoveryCandidates.promotedSourceId })
+    .from(discoveryCandidates)
+    .where(eq(discoveryCandidates.id, id))
+    .limit(1)
+  const existing = rows[0]
+  if (existing === undefined) return { ok: false, reason: 'not_found' }
+  if (existing.promotedSourceId !== null) {
+    return { ok: false, reason: 'already_promoted' }
+  }
+  return { ok: false, reason: 'stale' }
 }
 
 /**
@@ -303,7 +351,6 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
           url: record.url,
           identifiers: record.identifiers,
           provenance: record.provenance,
-          rawPayload: record.rawPayload ?? null,
           query: record.query,
         })),
       )
@@ -313,9 +360,10 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
           discoveryCandidates.providerRecordId,
         ],
         // Provider-owned fields only. Review columns are intentionally absent so
-        // re-discovery never approves or un-reviews a candidate. `raw_payload` is refreshed
-        // only when a record actually carries one, so a re-ingest with retention off cannot
-        // silently wipe a payload that was retained under a reviewed configuration.
+        // re-discovery never approves or un-reviews a candidate, and `revision` is absent so
+        // a refresh cannot invalidate a reviewer's optimistic-concurrency token. `raw_payload`
+        // is not written or refreshed: retention is unavailable until the §5 review resolves,
+        // so the column stays reserved and unpopulated.
         set: {
           title: excluded('title'),
           authors: excluded('authors'),
@@ -325,9 +373,6 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
           url: excluded('url'),
           identifiers: excluded('identifiers'),
           provenance: excluded('provenance'),
-          ...(unique.some((record) => record.rawPayload !== undefined)
-            ? { rawPayload: excluded('raw_payload') }
-            : {}),
           query: excluded('query'),
           retrievedAt: excluded('retrieved_at'),
         },
@@ -388,18 +433,24 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
   }
 
   /**
-   * Record a review decision atomically.
+   * Record a review decision atomically and optimistically.
    *
-   * The precondition ("exists, and is not already promoted") is enforced by the `WHERE` on
-   * the update itself, not by a preceding read, so two concurrent reviews cannot both pass a
-   * check and then overwrite each other. The update and its audit event share one
-   * transaction: either both happen or neither does. A refused review writes nothing.
+   * The precondition — "exists, is not already promoted, and is still at the revision the
+   * caller read" — is enforced by the `WHERE` on the update itself, not by a preceding read.
+   * The revision check is what makes two concurrent reviews mutually exclusive: both read
+   * revision N, only one `WHERE revision = N` can match, the winner advances the row to N+1,
+   * and the loser matches nothing and is refused as `stale`. Checking only "not promoted"
+   * would let both succeed and have the later one silently replace the earlier.
+   *
+   * The update and its audit event share one transaction: either both happen or neither does.
+   * A refused review writes nothing.
    */
   async review(input: {
     id: string
     decision: ReviewDecision
     reviewedBy: string
     notes: string | null
+    expectedRevision: number
   }): Promise<ReviewOutcome> {
     return this.client.transaction(async (tx): Promise<ReviewOutcome> => {
       const rows = await tx
@@ -409,10 +460,12 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
           reviewedBy: input.reviewedBy,
           reviewedAt: new Date(),
           reviewNotes: input.notes,
+          revision: sql`${discoveryCandidates.revision} + 1`,
         })
         .where(
           and(
             eq(discoveryCandidates.id, input.id),
+            eq(discoveryCandidates.revision, input.expectedRevision),
             isNull(discoveryCandidates.promotedSourceId),
           ),
         )
@@ -420,15 +473,7 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
 
       const row = rows[0]
       if (row === undefined) {
-        // No row matched: distinguish "gone" from "already promoted".
-        const existing = await tx
-          .select({ id: discoveryCandidates.id })
-          .from(discoveryCandidates)
-          .where(eq(discoveryCandidates.id, input.id))
-          .limit(1)
-        return existing[0] === undefined
-          ? { ok: false, reason: 'not_found' }
-          : { ok: false, reason: 'already_promoted' }
+        return classifyRefusal(tx, input.id)
       }
 
       await tx.insert(discoveryCandidateEvents).values({
@@ -443,18 +488,20 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
   }
 
   /**
-   * Promote a candidate to a canonical source atomically.
+   * Promote a candidate to a canonical source atomically and optimistically.
    *
-   * Like {@link review}, the "not already promoted" precondition is part of the update's
-   * `WHERE`, so competing promotions cannot both succeed; the loser gets `already_promoted`.
-   * The promotion and its audit event are one transaction. A nonexistent `sourceId` aborts
-   * the transaction (the foreign key fires); that rollback is translated to
-   * `source_not_found` and no event is written.
+   * Like {@link review}, the guard is part of the update's `WHERE`: the candidate must exist,
+   * still be at the caller's revision, and not already be promoted. Competing promotions and a
+   * review racing a promotion cannot both succeed; the loser is refused as `stale` (a
+   * concurrent decision moved the revision) or `already_promoted`. The promotion and its audit
+   * event are one transaction. A nonexistent `sourceId` aborts the transaction (the foreign
+   * key fires); that rollback is translated to `source_not_found` and no event is written.
    */
   async promote(input: {
     id: string
     sourceId: string
     reviewedBy: string
+    expectedRevision: number
   }): Promise<ReviewOutcome> {
     try {
       return await this.client.transaction(
@@ -466,10 +513,12 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
               reviewStatus: 'APPROVED',
               reviewedBy: input.reviewedBy,
               reviewedAt: new Date(),
+              revision: sql`${discoveryCandidates.revision} + 1`,
             })
             .where(
               and(
                 eq(discoveryCandidates.id, input.id),
+                eq(discoveryCandidates.revision, input.expectedRevision),
                 isNull(discoveryCandidates.promotedSourceId),
               ),
             )
@@ -477,14 +526,7 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
 
           const row = rows[0]
           if (row === undefined) {
-            const existing = await tx
-              .select({ id: discoveryCandidates.id })
-              .from(discoveryCandidates)
-              .where(eq(discoveryCandidates.id, input.id))
-              .limit(1)
-            return existing[0] === undefined
-              ? { ok: false, reason: 'not_found' }
-              : { ok: false, reason: 'already_promoted' }
+            return classifyRefusal(tx, input.id)
           }
 
           await tx.insert(discoveryCandidateEvents).values({

@@ -146,18 +146,28 @@ evidence edges.
 The following corrected the first slice after review, and the wording here now matches
 runtime behaviour:
 
-- **Raw payloads are not retained by default.** Retaining a provider record verbatim is
+- **Raw payloads are not retained at all, for now.** Retaining a provider record verbatim is
   governed by that provider's licence and the retention/republication review in §5, which is
-  unresolved; the Crossref adapter therefore drops `rawPayload` unless a deployment sets
-  `retainRawPayload: true` with a reviewed reason. Only normalized fields and provenance are
-  kept otherwise. A re-ingest with retention off cannot wipe a payload retained under a
-  reviewed configuration.
-- **Review and promotion are concurrency-safe and append-only-audited.** Both use a single
-  conditional `UPDATE` (… `WHERE id = ? AND promoted_source_id IS NULL`) inside a
-  transaction, so competing attempts cannot both succeed (the loser gets `already_promoted`).
-  The same transaction writes an append-only event to `discovery_candidate_events`
-  (migration `0013`), naming the actor, action (`REVIEWED`/`PROMOTED`), decision, and source
-  link. The candidate row remains current state; the event table is the history.
+  unresolved; until it is settled, retention is unavailable rather than merely off. Only
+  normalized fields and provenance are kept. `discovery_candidates.raw_payload` remains a
+  reserved, unpopulated column, and the provider port cannot express retention — there is no
+  `retainRawPayload` option to enable, so no deployment can retain a payload by accident or by
+  a switch whose reason was never recorded.
+- **Review and promotion are concurrency-safe, and the event log is append-only at the
+  database.** Both operations are a single conditional `UPDATE` inside a transaction, now
+  guarded by a `revision` token (migration `0014`): the caller must present the revision it
+  read (`… WHERE id = ? AND revision = ? AND promoted_source_id IS NULL`), and the statement
+  increments `revision`. Only one concurrent writer can match a given revision; a competing
+  review is refused as `stale` and a promotion racing a review as `stale` or
+  `already_promoted`, so competing decisions are mutually exclusive. An intentional later
+  re-review is unaffected: it reads the new revision and acts on it. The same transaction
+  writes an event to `discovery_candidate_events` (migration `0013`), naming the actor, action
+  (`REVIEWED`/`PROMOTED`), decision, and source link. The candidate row remains current state;
+  the event table is the history. That history is append-only **by enforcement, not
+  convention**: migration `0015` installs `BEFORE UPDATE`/`BEFORE DELETE` triggers that reject
+  mutation (SQLSTATE `23001`) unless a transaction deliberately sets the session-local
+  maintenance flag `trope_graph.allow_event_purge = 'on'` — which the application never does,
+  and which the tests use only to clean up.
 - **Scope is single-page.** One Crossref search issues exactly one bounded `/works` request
   with no `offset`/cursor; provider pagination is tracked as outstanding on #12 (§7).
 
@@ -251,15 +261,17 @@ PlumX widget's cookie/consent behaviour is an explicit question in §4 and a har
 
 1. Architecture note — this report.
 2. Schema/types/tests — **SHIPPED**: `0012_research_sources.sql`,
-   `0013_discovery_review_events.sql`, `src/db/schema/researchSources.ts`, provenance
+   `0013_discovery_review_events.sql`, `0014_discovery_candidate_revision.sql`,
+   `0015_discovery_events_append_only.sql`, `src/db/schema/researchSources.ts`, provenance
    columns on `sources` in `src/db/schema/tropeGraph.ts`, and
    `test/schema-research-sources.test.ts`.
 3. Crossref discovery vertical slice — **SHIPPED (implemented + tested; no review UI)**:
-   identifier normalization, Crossref provider adapter (single-page, raw payload off by
-   default), discovery service, idempotent store with concurrency-safe review/promote and an
-   append-only event log, and an admin-gated `/api/discovery` router
-   (list/search/review/promote/events). The Metrics provider and the component are **not**
-   shipped; a second provider is not shipped; provider pagination is not implemented.
+   identifier normalization, Crossref provider adapter (single-page, no raw-payload
+   retention), discovery service, idempotent store with revision-token concurrency-safe
+   review/promote and a database-enforced append-only event log, and an admin-gated
+   `/api/discovery` router (list/search/review/promote/events). The Metrics provider and the
+   component are **not** shipped; a second provider is not shipped; provider pagination is not
+   implemented.
 4. Eligibility inquiry — **SENT**, awaiting response (§4).
 5. Release gate — documented in §4, `SPEC.md` §8.4, and ROADMAP M6.
 6. ROADMAP/authoritative-doc updates — `ROADMAP.md` M6 updated with per-deliverable status;
@@ -270,21 +282,24 @@ PlumX widget's cookie/consent behaviour is an explicit question in §4 and a har
 
 What a machine verifies (automated, reproducible):
 
-- `pnpm run lint` (`biome check`) — pass.
+- `pnpm run lint` (`biome check`) — pass (4 pre-existing infos, no errors).
 - `pnpm run typecheck:all` (`tsc -b`) — pass.
-- `pnpm run test:server` — **111 tests pass** (includes `server/api/discovery.test.ts`).
-- `TROPE_GRAPH_DATABASE_URL=… pnpm run trope-graph:test` — **535 tests pass**, including
+- `pnpm run test:server` — **113 tests pass** (includes `server/api/discovery.test.ts`,
+  including a stale-review → 409 case distinct from already-promoted).
+- `TROPE_GRAPH_DATABASE_URL=… pnpm run trope-graph:test` — **537 tests pass**, including
   the live-Postgres suites `discovery-store.integration.test.ts` (idempotent ingest,
   review-state preservation, explicit promotion, no attributions/evidence edges, FK refusal,
-  append-only events, and a pool-level concurrent-promotion race) and
+  concurrent-promotion race, two-reviews-race and review-vs-promotion races asserting one
+  consistent event, and a trigger-level UPDATE/DELETE rejection) and
   `migrate-roundtrip.integration.test.ts` (idempotent `--check`, no drift).
-- `TROPE_GRAPH_DATABASE_URL=… pnpm run trope-graph:migrate:check` — 13 applied, 0 pending.
-- `node trope-cards/scripts/check-drift.mjs` — `drift: false` over 483 compared facts.
+- `TROPE_GRAPH_DATABASE_URL=… pnpm run trope-graph:migrate:check` — 15 applied, 0 pending.
+- `node trope-cards/scripts/check-drift.mjs` — `drift: false` over 484 compared facts.
 
 What only a human can confirm (manual, not yet done):
 
 - Whether retained Crossref raw payloads are admissible, and under what retention/
-  republication terms, per provider — pending the §5 licence review.
+  republication terms, per provider — pending the §5 licence review. (Nothing is retained
+  today; retention would first require a reviewed reason and a port change.)
 - Figma/visual acceptance of any Sources or Research Metrics surface — non-blocking.
 - Screenshot-specific PlumX layout/attributes from `docs/PlumX/*.png` (see §7).
 
