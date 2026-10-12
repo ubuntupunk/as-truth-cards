@@ -12,7 +12,7 @@ export const FOOTER_LINKS: readonly {
 }[] = [
   { label: 'Privacy', path: '/privacy' },
   { label: 'Terms', path: '/terms' },
-  { label: 'Resources', path: '/sources' },
+  { label: 'Resources', path: '/resources' },
 ]
 
 const Footer = () => {
