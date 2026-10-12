@@ -96,8 +96,9 @@ services:
     preDeployCommand: pnpm run db:migrate:deploy && pnpm run trope-graph:migrate -- --allow-remote && pnpm run trope-graph:seed
 
     # `tsx` executes server/index.ts directly; there is no server-side compile step.
-    # It is a devDependency, so `pnpm install` must not be run with --prod. Render
-    # installs devDependencies by default and `NODE_ENV` alone does not omit them.
+    # It is a production dependency, so the start command is self-sufficient: an
+    # install with --prod still boots the process. The build step above still needs
+    # devDependencies (vite et al.), so Render's default full `pnpm install` stays.
     startCommand: pnpm run start
 
     healthCheckPath: /health
@@ -112,8 +113,8 @@ services:
       # Neon Postgres connection string. Serves the Prisma `public` schema *and* the
       # Drizzle `trope_graph` schema, which is safe because they are separate schemas in
       # one database and cannot collide. To host the graph in a separate database instead,
-      # add TROPE_GRAPH_DATABASE_URL below and give it a real value -- do not set it to an
-      # empty string, which is not treated as unset.
+      # add TROPE_GRAPH_DATABASE_URL below and give it a real value; an empty or
+      # whitespace-only value is treated as unset and falls back to DATABASE_URL.
       - key: DATABASE_URL
         sync: false
 
