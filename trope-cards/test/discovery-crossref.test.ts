@@ -265,6 +265,42 @@ describe('crossrefSourceTypeHint', () => {
   })
 })
 
+describe('createCrossrefProvider retention and pagination scope', () => {
+  it('omits the raw payload by default', async () => {
+    const { fetch } = mockFetch([json(page([work()]))])
+    const provider = createCrossrefProvider({ fetch, minIntervalMs: 0 })
+
+    const records = await provider.search({ query: 'x', limit: 1 })
+
+    assert.equal(records.length, 1)
+    assert.equal(records[0]!.rawPayload, undefined)
+  })
+
+  it('retains the raw payload only when explicitly opted in', async () => {
+    const { fetch } = mockFetch([json(page([work()]))])
+    const provider = createCrossrefProvider({
+      fetch,
+      minIntervalMs: 0,
+      retainRawPayload: true,
+    })
+
+    const records = await provider.search({ query: 'x', limit: 1 })
+
+    assert.deepEqual(records[0]!.rawPayload, work())
+  })
+
+  it('issues exactly one unpaginated request per search', async () => {
+    const { fetch, calls } = mockFetch([json(page([work()]))])
+    const provider = createCrossrefProvider({ fetch, minIntervalMs: 0 })
+
+    await provider.search({ query: 'x', limit: 20 })
+
+    assert.equal(calls.length, 1)
+    const url = new URL(calls[0]!.url)
+    assert.equal(url.searchParams.get('offset'), null)
+  })
+})
+
 describe('mapCrossrefItem', () => {
   it('returns null when the item has no DOI', () => {
     const provenance: CandidateProvenance = {

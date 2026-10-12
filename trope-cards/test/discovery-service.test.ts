@@ -11,6 +11,7 @@ import {
   type CandidateRow,
   type DiscoveryCandidateStore,
   type ReviewDecision,
+  type ReviewEvent,
   type ReviewOutcome,
 } from '../src/discovery/store'
 import type { DiscoveredRecord, DiscoveryProvider } from '../src/discovery/types'
@@ -84,6 +85,13 @@ class MemoryStore implements DiscoveryCandidateStore {
 
   async getById(id: string): Promise<CandidateRow | null> {
     return [...this.rows.values()].find((row) => row.id === id) ?? null
+  }
+
+  eventCalls: string[] = []
+
+  async listEvents(candidateId: string): Promise<ReviewEvent[]> {
+    this.eventCalls.push(candidateId)
+    return []
   }
 
   private ok(row: CandidateRow): ReviewOutcome {
@@ -271,5 +279,15 @@ describe('DiscoveryService review workflow', () => {
       notes: null,
     })
     assert.deepEqual(again, { ok: false, reason: 'already_promoted' })
+  })
+
+  it('delegates event history reads to the store', async () => {
+    const { service, store } = build([record('a')])
+    await service.discover({ provider: 'crossref', query: 'q' })
+    const listed = await service.listCandidates({ limit: 10, offset: 0 })
+    const id = listed.items[0]!.id
+
+    await service.listEvents(id)
+    assert.deepEqual(store.eventCalls, [id])
   })
 })

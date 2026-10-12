@@ -140,9 +140,32 @@ human review, and a discovery match is never treated as support. The shipped sli
 (bounded rows, timeout, throttle, tolerant mapping), `src/discovery/store.ts` (idempotent
 ingest preserving review state), `src/discovery/service.ts`, and an admin-gated
 `/api/discovery` router (`server/api/discovery.ts`). Promotion to a canonical source is an
-explicit, audited call that links a human-created source row; it never writes attributions
-or evidence edges. Raw provider payloads are retained only per record, pending the terms
-check in §5.
+explicit call that links a human-created source row; it never writes attributions or
+evidence edges.
+
+The following corrected the first slice after review, and the wording here now matches
+runtime behaviour:
+
+- **Raw payloads are not retained by default.** Retaining a provider record verbatim is
+  governed by that provider's licence and the retention/republication review in §5, which is
+  unresolved; the Crossref adapter therefore drops `rawPayload` unless a deployment sets
+  `retainRawPayload: true` with a reviewed reason. Only normalized fields and provenance are
+  kept otherwise. A re-ingest with retention off cannot wipe a payload retained under a
+  reviewed configuration.
+- **Review and promotion are concurrency-safe and append-only-audited.** Both use a single
+  conditional `UPDATE` (… `WHERE id = ? AND promoted_source_id IS NULL`) inside a
+  transaction, so competing attempts cannot both succeed (the loser gets `already_promoted`).
+  The same transaction writes an append-only event to `discovery_candidate_events`
+  (migration `0013`), naming the actor, action (`REVIEWED`/`PROMOTED`), decision, and source
+  link. The candidate row remains current state; the event table is the history.
+- **Scope is single-page.** One Crossref search issues exactly one bounded `/works` request
+  with no `offset`/cursor; provider pagination is tracked as outstanding on #12 (§7).
+
+**Acceptance is separate from implementation.** The implemented surface is the admin API
+(`/api/discovery`: list, search, review, promote, and `GET /candidates/:id/events`) plus its
+tests. A review **UI** is not built; an editorial reviewer must currently use the API. Any
+claim that discovery is "shipped" refers to the implemented, tested subsystem, not to a
+finished operator workflow.
 
 ### 3.4 Metrics model (PROPOSED — definitions)
 
@@ -228,12 +251,15 @@ PlumX widget's cookie/consent behaviour is an explicit question in §4 and a har
 
 1. Architecture note — this report.
 2. Schema/types/tests — **SHIPPED**: `0012_research_sources.sql`,
-   `src/db/schema/researchSources.ts`, provenance columns on `sources` in
-   `src/db/schema/tropeGraph.ts`, and `test/schema-research-sources.test.ts`.
-3. Crossref discovery vertical slice — **SHIPPED**: identifier normalization, Crossref
-   provider adapter, discovery service, idempotent store, and an admin-gated
-   `/api/discovery` router (list/search/review/promote). The Metrics provider and the
-   component are **not** shipped; a second provider is not shipped.
+   `0013_discovery_review_events.sql`, `src/db/schema/researchSources.ts`, provenance
+   columns on `sources` in `src/db/schema/tropeGraph.ts`, and
+   `test/schema-research-sources.test.ts`.
+3. Crossref discovery vertical slice — **SHIPPED (implemented + tested; no review UI)**:
+   identifier normalization, Crossref provider adapter (single-page, raw payload off by
+   default), discovery service, idempotent store with concurrency-safe review/promote and an
+   append-only event log, and an admin-gated `/api/discovery` router
+   (list/search/review/promote/events). The Metrics provider and the component are **not**
+   shipped; a second provider is not shipped; provider pagination is not implemented.
 4. Eligibility inquiry — **SENT**, awaiting response (§4).
 5. Release gate — documented in §4, `SPEC.md` §8.4, and ROADMAP M6.
 6. ROADMAP/authoritative-doc updates — `ROADMAP.md` M6 updated with per-deliverable status;
@@ -246,13 +272,14 @@ What a machine verifies (automated, reproducible):
 
 - `pnpm run lint` (`biome check`) — pass.
 - `pnpm run typecheck:all` (`tsc -b`) — pass.
-- `pnpm run test:server` — **109 tests pass** (includes `server/api/discovery.test.ts`).
-- `TROPE_GRAPH_DATABASE_URL=… pnpm run trope-graph:test` — **530 tests pass**, including
+- `pnpm run test:server` — **111 tests pass** (includes `server/api/discovery.test.ts`).
+- `TROPE_GRAPH_DATABASE_URL=… pnpm run trope-graph:test` — **535 tests pass**, including
   the live-Postgres suites `discovery-store.integration.test.ts` (idempotent ingest,
-  review-state preservation, explicit promotion, no attributions/evidence edges, FK refusal)
-  and `migrate-roundtrip.integration.test.ts` (idempotent `--check`, no drift).
-- `TROPE_GRAPH_DATABASE_URL=… pnpm run trope-graph:migrate:check` — 12 applied, 0 pending.
-- `node trope-cards/scripts/check-drift.mjs` — `drift: false` over 467 compared facts.
+  review-state preservation, explicit promotion, no attributions/evidence edges, FK refusal,
+  append-only events, and a pool-level concurrent-promotion race) and
+  `migrate-roundtrip.integration.test.ts` (idempotent `--check`, no drift).
+- `TROPE_GRAPH_DATABASE_URL=… pnpm run trope-graph:migrate:check` — 13 applied, 0 pending.
+- `node trope-cards/scripts/check-drift.mjs` — `drift: false` over 483 compared facts.
 
 What only a human can confirm (manual, not yet done):
 
@@ -271,3 +298,7 @@ What only a human can confirm (manual, not yet done):
   "discusses/relevant to" (§3.2); which open metadata providers to implement first and in
   what order; whether first-party `source_opened_count` is admissible under the privacy
   policy; SPEC §8 release-gate wording.
+- **Provider pagination** — the Crossref slice is single-page by design (§3.3); bounded
+  pagination (with a strict total cap) is not implemented and is tracked here.
+- **Review UI** — only the admin API exists; the editorial review surface is not built
+  (§3.3 "Acceptance"). Until it is, reviewing a candidate requires direct API calls.

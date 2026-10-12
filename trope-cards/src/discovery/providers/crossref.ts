@@ -13,10 +13,17 @@
  * malformed *response* throws a {@link DiscoveryProviderError} so the caller records a
  * provider failure instead of an empty, misleading success.
  *
- * Licensing note (verify before retaining): Crossref metadata is made available under
- * Crossref's terms; the `rawPayload` this adapter returns is retained only under those
- * terms. See `docs/issue-12-plumx-research-report.md` §5 before enabling retention in a new
- * environment.
+ * Scope: this is a deliberately **single-page** slice. One call issues exactly one `/works`
+ * request with a bounded `rows` and no `offset`/cursor, so a call can never loop over a
+ * large result set. Provider pagination is tracked as outstanding on issue #12, not done
+ * here.
+ *
+ * Licensing note: Crossref metadata is made available under Crossref's terms. Retaining the
+ * provider record verbatim (`rawPayload`) is governed by those terms and the
+ * retention/republication review in `docs/issue-12-plumx-research-report.md` §5 is **not yet
+ * resolved** — so this adapter does **not** retain it by default (`retainRawPayload: false`).
+ * Only the normalized bibliographic fields and provenance are returned unless a caller
+ * explicitly, and with a reviewed reason, opts in.
  */
 
 import { extractCrossrefIdentifiers, normalizeDoi } from '../identifiers'
@@ -80,6 +87,13 @@ export type CrossrefProviderOptions = {
   readonly minIntervalMs?: number
   /** `User-Agent` product token. Defaults to `as-truth-cards/0.0`. */
   readonly userAgent?: string
+  /**
+   * Retain the Crossref record verbatim on each returned record. **Defaults to `false`**:
+   * the licence/retention review is unresolved (report §5), so the adapter drops the payload
+   * unless a deployment has a reviewed reason to keep it. When enabled, the payload is
+   * subject to Crossref's terms and must not be republished beyond them.
+   */
+  readonly retainRawPayload?: boolean
 }
 
 /** The fields of one Crossref `message.items[]` element this adapter reads. */
@@ -186,12 +200,15 @@ function formatAuthors(author: unknown): string | null {
  *
  * @param item A `message.items[]` element.
  * @param context The query and provenance shared by the batch.
+ * @param retainRawPayload Keep the item verbatim. Defaults to `false` (see the module note
+ * on Crossref terms). Only the normalized fields are returned otherwise.
  * @returns The record, or `null` when the item has no usable DOI (the only stable provider
  * record id Crossref offers).
  */
 export function mapCrossrefItem(
   item: CrossrefItem,
   context: { readonly query: string; readonly provenance: CandidateProvenance },
+  retainRawPayload = false,
 ): DiscoveredRecord | null {
   const rawDoi = typeof item.DOI === 'string' ? item.DOI : null
   const doi = rawDoi === null ? null : normalizeDoi(rawDoi)
@@ -215,7 +232,7 @@ export function mapCrossrefItem(
     url: typeof item.URL === 'string' ? item.URL : null,
     identifiers,
     provenance: context.provenance,
-    rawPayload: item,
+    ...(retainRawPayload ? { rawPayload: item } : {}),
     query: context.query,
   }
 }
@@ -256,6 +273,7 @@ export function createCrossrefProvider(
   const minIntervalMs = options.minIntervalMs ?? 1000
   const userAgent = options.userAgent ?? 'as-truth-cards/0.0'
   const mailto = options.mailto?.trim() || null
+  const retainRawPayload = options.retainRawPayload ?? false
 
   let nextAllowedAt = 0
   let gate: Promise<void> = Promise.resolve()
@@ -370,7 +388,11 @@ export function createCrossrefProvider(
       const records: DiscoveredRecord[] = []
       for (const item of items) {
         if (typeof item !== 'object' || item === null) continue
-        const record = mapCrossrefItem(item, { query, provenance })
+        const record = mapCrossrefItem(
+          item,
+          { query, provenance },
+          retainRawPayload,
+        )
         if (record !== null) records.push(record)
       }
       return records

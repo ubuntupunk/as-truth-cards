@@ -18,10 +18,11 @@
  * first request that needs it, and tests inject an in-memory fake.
  */
 
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 
 import { getDb } from '../db/client'
 import {
+  discoveryCandidateEvents,
   discoveryCandidates,
   type discoveryReviewStatus,
 } from '../db/schema/researchSources'
@@ -97,6 +98,21 @@ export type ReviewOutcome =
   | { readonly ok: false; readonly reason: ReviewRefusal }
 
 /**
+ * One append-only review/promotion event. The candidate row carries current state; a
+ * sequence of these is the history of how it got there.
+ */
+export type ReviewEvent = {
+  readonly id: string
+  readonly candidateId: string
+  readonly action: string
+  readonly decision: string | null
+  readonly actorId: string
+  readonly notes: string | null
+  readonly sourceId: string | null
+  readonly createdAt: Date
+}
+
+/**
  * The discovery store port.
  *
  * Every method is explicit about what it can and cannot do. `upsertMany` accepts only
@@ -130,6 +146,14 @@ export interface DiscoveryCandidateStore {
 
   /** Read one candidate, or `null`. */
   getById(id: string): Promise<CandidateRow | null>
+
+  /**
+   * Read a candidate's review/promotion history, newest first.
+   *
+   * The candidate row is current state; these events are the append-only audit trail. A
+   * candidate that was reviewed and then promoted has at least two events.
+   */
+  listEvents(candidateId: string): Promise<ReviewEvent[]>
 
   /**
    * Record a review decision. Reviewing a promoted candidate is refused, so the audit trail
@@ -179,6 +203,18 @@ const candidateColumns = {
 
 /** `excluded.<column>` references for the conflict update, built from fixed names. */
 const excluded = (column: string) => sql.raw(`excluded."${column}"`)
+
+/** Columns the audit surface reads from the event log, named once. */
+const eventColumns = {
+  id: discoveryCandidateEvents.id,
+  candidateId: discoveryCandidateEvents.candidateId,
+  action: discoveryCandidateEvents.action,
+  decision: discoveryCandidateEvents.decision,
+  actorId: discoveryCandidateEvents.actorId,
+  notes: discoveryCandidateEvents.notes,
+  sourceId: discoveryCandidateEvents.sourceId,
+  createdAt: discoveryCandidateEvents.createdAt,
+}
 
 /**
  * Postgres foreign-key violation, raised when a promotion names a nonexistent source.
@@ -267,7 +303,7 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
           url: record.url,
           identifiers: record.identifiers,
           provenance: record.provenance,
-          rawPayload: record.rawPayload,
+          rawPayload: record.rawPayload ?? null,
           query: record.query,
         })),
       )
@@ -277,7 +313,9 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
           discoveryCandidates.providerRecordId,
         ],
         // Provider-owned fields only. Review columns are intentionally absent so
-        // re-discovery never approves or un-reviews a candidate.
+        // re-discovery never approves or un-reviews a candidate. `raw_payload` is refreshed
+        // only when a record actually carries one, so a re-ingest with retention off cannot
+        // silently wipe a payload that was retained under a reviewed configuration.
         set: {
           title: excluded('title'),
           authors: excluded('authors'),
@@ -287,7 +325,9 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
           url: excluded('url'),
           identifiers: excluded('identifiers'),
           provenance: excluded('provenance'),
-          rawPayload: excluded('raw_payload'),
+          ...(unique.some((record) => record.rawPayload !== undefined)
+            ? { rawPayload: excluded('raw_payload') }
+            : {}),
           query: excluded('query'),
           retrievedAt: excluded('retrieved_at'),
         },
@@ -336,58 +376,128 @@ export class DrizzleDiscoveryStore implements DiscoveryCandidateStore {
     return rows[0] ?? null
   }
 
+  async listEvents(candidateId: string): Promise<ReviewEvent[]> {
+    return this.client
+      .select(eventColumns)
+      .from(discoveryCandidateEvents)
+      .where(eq(discoveryCandidateEvents.candidateId, candidateId))
+      .orderBy(
+        desc(discoveryCandidateEvents.createdAt),
+        desc(discoveryCandidateEvents.id),
+      )
+  }
+
+  /**
+   * Record a review decision atomically.
+   *
+   * The precondition ("exists, and is not already promoted") is enforced by the `WHERE` on
+   * the update itself, not by a preceding read, so two concurrent reviews cannot both pass a
+   * check and then overwrite each other. The update and its audit event share one
+   * transaction: either both happen or neither does. A refused review writes nothing.
+   */
   async review(input: {
     id: string
     decision: ReviewDecision
     reviewedBy: string
     notes: string | null
   }): Promise<ReviewOutcome> {
-    const existing = await this.getById(input.id)
-    if (existing === null) return { ok: false, reason: 'not_found' }
-    if (existing.promotedSourceId !== null) {
-      return { ok: false, reason: 'already_promoted' }
-    }
+    return this.client.transaction(async (tx): Promise<ReviewOutcome> => {
+      const rows = await tx
+        .update(discoveryCandidates)
+        .set({
+          reviewStatus: input.decision,
+          reviewedBy: input.reviewedBy,
+          reviewedAt: new Date(),
+          reviewNotes: input.notes,
+        })
+        .where(
+          and(
+            eq(discoveryCandidates.id, input.id),
+            isNull(discoveryCandidates.promotedSourceId),
+          ),
+        )
+        .returning(candidateColumns)
 
-    const rows = await this.client
-      .update(discoveryCandidates)
-      .set({
-        reviewStatus: input.decision,
-        reviewedBy: input.reviewedBy,
-        reviewedAt: new Date(),
-        reviewNotes: input.notes,
+      const row = rows[0]
+      if (row === undefined) {
+        // No row matched: distinguish "gone" from "already promoted".
+        const existing = await tx
+          .select({ id: discoveryCandidates.id })
+          .from(discoveryCandidates)
+          .where(eq(discoveryCandidates.id, input.id))
+          .limit(1)
+        return existing[0] === undefined
+          ? { ok: false, reason: 'not_found' }
+          : { ok: false, reason: 'already_promoted' }
+      }
+
+      await tx.insert(discoveryCandidateEvents).values({
+        candidateId: input.id,
+        action: 'REVIEWED',
+        decision: input.decision,
+        actorId: input.reviewedBy,
+        notes: input.notes,
       })
-      .where(eq(discoveryCandidates.id, input.id))
-      .returning(candidateColumns)
-
-    const row = rows[0]
-    return row ? { ok: true, row } : { ok: false, reason: 'not_found' }
+      return { ok: true, row }
+    })
   }
 
+  /**
+   * Promote a candidate to a canonical source atomically.
+   *
+   * Like {@link review}, the "not already promoted" precondition is part of the update's
+   * `WHERE`, so competing promotions cannot both succeed; the loser gets `already_promoted`.
+   * The promotion and its audit event are one transaction. A nonexistent `sourceId` aborts
+   * the transaction (the foreign key fires); that rollback is translated to
+   * `source_not_found` and no event is written.
+   */
   async promote(input: {
     id: string
     sourceId: string
     reviewedBy: string
   }): Promise<ReviewOutcome> {
-    const existing = await this.getById(input.id)
-    if (existing === null) return { ok: false, reason: 'not_found' }
-    if (existing.promotedSourceId !== null) {
-      return { ok: false, reason: 'already_promoted' }
-    }
-
     try {
-      const rows = await this.client
-        .update(discoveryCandidates)
-        .set({
-          promotedSourceId: input.sourceId,
-          reviewStatus: 'APPROVED',
-          reviewedBy: input.reviewedBy,
-          reviewedAt: new Date(),
-        })
-        .where(eq(discoveryCandidates.id, input.id))
-        .returning(candidateColumns)
+      return await this.client.transaction(
+        async (tx): Promise<ReviewOutcome> => {
+          const rows = await tx
+            .update(discoveryCandidates)
+            .set({
+              promotedSourceId: input.sourceId,
+              reviewStatus: 'APPROVED',
+              reviewedBy: input.reviewedBy,
+              reviewedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(discoveryCandidates.id, input.id),
+                isNull(discoveryCandidates.promotedSourceId),
+              ),
+            )
+            .returning(candidateColumns)
 
-      const row = rows[0]
-      return row ? { ok: true, row } : { ok: false, reason: 'not_found' }
+          const row = rows[0]
+          if (row === undefined) {
+            const existing = await tx
+              .select({ id: discoveryCandidates.id })
+              .from(discoveryCandidates)
+              .where(eq(discoveryCandidates.id, input.id))
+              .limit(1)
+            return existing[0] === undefined
+              ? { ok: false, reason: 'not_found' }
+              : { ok: false, reason: 'already_promoted' }
+          }
+
+          await tx.insert(discoveryCandidateEvents).values({
+            candidateId: input.id,
+            action: 'PROMOTED',
+            decision: null,
+            actorId: input.reviewedBy,
+            sourceId: input.sourceId,
+            notes: null,
+          })
+          return { ok: true, row }
+        },
+      )
     } catch (error) {
       if (isForeignKeyViolation(error)) {
         return { ok: false, reason: 'source_not_found' }

@@ -1,4 +1,6 @@
+import { sql } from 'drizzle-orm'
 import {
+  check,
   date,
   index,
   jsonb,
@@ -159,6 +161,60 @@ export const discoveryCandidates = tropeGraph.table(
     ),
     index('discovery_candidates_review_status_idx').on(table.reviewStatus),
     index('discovery_candidates_doi_idx').on(table.doi),
+  ],
+)
+
+/**
+ * An append-only record of one review decision or promotion on a candidate.
+ *
+ * The candidate row stores only its *current* reviewer state — who last acted and what they
+ * decided. That is enough to filter the queue but not to answer "who decided what, and
+ * when". This table is the history: nothing here is ever updated or deleted by the
+ * application, so the record of how a candidate was reviewed or promoted survives later
+ * decisions. `REVIEWED` carries the decision and notes; `PROMOTED` carries the source the
+ * candidate was linked to. Either way `actor_id` is recorded.
+ *
+ * The constraints make the two actions well-formed at the database level: `action` is
+ * limited to the vocabulary, a `REVIEWED` row must name a decision, and a `PROMOTED` row
+ * must name a source. Deleting a candidate removes its history (the history is *of* the
+ * candidate); deleting a source clears only the source link, not the event.
+ */
+export const discoveryCandidateEvents = tropeGraph.table(
+  'discovery_candidate_events',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    candidateId: uuid('candidate_id')
+      .notNull()
+      .references(() => discoveryCandidates.id, { onDelete: 'cascade' }),
+    /** One of `REVIEWED` (a decision) or `PROMOTED` (a link to a canonical source). */
+    action: text('action').notNull(),
+    decision: text('decision'),
+    actorId: text('actor_id').notNull(),
+    notes: text('notes'),
+    sourceId: uuid('source_id').references(() => sources.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('discovery_candidate_events_candidate_idx').on(
+      table.candidateId,
+      table.createdAt,
+    ),
+    check(
+      'discovery_candidate_events_action_check',
+      sql`${table.action} in ('REVIEWED', 'PROMOTED')`,
+    ),
+    check(
+      'discovery_candidate_events_reviewed_check',
+      sql`${table.action} <> 'REVIEWED' or ${table.decision} is not null`,
+    ),
+    check(
+      'discovery_candidate_events_promoted_check',
+      sql`${table.action} <> 'PROMOTED' or ${table.sourceId} is not null`,
+    ),
   ],
 )
 
