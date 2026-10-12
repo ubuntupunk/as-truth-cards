@@ -14,16 +14,17 @@ import {
 import { claimSources, sources } from '../src/db/schema/tropeGraph'
 
 /**
- * The discovery store against real Postgres and the discovery tables (migrations 0012–0013).
+ * The discovery store against real Postgres and the discovery tables (migrations 0012–0016).
  *
  * Everything runs inside one transaction that is rolled back, so the suite never leaves
  * rows behind and never depends on seed data. It proves the class of behaviour a fake
  * cannot: that the conflict update really preserves review columns, that promotion really
  * links a source and really writes nothing to the support chain, that every review decision
- * and promotion lands in the append-only event log in the same transaction, and that the
- * migration really created the tables the Drizzle modules declare. The concurrency test
- * against the pool is the one exception: a savepoint cannot model two racing connections, so
- * it commits and cleans up explicitly.
+ * and promotion lands in the append-only event log in the same transaction, that the event
+ * log is immutable under all DML (and its parents cannot be deleted as a side effect), and
+ * that the migration really created the tables the Drizzle modules declare. The concurrency
+ * and immutability tests against the pool are the exception: a savepoint cannot model two
+ * racing connections, so they commit and clean up through the owner-only DDL path.
  *
  * Skipped unless `TROPE_GRAPH_DATABASE_URL` is set, so it runs in CI without a database.
  */
@@ -93,13 +94,15 @@ function messageChain(error: unknown): string {
 }
 
 /**
- * Delete committed rows from the discovery tables, bypassing the append-only guard.
+ * Remove committed rows from the discovery tables.
  *
- * The pool-level concurrency tests commit so a savepoint cannot undo them, so they must clean
- * up explicitly. Deleting a candidate cascades to its events, which migration 0015 refuses
- * unless the transaction sets the maintenance escape hatch — the same deliberate purge path an
- * operator would use. `set_config(..., true)` is transaction-local, so the flag reverts at the
- * end of this transaction and never leaks to the application.
+ * The pool-level concurrency tests commit, so a savepoint cannot undo them and they must clean
+ * up explicitly. Migrations 0015/0016 make `discovery_candidate_events` append-only under all
+ * DML and refuse to delete a candidate or source that has history, so cleanup takes the same
+ * deliberate owner-level path an operator would: disable the guard trigger for one transaction
+ * (DDL, owner-only), delete the events, then the candidate and any sources. That is exactly the
+ * boundary the migration leaves — ordinary UPDATE/DELETE cannot do this, and no runtime role can
+ * reach this path through DML.
  */
 async function purge(
   db: ReturnType<typeof getDb>,
@@ -108,7 +111,13 @@ async function purge(
 ): Promise<void> {
   await db.transaction(async (tx) => {
     await tx.execute(
-      sql`select set_config('trope_graph.allow_event_purge', 'on', true)`,
+      sql`alter table trope_graph.discovery_candidate_events disable trigger user`,
+    )
+    await tx
+      .delete(discoveryCandidateEvents)
+      .where(eq(discoveryCandidateEvents.candidateId, candidateId))
+    await tx.execute(
+      sql`alter table trope_graph.discovery_candidate_events enable trigger user`,
     )
     await tx
       .delete(discoveryCandidates)
@@ -403,10 +412,16 @@ describe(
       }
     })
 
-    it('rejects direct UPDATE and DELETE on the review-event audit trail', async () => {
+    it('rejects every direct mutation of the review-event audit trail', async () => {
       const db = getDb()
       const store = new DrizzleDiscoveryStore(db)
       const suffix = `${process.pid}-${Date.now()}-append-only`
+      const [source] = await db
+        .insert(sources)
+        .values({ title: 'Guard source for integration', sourceType: 'OTHER' })
+        .returning({ id: sources.id })
+      assert.ok(source)
+
       await store.upsertMany([record(suffix)])
       const listed = await store.list({ provider: 'crossref', limit: 100, offset: 0 })
       const candidate = listed.items.find(
@@ -423,6 +438,13 @@ describe(
           expectedRevision: candidate.revision,
         })
         assert.equal(reviewed.ok, true)
+        const promoted = await store.promote({
+          id: candidate.id,
+          sourceId: source.id,
+          reviewedBy: 'admin-1',
+          expectedRevision: candidate.revision + 1,
+        })
+        assert.equal(promoted.ok, true)
 
         const [event] = await db
           .select({ id: discoveryCandidateEvents.id })
@@ -430,8 +452,7 @@ describe(
           .where(eq(discoveryCandidateEvents.candidateId, candidate.id))
         assert.ok(event)
 
-        // The app never sets the purge flag, so a stray UPDATE or DELETE is refused by the
-        // trigger — the audit trail cannot be rewritten through the normal connection.
+        // There is no settable bypass, so a stray UPDATE or DELETE is refused by the trigger.
         await assert.rejects(
           db
             .update(discoveryCandidateEvents)
@@ -446,14 +467,27 @@ describe(
           (error) => /append-only/.test(messageChain(error)),
         )
 
-        // The row survived both attempts intact.
+        // History cannot be removed as a side effect of deleting its parents either: the FKs
+        // are RESTRICT, so a candidate or source with history is refused, not cascaded.
+        await assert.rejects(
+          db
+            .delete(discoveryCandidates)
+            .where(eq(discoveryCandidates.id, candidate.id)),
+          (error) => /foreign key/i.test(messageChain(error)),
+        )
+        await assert.rejects(
+          db.delete(sources).where(eq(sources.id, source.id)),
+          (error) => /foreign key/i.test(messageChain(error)),
+        )
+
+        // The event survived every attempt intact.
         const [survivor] = await db
           .select({ actorId: discoveryCandidateEvents.actorId })
           .from(discoveryCandidateEvents)
           .where(eq(discoveryCandidateEvents.id, event.id))
         assert.equal(survivor?.actorId, 'admin-1')
       } finally {
-        await purge(db, candidate.id)
+        await purge(db, candidate.id, [source.id])
       }
     })
   },

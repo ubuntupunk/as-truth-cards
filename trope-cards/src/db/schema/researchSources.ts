@@ -184,15 +184,20 @@ export const discoveryCandidates = tropeGraph.table(
  *
  * The candidate row stores only its *current* reviewer state — who last acted and what they
  * decided. That is enough to filter the queue but not to answer "who decided what, and
- * when". This table is the history: nothing here is ever updated or deleted by the
- * application, so the record of how a candidate was reviewed or promoted survives later
- * decisions. `REVIEWED` carries the decision and notes; `PROMOTED` carries the source the
- * candidate was linked to. Either way `actor_id` is recorded.
+ * when". This table is the history: the record of how a candidate was reviewed or promoted
+ * survives later decisions. `REVIEWED` carries the decision and notes; `PROMOTED` carries the
+ * source the candidate was linked to. Either way `actor_id` is recorded.
  *
- * The constraints make the two actions well-formed at the database level: `action` is
- * limited to the vocabulary, a `REVIEWED` row must name a decision, and a `PROMOTED` row
- * must name a source. Deleting a candidate removes its history (the history is *of* the
- * candidate); deleting a source clears only the source link, not the event.
+ * Immutability is **enforced by the database**, not by convention: migration `0016` installs
+ * `BEFORE UPDATE`/`BEFORE DELETE` triggers that reject every mutation with `restrict_violation`
+ * for every role, with no settable bypass. The two foreign keys are `ON DELETE RESTRICT`, so a
+ * candidate or source that has history cannot be deleted either — the database refuses rather
+ * than deleting or blanking the events. Removing an event requires a deliberate owner-level
+ * DDL operation, which is the only privileged path by design.
+ *
+ * The checks make the two actions well-formed at the database level: `action` is limited to
+ * the vocabulary, a `REVIEWED` row must name a decision, and a `PROMOTED` row must name a
+ * source.
  */
 export const discoveryCandidateEvents = tropeGraph.table(
   'discovery_candidate_events',
@@ -200,14 +205,14 @@ export const discoveryCandidateEvents = tropeGraph.table(
     id: uuid('id').defaultRandom().primaryKey(),
     candidateId: uuid('candidate_id')
       .notNull()
-      .references(() => discoveryCandidates.id, { onDelete: 'cascade' }),
+      .references(() => discoveryCandidates.id, { onDelete: 'restrict' }),
     /** One of `REVIEWED` (a decision) or `PROMOTED` (a link to a canonical source). */
     action: text('action').notNull(),
     decision: text('decision'),
     actorId: text('actor_id').notNull(),
     notes: text('notes'),
     sourceId: uuid('source_id').references(() => sources.id, {
-      onDelete: 'set null',
+      onDelete: 'restrict',
     }),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
