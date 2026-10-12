@@ -163,11 +163,15 @@ runtime behaviour:
   re-review is unaffected: it reads the new revision and acts on it. The same transaction
   writes an event to `discovery_candidate_events` (migration `0013`), naming the actor, action
   (`REVIEWED`/`PROMOTED`), decision, and source link. The candidate row remains current state;
-  the event table is the history. That history is append-only **by enforcement, not
-  convention**: migration `0015` installs `BEFORE UPDATE`/`BEFORE DELETE` triggers that reject
-  mutation (SQLSTATE `23001`) unless a transaction deliberately sets the session-local
-  maintenance flag `trope_graph.allow_event_purge = 'on'` — which the application never does,
-  and which the tests use only to clean up.
+  the event table is the history. That history is immutable **by enforcement, not
+  convention**: migration `0015` installs `BEFORE UPDATE`/`BEFORE DELETE` triggers, and
+  migration `0016` makes them unconditional — they reject every mutation (SQLSTATE `23001`)
+  for every role, with **no settable bypass**. An earlier revision honoured a transaction-local
+  custom setting as a maintenance escape hatch; a database setting is not a privilege boundary
+  because the application's own role can set it, so it was removed. Removal is instead an
+  owner-level DDL operation (disable the trigger), which ordinary DML cannot reach. The two
+  foreign keys are `ON DELETE RESTRICT` (also `0016`), so a candidate or source with history is
+  refused rather than cascading or blanking the events — history survives every DML delete.
 - **Scope is single-page.** One Crossref search issues exactly one bounded `/works` request
   with no `offset`/cursor; provider pagination is tracked as outstanding on #12 (§7).
 
@@ -262,13 +266,14 @@ PlumX widget's cookie/consent behaviour is an explicit question in §4 and a har
 1. Architecture note — this report.
 2. Schema/types/tests — **SHIPPED**: `0012_research_sources.sql`,
    `0013_discovery_review_events.sql`, `0014_discovery_candidate_revision.sql`,
-   `0015_discovery_events_append_only.sql`, `src/db/schema/researchSources.ts`, provenance
+   `0015_discovery_events_append_only.sql`, `0016_discovery_events_immutable.sql`,
+   `src/db/schema/researchSources.ts`, provenance
    columns on `sources` in `src/db/schema/tropeGraph.ts`, and
    `test/schema-research-sources.test.ts`.
 3. Crossref discovery vertical slice — **SHIPPED (implemented + tested; no review UI)**:
    identifier normalization, Crossref provider adapter (single-page, no raw-payload
    retention), discovery service, idempotent store with revision-token concurrency-safe
-   review/promote and a database-enforced append-only event log, and an admin-gated
+   review/promote and a database-enforced immutable event log (no settable bypass), and an admin-gated
    `/api/discovery` router (list/search/review/promote/events). The Metrics provider and the
    component are **not** shipped; a second provider is not shipped; provider pagination is not
    implemented.

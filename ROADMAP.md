@@ -198,8 +198,10 @@ each with a required definition), and provenance/verification columns on `source
 Migration `0013_discovery_review_events.sql` adds `discovery_candidate_events`, the
 append-only history of review decisions and promotions; `0014_discovery_candidate_revision.sql`
 adds the `revision` optimistic-concurrency token the review queue needs to keep competing
-decisions mutually exclusive; and `0015_discovery_events_append_only.sql` installs triggers
-that make the event log append-only at the database, not merely by convention. No
+decisions mutually exclusive; `0015_discovery_events_append_only.sql` installs triggers and
+`0016_discovery_events_immutable.sql` makes them unconditional (no settable bypass) and sets
+the event foreign keys to `ON DELETE RESTRICT`, so the event log is immutable at the database,
+not merely by convention, and history cannot be cascaded or blanked away by a DML delete. No
 PlumX/Elsevier dependency was added; the layer is useful with open metadata on its own.
 Support semantics are unchanged: a discovered, cited, or popular source is not evidence, and
 the support chain still runs through `claim_sources`/`evidence_claims`.
@@ -209,7 +211,7 @@ Per-deliverable status:
 | Deliverable | Status | Evidence |
 | --- | --- | --- |
 | Storage: identifiers, candidates, metrics, provenance columns | Implemented, verified | migration `0012` applied locally; `trope-cards/test/schema-research-sources.test.ts` (DB-free) + migrate-check round-trip |
-| Append-only review/promotion event log | Implemented, verified | migrations `0013` + `0015`; store integration test asserts one event per decision/promotion, none on refusal, and that direct UPDATE/DELETE is rejected by the trigger |
+| Immutable review/promotion event log | Implemented, verified | migrations `0013` + `0015` + `0016`; store integration test asserts one event per decision/promotion, none on refusal, direct UPDATE/DELETE rejected by the trigger (no settable bypass), and candidate/source deletes with history refused by `ON DELETE RESTRICT` |
 | Identifier normalization (DOI/URL/Crossref fallback) | Implemented, verified | `trope-cards/test/discovery-identifiers.test.ts` |
 | Crossref provider adapter (bounded rows, timeout, throttle, tolerant mapping, single-page) | Implemented, verified | `trope-cards/test/discovery-crossref.test.ts` (mocked HTTP) |
 | Discovery service (allow-list provider, limit clamp, dedupe) | Implemented, verified | `trope-cards/test/discovery-service.test.ts` |
