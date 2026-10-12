@@ -15,6 +15,7 @@ import type {
   DiscoveryCandidateStore,
   IngestResult,
   ReviewDecision,
+  ReviewEvent,
   ReviewOutcome,
 } from './store'
 import type { DiscoveredRecord, DiscoveryProvider } from './types'
@@ -60,6 +61,8 @@ export interface DiscoveryServicePort {
   listCandidates(
     filter: CandidateListFilter,
   ): Promise<{ readonly items: CandidateRow[]; readonly total: number }>
+  /** The append-only review/promotion history for one candidate, newest first. */
+  listEvents(candidateId: string): Promise<ReviewEvent[]>
   /** Record a review decision. */
   review(input: {
     readonly id: string
@@ -132,6 +135,8 @@ export function createDiscoveryService(
     },
 
     listCandidates: (filter) => deps.store.list(filter),
+
+    listEvents: (candidateId) => deps.store.listEvents(candidateId),
 
     review: (input) => deps.store.review(input),
 

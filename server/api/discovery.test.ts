@@ -13,6 +13,7 @@ import {
   type CandidateListFilter,
   type CandidateRow,
   type ReviewDecision,
+  type ReviewEvent,
   type ReviewOutcome,
 } from '../../trope-cards/src/discovery/store.js'
 import { DiscoveryProviderError } from '../../trope-cards/src/discovery/types.js'
@@ -58,10 +59,12 @@ class FakeService implements DiscoveryServicePort {
   listCalls: CandidateListFilter[] = []
   reviewCalls: unknown[] = []
   promoteCalls: unknown[] = []
+  listEventsCalls: string[] = []
   discoverError: unknown
   reviewOutcome: ReviewOutcome = { ok: true, row: candidateRow() }
   promoteOutcome: ReviewOutcome = { ok: true, row: candidateRow() }
   listResult = { items: [candidateRow()], total: 1 }
+  eventsResult: ReviewEvent[] = []
 
   async discover(input: DiscoverInput) {
     this.discoverCalls.push(input)
@@ -72,6 +75,11 @@ class FakeService implements DiscoveryServicePort {
   async listCandidates(filter: CandidateListFilter) {
     this.listCalls.push(filter)
     return this.listResult
+  }
+
+  async listEvents(candidateId: string) {
+    this.listEventsCalls.push(candidateId)
+    return this.eventsResult
   }
 
   async review(input: {
@@ -144,6 +152,11 @@ describe('discovery router admin gate', () => {
     await withServer({ role: null, service }, async ({ request }) => {
       assert.equal((await request('GET', '/api/discovery/candidates')).status, 401)
       assert.equal(
+        (await request('GET', '/api/discovery/candidates/11111111-1111-1111-1111-111111111111/events'))
+          .status,
+        401,
+      )
+      assert.equal(
         (await request('POST', '/api/discovery/search', { provider: 'crossref', query: 'q' }))
           .status,
         401,
@@ -189,6 +202,53 @@ describe('GET /api/discovery/candidates', () => {
     const service = new FakeService()
     await withServer({ role: 'ADMIN', service }, async ({ request }) => {
       assert.equal((await request('GET', '/api/discovery/candidates?limit=abc')).status, 400)
+    })
+  })
+})
+
+describe('GET /api/discovery/candidates/:id/events', () => {
+  const id = '11111111-1111-1111-1111-111111111111'
+
+  it('400s a non-uuid id without calling the service', async () => {
+    const service = new FakeService()
+    await withServer({ role: 'ADMIN', service }, async ({ request }) => {
+      assert.equal((await request('GET', '/api/discovery/candidates/nope/events')).status, 400)
+      assert.equal(service.listEventsCalls.length, 0)
+    })
+  })
+
+  it('returns the append-only history for a candidate', async () => {
+    const service = new FakeService()
+    service.eventsResult = [
+      {
+        id: '33333333-3333-3333-3333-333333333333',
+        candidateId: id,
+        action: 'REVIEWED',
+        decision: 'DEFERRED',
+        actorId: 'user-1',
+        sourceId: null,
+        notes: 'second look',
+        createdAt: new Date('2026-10-12T00:00:00.000Z'),
+      },
+    ]
+    await withServer({ role: 'ADMIN', service }, async ({ request }) => {
+      const response = await request('GET', `/api/discovery/candidates/${id}/events`)
+      assert.equal(response.status, 200)
+      assert.deepEqual(service.listEventsCalls, [id])
+      assert.deepEqual(response.body, {
+        events: [
+          {
+            id: '33333333-3333-3333-3333-333333333333',
+            candidateId: id,
+            action: 'REVIEWED',
+            decision: 'DEFERRED',
+            actorId: 'user-1',
+            sourceId: null,
+            notes: 'second look',
+            createdAt: '2026-10-12T00:00:00.000Z',
+          },
+        ],
+      })
     })
   })
 })

@@ -7,16 +7,20 @@ import { getDb } from '../src/db/client'
 import { DrizzleDiscoveryStore } from '../src/discovery/store'
 import type { DiscoveredRecord } from '../src/discovery/types'
 import { evidenceSources } from '../src/db/schema/evidenceLayer'
+import { discoveryCandidates } from '../src/db/schema/researchSources'
 import { claimSources, sources } from '../src/db/schema/tropeGraph'
 
 /**
- * The discovery store against real Postgres and the migration-0012 tables.
+ * The discovery store against real Postgres and the discovery tables (migrations 0012–0013).
  *
  * Everything runs inside one transaction that is rolled back, so the suite never leaves
  * rows behind and never depends on seed data. It proves the class of behaviour a fake
  * cannot: that the conflict update really preserves review columns, that promotion really
- * links a source and really writes nothing to the support chain, and that migration `0012`
- * really created the tables the Drizzle modules declare.
+ * links a source and really writes nothing to the support chain, that every review decision
+ * and promotion lands in the append-only event log in the same transaction, and that the
+ * migration really created the tables the Drizzle modules declare. The concurrency test
+ * against the pool is the one exception: a savepoint cannot model two racing connections, so
+ * it commits and cleans up explicitly.
  *
  * Skipped unless `TROPE_GRAPH_DATABASE_URL` is set, so it runs in CI without a database.
  */
@@ -106,6 +110,13 @@ describe(
         })
         assert.equal(reviewed.ok, true)
 
+        const events = await store.listEvents(row.id)
+        assert.equal(events.length, 1)
+        assert.equal(events[0]?.action, 'REVIEWED')
+        assert.equal(events[0]?.decision, 'DEFERRED')
+        assert.equal(events[0]?.actorId, 'admin-1')
+        assert.equal(events[0]?.notes, 'second look')
+
         await store.upsertMany([record(suffix, 'Title Changed Again')])
         const after = await store.getById(row.id)
         assert.equal(after?.reviewStatus, 'DEFERRED')
@@ -156,7 +167,15 @@ describe(
           .where(eq(evidenceSources.sourceId, source.id))
         assert.equal(Number(evidence[0]?.value ?? 0), 0)
 
-        // The audit trail of a promotion cannot be rewritten.
+        // The promotion is recorded as an append-only event, alongside its source link.
+        const events = await store.listEvents(candidate.id)
+        assert.equal(events.length, 1)
+        assert.equal(events[0]?.action, 'PROMOTED')
+        assert.equal(events[0]?.actorId, 'admin-1')
+        assert.equal(events[0]?.sourceId, source.id)
+        assert.equal(events[0]?.decision, null)
+
+        // A promoted candidate is terminal: a later review is refused and writes no event.
         const again = await store.review({
           id: candidate.id,
           decision: 'REJECTED',
@@ -164,10 +183,11 @@ describe(
           notes: null,
         })
         assert.deepEqual(again, { ok: false, reason: 'already_promoted' })
+        assert.equal((await store.listEvents(candidate.id)).length, 1)
       })
     })
 
-    it('refuses a promotion to a source that does not exist', async () => {
+    it('refuses a promotion to a source that does not exist, writing no event', async () => {
       await inRollback(async (store) => {
         const suffix = `${process.pid}-${Date.now()}-missing-source`
         await store.upsertMany([record(suffix)])
@@ -183,7 +203,49 @@ describe(
           reviewedBy: 'admin-1',
         })
         assert.deepEqual(outcome, { ok: false, reason: 'source_not_found' })
+        assert.equal((await store.listEvents(candidate.id)).length, 0)
       })
+    })
+
+    it('promotes a candidate exactly once under concurrent attempts', async () => {
+      const db = getDb()
+      const suffix = `${process.pid}-${Date.now()}-race`
+      const [source] = await db
+        .insert(sources)
+        .values({ title: 'Race source for integration', sourceType: 'OTHER' })
+        .returning({ id: sources.id })
+      assert.ok(source)
+
+      const store = new DrizzleDiscoveryStore(db)
+      let candidateId: string | undefined
+      try {
+        await store.upsertMany([record(suffix)])
+        const listed = await store.list({ provider: 'crossref', limit: 100, offset: 0 })
+        const candidate = listed.items.find(
+          (c) => c.providerRecordId === `10.9999/integration-${suffix}`,
+        )
+        assert.ok(candidate)
+        candidateId = candidate.id
+
+        // Two independent pool connections attempt the same promotion at once. The
+        // conditional UPDATE makes the winner exclusive; the loser must see already_promoted.
+        const outcomes = await Promise.all([
+          store.promote({ id: candidate.id, sourceId: source.id, reviewedBy: 'admin-1' }),
+          store.promote({ id: candidate.id, sourceId: source.id, reviewedBy: 'admin-2' }),
+        ])
+        const wins = outcomes.filter((outcome) => outcome.ok)
+        const losses = outcomes.filter((outcome) => !outcome.ok)
+        assert.equal(wins.length, 1)
+        assert.deepEqual(losses, [{ ok: false, reason: 'already_promoted' }])
+
+        const events = await store.listEvents(candidate.id)
+        assert.equal(events.filter((event) => event.action === 'PROMOTED').length, 1)
+      } finally {
+        if (candidateId !== undefined) {
+          await db.delete(discoveryCandidates).where(eq(discoveryCandidates.id, candidateId))
+        }
+        await db.delete(sources).where(eq(sources.id, source.id))
+      }
     })
   },
 )

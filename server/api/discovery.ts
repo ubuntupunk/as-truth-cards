@@ -235,6 +235,23 @@ export function createDiscoveryRouter(deps: DiscoveryRouterDeps = {}): Router {
     }
   })
 
+  router.get('/candidates/:id/events', async (req, res) => {
+    if (!(await allowAdmin(req, res))) return
+
+    if (!z.string().uuid().safeParse(req.params.id).success) {
+      res.status(400).json({ error: 'Invalid candidate id' })
+      return
+    }
+
+    try {
+      const events = await (await resolveService()).listEvents(req.params.id)
+      res.json({ events })
+    } catch (error) {
+      console.error('Error reading discovery candidate events:', error)
+      res.status(500).json({ error: 'Failed to read candidate events' })
+    }
+  })
+
   router.post('/candidates/:id/review', async (req, res) => {
     if (!(await allowAdmin(req, res))) return
 

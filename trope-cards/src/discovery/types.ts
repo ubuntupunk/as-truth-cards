@@ -69,8 +69,10 @@ export type CandidateProvenance = {
  * One provider record, normalized to the fields the review queue stores.
  *
  * `identifiers` is the full normalized identifier set the provider supplied and is used for
- * reconciliation. `rawPayload` is the provider's record as received and is subject to that
- * provider's licence — it is retained for audit, not for republication beyond the licence.
+ * reconciliation. `rawPayload` is optional and **off by default**: retaining a provider's
+ * record verbatim is subject to that provider's licence, and while the retention/republication
+ * review is unresolved the adapter must not persist it. A provider that has a *reviewed* reason
+ * to retain the payload sets it explicitly; the store persists it only when present.
  */
 export type DiscoveredRecord = {
   readonly provider: string
@@ -83,7 +85,7 @@ export type DiscoveredRecord = {
   readonly url: string | null
   readonly identifiers: readonly NormalizedIdentifier[]
   readonly provenance: CandidateProvenance
-  readonly rawPayload: unknown
+  readonly rawPayload?: unknown
   readonly query: string
 }
 
