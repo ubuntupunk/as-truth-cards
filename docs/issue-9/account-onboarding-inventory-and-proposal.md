@@ -199,7 +199,7 @@ Method: read `ROADMAP.md` (as committed in `851ba72`) against routes, APIs, sche
 
 **Concrete factual inaccuracies found: none.** Spot-checked load-bearing claims all hold:
 
-- M1 `/` = new Deck, `/legacy/deck` = old flat Deck, legacy absent from primary nav — ✅ confirmed (`src/App.tsx:31-32`, `Header.tsx` `NAV_ENTRIES`).
+- M1 `/` = new Deck, `/legacy/deck` = old flat Deck, legacy absent from primary nav — ✅ confirmed (`src/app-routes.tsx`, `Header.tsx` `NAV_ENTRIES`).
 - Established-foundation claims (canonical `trope_graph` + projection; `public` identity incl. Better Auth + `UserInteraction`; two-faced card; `tools/bidi-firefox/`; Issues #9/#10) — ✅ all confirmed.
 - Cited commits in M1/M2 (`9b71931`, `ccd30eb`, `fe747bc`, `666f1e6`) — ✅ all exist with matching subjects.
 - M9 gate list (`trope-graph:check`, `test`, `test:ui`, `typecheck`, `build`) — ✅ matches `package.json` scripts.
@@ -207,9 +207,9 @@ Method: read `ROADMAP.md` (as committed in `851ba72`) against routes, APIs, sche
 
 **Missing / under-specified acceptance criteria (proposed additions, not applied to ROADMAP.md):**
 
-1. **M1 has no route test, and the criterion says "Route/navigation tests prove canonical and legacy routing."** No such test exists. Either add the test or mark the criterion explicitly outstanding (it is recorded in the §6 matrix).
-2. **M9 should name the graph-check environment precondition.** The gate is only green with `TROPE_GRAPH_DATABASE_URL` exported **and** `pg_trgm`+`unaccent` available to the scratch DB (`check-drift` provisioning gap, §6.3). Without this, "run applicable repository checks" reads as self-contained when it is not.
+1. **M1 route test — 🔧 implemented in `e30898d`.** `src/app-routes.test.tsx` now asserts `/` → `Deck`, `/legacy/deck` → `LegacyDeck` (and not `Deck`), unknown → `NotFound`, and the nav↔route contract (every header destination routable; legacy absent from `NAV_ENTRIES`). M1's criterion ("Route/navigation tests prove canonical and legacy routing") is therefore satisfied in code; the ROADMAP text still does not name the test to add — a wording gap only.
+2. **M9 should name the graph-check environment precondition.** The `check-drift` provisioning gap is **fixed** (`704f6b6`): the scratch DB now receives `pg_trgm`+`unaccent`, so the gate no longer depends on provisioning `template1`. The remaining precondition is that `TROPE_GRAPH_DATABASE_URL` must be exported (the graph scripts do not load `.env`); without it, "run applicable repository checks" reads as self-contained when it is not.
 3. **M3 (Explore) and M6 (Sources) cite Figma nodes (`7:4787`, Sources frame) that were not verified in this pass**; M6 already hedges ("if there is no dedicated final Sources frame"). Worth an explicit "frame existence verified: yes/no" cell.
 4. **M7 target flow omits the `authenticated ≠ verified` distinction in the diagram** (it is stated in prose at `ROADMAP.md:228` but not in the flow). Minor.
 
-Per the maintainer's correction, **no ROADMAP.md edit is made**: the inaccuracies are "none", and the items above are *additions* better routed through review than applied silently. If a single targeted correction is desired, item 1 (or the M9 precondition note) is the smallest, most concrete candidate.
+Per the maintainer's correction, **no ROADMAP.md edit is made**: the inaccuracies are "none", and the items above are *additions* better routed through review than applied silently. Items 1–2 are now addressed in code/tooling; the smallest remaining targeted correction is the M9 env-precondition note (item 2).
