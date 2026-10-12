@@ -1,22 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { APP_ROUTES } from '@/app-routes'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { ThemeProvider } from './components/ThemeProvider'
-import About from './pages/About'
-import Admin from './pages/Admin'
-import Compose from './pages/Compose'
-import Deck from './pages/Deck'
-import Explore from './pages/Explore'
-import Graph from './pages/Graph'
-import LegacyDeck from './pages/LegacyDeck'
-import NotFound from './pages/NotFound'
-import Privacy from './pages/Privacy'
-import Research from './pages/Research'
-import Resources from './pages/Resources'
-import Sources from './pages/Sources'
-import Terms from './pages/Terms'
 
 const queryClient = new QueryClient()
 
@@ -28,20 +16,9 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Deck />} />
-            <Route path="/legacy/deck" element={<LegacyDeck />} />
-            <Route path="/explore" element={<Explore />} />
-            <Route path="/research" element={<Research />} />
-            <Route path="/research/compose" element={<Compose />} />
-            <Route path="/sources" element={<Sources />} />
-            <Route path="/resources" element={<Resources />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/graph" element={<Graph />} />
-            <Route path="/admin" element={<Admin />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            {APP_ROUTES.map(({ path, element }) => (
+              <Route key={path} path={path} element={element} />
+            ))}
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
