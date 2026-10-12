@@ -1,320 +1,298 @@
 # Trope Deck Roadmap
 
-## Purpose
+## Purpose and authority
 
-This roadmap is the implementation plan for completing the Trope Deck product shell and integrating the remaining designed surfaces with the canonical ontology, research workflow, provenance model, and account/participation layer.
+This roadmap sequences implementation of Trope Deck's product surfaces, research workflows, account/participation layer, and release-readiness work.
 
-The roadmap is subordinate to `SPEC.md` for product and semantic requirements and to the Figma file for visual direction.
+- `SPEC.md` is authoritative for product behaviour and semantic constraints.
+- The [Trope Deck UI Figma file](https://www.figma.com/design/qmVMnfR9DpQFyYtaiSizYD/Trope-Deck-UI) is the visual direction; visual differences are not automatically defects.
+- The `trope_graph` schema and server-side graph projection/API remain authoritative for ontology and graph semantics.
+- Account identity and participation remain in `public`.
 
-## Current Position
+This document is a plan and status framework, not a claim that every listed check has already passed. Statuses must be supported by linked commits, issues, test reports, or explicit manual verification.
 
-The project has established:
+## Current position — reviewed 2026-10-12
 
-- A canonical ontology/graph in the `trope_graph` schema.
-- Application identity and participation data in the `public` schema.
-- A canonical graph projection/API that must remain server-authoritative.
-- Figma designs for the core graph/deck surfaces and the account layer.
-- Account flows covering sign-in, onboarding, profile, activity, and settings.
+### Established foundation
 
-The remaining work is primarily implementation and integration of the outstanding product surfaces.
+- Canonical ontology/graph data in `trope_graph`, with a server-authoritative projection/API.
+- Application identity and participation model in `public`, including Better Auth and `UserInteraction`.
+- Graph Explorer and its graph presentation/projection boundary.
+- Decks' canonical card semantics: one canonical card with a designed Cover front and Claim/Analysis reading faces on the reverse. Flipping is presentation-only and must not alter identity, filters, graph projection, or epistemic status.
+- Responsive/accessibility verification tooling in `tools/bidi-firefox/`.
+- Product-shell tracking in [Issue #9](https://github.com/ubuntupunk/as-truth-cards/issues/9) and a separate security review in [Issue #10](https://github.com/ubuntupunk/as-truth-cards/issues/10).
+
+### Known open work / acceptance caveats
+
+- Issue #9 remains open. Do not treat all product-shell surfaces as complete merely because routes exist or selected checks pass.
+- The global mobile navigation and drawer interaction work must be accepted against the tracked criteria, not inferred from Deck screenshots alone.
+- Explore, Compose, Research, and Sources still require surface-by-surface acceptance of their complete data, interaction, state, accessibility, and navigation contracts.
+- Account onboarding/participation integration needs a concrete first vertical slice and audit of existing implementation before broad changes begin.
+- The CORS, trusted-proxy/IP, and cookie-policy review is tracked separately in Issue #10.
+- `pnpm run trope-graph:check` has previously been reported blocked by database/environment or migration conditions. Re-run and document the current outcome; do not call verification fully green while a required gate is blocked.
+- Previously reported lint/typecheck failures must be checked against the current baseline and separated from regressions.
+
+For every milestone, report each criterion as **implemented**, **verified**, **partially implemented**, **blocked**, or **deferred**. “Implemented” is not synonymous with “verified.”
 
 ---
 
-## Critical Housekeeping: Existing Deck
+## Milestone 1 — Canonical Decks and card interaction
 
-The current front-page Deck is the older flat card-shuffle implementation. It is transitional and must not remain the canonical product surface once the newer Deck design is implemented.
-
-### Required migration
-
-1. Implement the newer Deck design as the canonical `/` route.
-2. Move the existing flat Deck implementation to `/legacy/deck`, unless the repository already has an established legacy-route convention that should be used instead.
-3. Clearly label the legacy route as legacy/reference.
-4. Remove the legacy Deck from primary navigation.
-5. Do not add new product functionality to the legacy implementation.
-6. Retain it temporarily as a visual/behavioral reference until the replacement has been verified.
-7. Update route, navigation, and UI tests accordingly.
-8. Do not simply delete the old implementation before the replacement is verified.
-
----
-
-## Phase A — Decks
-
-### Objective
-
-Implement the newer Deck experience as the canonical home surface.
-
-### References
-
-- Figma: Deck / Shuffle
-- Figma nodes: `7:4434`, `12:1446`, `12:1644`, `12:1841`
-- Card navigation/detail references: `7:4518`, `7:4528`, `7:4558`, `7:4617`
+**Goal:** make the current designed Deck the canonical home surface without changing graph semantics.
 
 ### Requirements
 
-- Establish the new Deck as `/`.
-- Preserve the distinction between Deck presentation and the underlying ontology.
-- Cards must be sourced from the canonical graph/projection layer.
-- Support the designed card states, navigation, shuffle/discovery interactions, and responsive layouts.
-- Ensure card detail can transition into graph exploration and research without inventing a second data model.
-- Move the old flat implementation to the legacy route.
+- `/` renders the new Deck; the former flat Deck remains only at `/legacy/deck` (or the repository's established equivalent), labelled as legacy/reference and absent from primary navigation.
+- Deck cards come from the canonical graph/projection layer.
+- The two-faced card remains one canonical object:
+  - **Front:** Cover, using suitable rights-cleared imagery when available or a deliberate designed fallback.
+  - **Reverse:** Claim and Analysis, preserving their semantic distinction.
+- The flip affordance is discoverable and keyboard-operable; reduced-motion and no-3D fallbacks remain functional.
+- Image attribution/alt text and fallback behaviour remain honest. Imagery is not evidence.
+- Preserve honest loading, empty, error, and unavailable-data states.
 
 ### Acceptance
 
-- `/` renders the new Deck.
-- The old flat Deck is reachable only through the legacy/reference route.
-- No primary navigation points to the legacy route.
-- Deck content comes from authoritative server-side data.
-- Loading, empty, error, and unavailable-data states are honest and designed.
+- Route/navigation tests prove canonical and legacy routing.
+- UI tests cover card faces, state transitions, accessible inactive-face handling, fallback cover, and Save action gating.
+- Responsive and keyboard checks are recorded with their actual method.
+- Visual artifacts are retained as regression evidence without claiming pixel parity unless actually assessed.
+
+**Status:** substantial implementation landed, including commit [`9b71931`](https://github.com/ubuntupunk/as-truth-cards/commit/9b71931c7a6ef5bfb0f9d15a5b81b29a0469064a). Continue to preserve its regression coverage; overall shell acceptance remains open.
 
 ---
 
-## Phase B — Explore / Browse
+## Milestone 2 — Cross-surface navigation, responsive behaviour, and accessibility
 
-### Objective
-
-Implement the designed discovery and browsing surface.
-
-### References
-
-- Figma: Explore / Browse
-- Node: `7:4787`
+**Goal:** ensure users can actually reach and operate every supported surface.
 
 ### Requirements
 
-- Provide browse/discovery over the canonical graph corpus.
-- Preserve the distinction between discovery UI and ontology semantics.
-- Support filtering, search, sorting, and/or categorisation only where supported by the existing API/data contract.
-- Allow a discovered card/entity to enter card detail, graph exploration, or research.
-- Reuse canonical card, graph, and metadata components.
+- Separate **route integrity** (route mounts and access control is correct) from **navigation usability** (users can find and operate the route from the actual viewport).
+- Verify primary navigation at 320, 375, 768, 1024, and 1280px using real viewport/browser interaction, not only iframe measurements.
+- Verify Browse categories and Research tray drawers: accessible name, dialog semantics, focus placement, focus trapping, inert background, Escape/backdrop/Close dismissal, and focus restoration.
+- Keep desktop navigation and the narrow-screen menu behaviour consistent and predictable.
+- Preserve the committed Firefox/real-keyboard harness and report its browser, viewport, inputs, results, and limitations.
+- Run keyboard/screen-reader checks appropriate to changed components; label automated assertions separately from human-exercised checks.
 
 ### Acceptance
 
-- `/explore` is functional.
-- Discovery is backed by real canonical data.
-- No duplicate ontology is introduced in the UI.
-- Empty/loading/error states are implemented.
+- All primary destinations and drawer triggers are reachable at supported widths.
+- No clipping, hidden-but-unreachable controls, or horizontal overflow prevents use.
+- Drawer focus and dismissal behaviours pass repeatable tests.
+- Report identifies any manual checks still outstanding.
+
+**Status:** meaningful implementation and test-harness work is reported in [Issue #9](https://github.com/ubuntupunk/as-truth-cards/issues/9), including commits `ccd30eb`, `fe747bc`, and `666f1e6`. Do not mark this milestone accepted until the remaining issue criteria have been reviewed and signed off.
 
 ---
 
-## Phase C — Compose / Decompose
+## Milestone 3 — Explore / Browse
 
-### Objective
+**Goal:** enable discovery over real canonical graph content.
 
-Implement the designed composition and decomposition workflow.
-
-### Reference
-
-- Figma: Compose / Decompose
-- Node: `7:5057`
+**Figma reference:** Explore / Browse, node `7:4787`.
 
 ### Requirements
 
-- Treat composition/decomposition as an analytical/research operation, not as an alternate ontology.
-- Preserve distinctions between Claim, Inference, Argument Chain, Source, Evidence, and Classification.
-- Clearly distinguish user-generated analytical work from canonical graph facts.
-- Persist only through the appropriate server/API boundary.
-- Support returning from composition into the research workspace and relevant graph/card context.
+- Implement the Explore route using canonical cards/entities and existing graph/domain contracts.
+- Support search, filters, sorting, or categorisation only where the data/API contract supports them.
+- Reuse shared card and metadata components rather than duplicating ontology semantics.
+- Provide meaningful paths from a result to card detail, graph exploration, and research.
+- Implement honest loading, empty, error, and unavailable-data states.
+- Coordinate with the shared discovery/search design in [Issue #8](https://github.com/ubuntupunk/as-truth-cards/issues/8). Decide the search contract before implementing a page-specific search that other surfaces would need to replace.
 
 ### Acceptance
 
-- Compose/decompose workflow is functional.
-- User-generated analysis cannot silently become canonical ontology.
-- Provenance and status are visible where applicable.
-- Unsaved, saved, empty, error, and permission states are handled.
+- Real canonical data drives results.
+- Search/filter semantics and limits are documented and tested.
+- Navigation into and back out of a result preserves appropriate context.
+- Responsive and accessibility checks pass.
+
+**Status:** outstanding surface acceptance.
 
 ---
 
-## Phase D — Research Workspace
+## Milestone 4 — Compose / Decompose
 
-### Objective
+**Goal:** provide a coherent analytical workflow without creating an alternate ontology.
 
-Implement the research workspace as the primary environment for sustained exploration and analysis.
-
-### Reference
-
-- Figma: Research Workspace
-- Node: `7:5265`
+**Figma reference:** Compose / Decompose, node `7:5057`.  
+**Target route:** `/research/compose` or the existing coherent router convention.
 
 ### Requirements
 
-The research workspace should support the designed combination of:
-
-- graph context,
-- selected/focused entities,
-- filters,
-- exploration depth,
-- analytical state,
-- evidence/provenance,
-- notes or structured research activity where specified.
-
-### Critical distinction
-
-A research session is **not** a Better Auth user session.
-
-- Research session = current exploration/research state.
-- User session = authentication/security state.
-- User activity = durable record of interaction.
-
-Authentication must preserve research context when an account is required.
+- Distinguish user-authored analysis from canonical graph facts.
+- Keep Claim, Inference, Argument Chain, Source, Evidence, and Classification distinct.
+- Use the appropriate server/API persistence boundary; drafts must not silently write to `trope_graph`.
+- Provide explicit unsaved, saved, empty, error, and permission states.
+- Allow return to the research workspace and relevant card/graph context.
+- Define what anonymous users may compose and which actions require an account.
 
 ### Acceptance
 
-- `/research` is functional.
-- Research state is distinct from authentication state.
-- Graph data remains server-authoritative.
-- Account-bound persistence is explicit.
+- A user can complete the intended composition/decomposition path and understand where work is stored.
+- Persistence and permission rules are tested.
+- No path silently promotes a draft or inference to canonical ontology.
+- Research context is preserved appropriately across navigation and any account gate.
+
+**Status:** partial foundation has been reported; full workflow acceptance remains outstanding.
+
+---
+
+## Milestone 5 — Research Workspace
+
+**Goal:** support sustained exploration and analysis across graph, card, source, and composition contexts.
+
+**Figma reference:** Research Workspace, node `7:5265`.
+
+### Requirements
+
+- Support graph context, selected/focused entities, filters, exploration depth, analytical state, provenance, and notes/structured activity where specified.
+- Keep graph content server-authoritative.
+- Keep the three concepts separate:
+  - **Research session:** current exploration state.
+  - **Authentication session:** identity/security state.
+  - **Durable activity:** account-associated participation records.
 - Anonymous exploration remains possible where permitted.
-
----
-
-## Phase E — Sources
-
-### Objective
-
-Implement a provenance-first Sources surface and connect it to cards, graph entities, evidence, and research.
-
-### Design checkpoint
-
-If the Figma file does not contain a dedicated final Sources design, resolve the visual design before declaring Sources implementation visually complete. Do not invent a final visual system independently of the established Figma direction.
-
-### Requirements
-
-Maintain the semantic distinction between:
-
-- Source
-- Evidence
-- Claim
-- Inference
-- Argument Chain
-- Classification
-
-A Source is not automatically Evidence, and Evidence is not automatically a Claim.
+- Account-bound persistence is explicit; signing in must not silently migrate anonymous interactions into account history.
+- Provide honest loading, empty, error, and unavailable states.
 
 ### Acceptance
 
-- `/sources` is functional.
-- Source metadata and provenance are visible.
-- Source/evidence relationships are explicit.
-- No unsupported evidence is fabricated.
-- Sources can be reached from relevant cards, graph context, and research context where appropriate.
-- Loading, empty, error, and unavailable-data states are handled.
+- Users can follow a coherent research workflow across the relevant surfaces.
+- Research state survives supported transitions without being confused with authentication state.
+- Persistence, URL/context, and authorization behaviours are tested.
+
+**Status:** partial foundation has been reported; full workflow acceptance remains outstanding.
 
 ---
 
-## Phase F — Account & Participation Integration
+## Milestone 6 — Sources and provenance
 
-The account-layer designs are already established, but implementation must be integrated with the product surfaces.
+**Goal:** make source discovery and provenance useful across the product.
 
-### Identity architecture
+**Design checkpoint:** if there is no dedicated final Sources frame in Figma, resolve the design direction before claiming visual completion.
 
-Keep application identity/participation in `public`:
+### Requirements
 
-- `User`
-- Better Auth `Session`
-- `Account`
-- `Verification`
-- `UserInteraction`
+- Keep Source, Evidence, Claim, Inference, Argument Chain, and Classification semantically distinct.
+- Show available source metadata and provenance without implying that a source automatically proves a claim.
+- Expose source/evidence relationships only when supported by canonical data.
+- Connect Sources to relevant card, graph, and research contexts.
+- Do not fabricate citations, evidence, provenance, or completeness.
+- Handle loading, empty, error, and data-unavailable states honestly.
 
-Keep ontology/graph semantics in `trope_graph`.
+### Acceptance
 
-### User states
+- Users can inspect a source and understand its known relationship to claims/evidence.
+- All displayed relationships are supported by the API/data contract.
+- Design, responsive behaviour, and accessibility are reviewed.
 
-Support the established progression:
+**Status:** a Sources surface exists, but complete workflow and design acceptance remain outstanding.
+
+---
+
+## Milestone 7 — Account onboarding and participation
+
+**Goal:** introduce a clear account lifecycle and integrate account-required actions without compromising research continuity, privacy, or semantic boundaries.
+
+Account planning starts now. It can proceed alongside independent Explore/Sources work after the existing implementation and contracts are audited. Do not wait until every surface is complete to plan it, and do not begin an uncontrolled auth rewrite.
+
+### First: inventory before implementation
+
+Inspect and report the current behaviour of:
+
+- Better Auth configuration, routes, sessions, verification and redirect handling.
+- Existing `User`, `Account`, `Session`, and `Verification` records.
+- `UserInteraction` and existing account/profile/activity/settings routes.
+- Current Save card gating and any existing onboarding UI.
+- Relevant account/onboarding Figma frames and any unresolved design gaps.
+- Existing tests, environment requirements, and deployment assumptions.
+
+Do not add a new persistence model unless this inventory demonstrates why existing structures are insufficient.
+
+### Target state flow
 
 ```
 Anonymous
-  ↓
-account-required action
-  ↓
+  ↓ account-required action
 Sign in / Create account
   ↓
-Verify email
+Email verification
   ↓
 Onboarding
   ↓
 Authenticated user
 ```
 
-Anonymous interactions must not be silently reassigned to a newly created account.
+Include pending, expired, failed, and resent verification; sign-in return; cancellation; and recoverable error states. Distinguish authenticated from verified where permissions require it.
 
-### Integration requirements
+### First vertical slice
 
-- Save/account-bound actions require an authenticated user.
-- Authentication should preserve research context.
-- Profile/activity/settings surfaces must remain distinct from the research workspace.
-- User activity must be represented as participation data, not ontology data.
-- Role-gated academic/research/moderation actions must respect the established role ladder.
+Deliver the smallest complete end-to-end flow:
 
----
+1. An anonymous user encounters a clearly explained account-required action.
+2. Sign-in and account creation use the existing supported auth boundary.
+3. Verification states are clear and recoverable.
+4. Onboarding completion is explicit.
+5. The user returns to the intended route/card/research context where safe and feasible.
+6. One account-gated action—preferably Save card—works for an eligible user.
+7. Profile/activity/settings navigation is reconciled with existing implementation; expand scope only where needed for a coherent flow.
 
-## Recommended Implementation Sequence
+### Non-negotiable boundaries
 
-1. Decks
-2. Explore / Browse
-3. Compose / Decompose
-4. Research Workspace
-5. Sources
-6. Account/participation integration
-7. Responsive, accessibility, route, and navigation cleanup
-8. Full verification
+- Keep identity and participation in `public`; keep ontology semantics in `trope_graph`.
+- Preserve the role ladder `ANONYMOUS → VERIFIED → ACADEMIC → RESEARCHER → MODERATOR → ADMIN`; onboarding cannot self-assign privileged roles.
+- Do not silently reassign anonymous interactions to a new account.
+- Preserve research context where feasible, but do not treat context preservation as ownership transfer or activity migration.
+- Keep profile, account activity, saved cards, settings, and sign-out distinct from the research workspace.
+- Audit cookies, verification tokens, redirect/return URL validation, error disclosure, rate limiting, CORS/proxy assumptions, and data storage/logging claims. Provider-side logging remains unverified unless independently confirmed.
+- Map each screen/state to Figma; label unresolved design decisions.
 
-This ordering deliberately establishes the core content/navigation surfaces before deeper research and participation integration.
+### Required tests
 
----
+Cover anonymous, authenticated, verified, and unverified states; verification expiry/failure/resend; safe return-context preservation; authorization boundaries; Save card persistence; duplicate/retry behaviour where relevant; and proof that anonymous history is not silently reassigned.
 
-## Target Route Shell
+### Acceptance
 
-| Surface | Target route | Status |
-|---|---|---|
-| Decks | `/` | Replace transitional Deck |
-| Legacy Deck | `/legacy/deck` | Reference only |
-| Explore | `/explore` | Outstanding |
-| Graph | `/graph` | Canonical graph |
-| Research | `/research` | Outstanding |
-| Compose / Decompose | `/research/compose` or existing router convention | Outstanding |
-| Sources | `/sources` | Outstanding |
-| Account | Existing auth/account route family | Designed; integration outstanding |
+A complete account lifecycle and one account-gated action work end-to-end; role and persistence boundaries are tested; errors are recoverable; the design/state matrix and privacy/security assumptions are documented.
 
-If the existing application already uses a different but coherent route convention, preserve that convention rather than introducing gratuitous route churn.
+**Status:** planning/inventory required before broad implementation.
 
 ---
 
-## Cross-Surface Invariants
+## Milestone 8 — Security, privacy, and operational readiness
 
-Every implementation agent must preserve these invariants:
+**Goal:** resolve deployment assumptions and ensure product claims match verified behaviour.
 
-1. `trope_graph` is the semantic authority for ontology and graph data.
-2. Server-side graph projections/API responses are authoritative.
-3. UI state must not become a second ontology.
-4. Reuse domain/projection components instead of duplicating graph semantics.
-5. Keep Source, Evidence, Claim, Inference, and Argument Chain distinct.
-6. Keep Axis, Suit, Mechanism, Concept, and Locale distinct.
-7. Do not fabricate evidence, provenance, or classification.
-8. Research session state is distinct from Better Auth user session state.
-9. Application identity and participation remain in `public`.
-10. Anonymous, authenticated, verified, academic/researcher, moderator, and admin capabilities must remain explicit.
-11. Figma is the visual authority; `SPEC.md` is the product/semantic authority.
+### Security review
+
+Track in [Issue #10](https://github.com/ubuntupunk/as-truth-cards/issues/10), separately from visual/product-shell implementation:
+
+- Decide whether API consumers require cross-origin access; replace default CORS behaviour with the intentional policy.
+- Establish correct trusted-proxy/IP handling for the Render deployment.
+- Verify Better Auth cookie Secure/SameSite behaviour behind the proxy.
+- Add tests for the selected CORS/headers policy.
+- Document any assumptions and avoid treating a review concern as a demonstrated exploit before evidence exists.
+
+### Privacy and operational claims
+
+- Distinguish application code behaviour from Render, Neon, and other provider/platform practices.
+- Do not claim that no logs exist merely because application request-logging middleware is absent.
+- Review stored account/session/activity data and browser-local research/theme/presentation state.
+- Keep privacy wording scoped to what has actually been verified.
+
+### Acceptance
+
+- Security decisions are documented and tested where feasible.
+- Privacy copy accurately reflects known data flows and explicitly labels unverified provider behaviour.
+- Open risks have an owner, mitigation, and disposition.
 
 ---
 
-## Agent Work Protocol
+## Milestone 9 — Full verification and release readiness
 
-Before changing implementation:
-
-1. Read `SPEC.md`.
-2. Read this `ROADMAP.md`.
-3. Inspect the existing route structure and identify current implementations.
-4. Inspect the relevant Figma frames.
-5. Inspect existing API/domain/projection components before creating new ones.
-6. Identify the authoritative data contract for the surface.
-7. Implement the smallest coherent vertical slice.
-8. Add/update tests for routes, behavior, and semantic/API contracts.
-9. Verify responsive and accessible behavior.
-10. Report any required semantic/API/schema change separately rather than silently changing ontology semantics.
-
-### Verification
-
-Run the repository's applicable checks, including:
+Run applicable repository checks, including:
 
 ```text
 pnpm run trope-graph:check
@@ -324,24 +302,86 @@ pnpm run typecheck
 pnpm run build
 ```
 
-Also run existing lint/format checks where configured.
+Run configured lint/format checks as well. If script names or package boundaries differ, report the actual commands used.
 
-Separate pre-existing failures from regressions introduced by the implementation.
+For each gate, record **pass**, **fail**, or **blocked**, with command, environment/context, concise result, and relevant commit. Separate existing baseline failures from regressions. A blocked database/environment check is not a pass.
+
+Release acceptance also requires:
+- route integrity and navigation usability verified separately;
+- responsive/keyboard checks reported with accurate evidence labels;
+- account authorization and persistence boundaries tested;
+- no known data-fabrication or provenance misrepresentation;
+- unresolved work tracked in issues rather than hidden in prose.
 
 ---
 
-## Definition of Roadmap Completion
+## Recommended sequence and parallelism
+
+1. **Current shell acceptance:** review the Issue #9 matrix; sign off the mobile/navigation/drawer criteria; document the graph-check blocker and current test baseline. Do not close Issue #9 until acceptance is established or remaining scope is explicitly moved to tracked follow-ups.
+2. **In parallel — account discovery/planning:** inventory existing auth/account functionality and deliver the Milestone 7 state diagram, screen/Figma map, persistence/security boundaries, tests, and first-slice proposal. Planning is not blocked on finishing every product surface.
+3. **Explore and Sources:** proceed in small vertical slices using canonical APIs and shared discovery contracts. Coordinate search decisions with Issue #8.
+4. **Compose and Research:** complete workflows with explicit draft persistence and research/auth separation; integrate account gates only where required.
+5. **Account first vertical slice:** implement after the inventory/contract is reviewed; it may overlap independent surface work, but do not duplicate or replace existing auth infrastructure without justification.
+6. **Security and release readiness:** continue Issue #10 separately; run full verification against the integrated branch before declaring release readiness.
+
+Dependencies matter more than a rigid page-by-page queue. Do not block independent read-only discovery work on account preferences; do not implement account-bound persistence before the identity and authorization contract is clear.
+
+### Explicitly deferred unless a demonstrated requirement changes priority
+
+- Custom user-created deck CRUD and its persistence/authorization model.
+- Broader account preferences beyond the onboarding slice.
+- Ontology/schema redesign undertaken merely to simplify a screen.
+- Any inferred source/evidence relationships not supported by canonical data.
+- Visual polish that does not address an accepted requirement or a material usability/accessibility issue.
+
+---
+
+## Cross-surface invariants
+
+Every implementation agent must preserve these invariants:
+
+1. `trope_graph` is the semantic authority for ontology and graph data.
+2. Server-side graph projections/API responses are authoritative.
+3. UI state must not become a second ontology.
+4. Reuse domain/projection components instead of duplicating graph semantics.
+5. Keep Source, Evidence, Claim, Inference, and Argument Chain distinct.
+6. Keep Axis, Suit/Collection, Mechanism, Concept, and Locale distinct.
+7. Do not fabricate evidence, provenance, classification, or relationships.
+8. Research session state is distinct from Better Auth user session state.
+9. Application identity and participation remain in `public`.
+10. Anonymous, authenticated, verified, academic/researcher, moderator, and admin capabilities remain explicit.
+11. Authentication does not silently reassign anonymous activity.
+12. Figma guides visual composition and interaction; `SPEC.md` governs product and semantic requirements.
+13. Every completion claim identifies the evidence supporting it and the checks not performed.
+
+---
+
+## Agent work protocol
+
+Before implementation:
+
+1. Read `SPEC.md` and this roadmap.
+2. Inspect current routes, APIs, domain/projection components, persistence, and tests.
+3. Inspect relevant Figma frames; state explicitly if visual assets could not be inspected.
+4. Identify the authoritative data and authorization contracts.
+5. Inventory existing functionality before adding routes, schemas, or auth infrastructure.
+6. Propose the smallest coherent vertical slice and list its acceptance criteria.
+7. Add/update tests for behaviour, routes, semantics, accessibility, and persistence boundaries.
+8. Verify responsive behaviour and keyboard interaction at the appropriate level.
+9. Report schema/API/semantic changes separately rather than silently changing ontology semantics.
+10. Record commits, test commands/results, limitations, blockers, and deferred scope.
+
+## Definition of roadmap completion
 
 The roadmap is complete when:
 
-- The new Deck is canonical at `/`.
-- The old flat Deck exists only as a legacy/reference route.
-- Explore/Browse is functional.
+- The new Deck is canonical and the old flat Deck is legacy/reference only.
+- Explore/Browse is functional over canonical data.
 - Graph remains canonical and server-authoritative.
 - Compose/Decompose is functional without contaminating canonical ontology.
 - Research Workspace is functional and distinct from authentication state.
 - Sources is functional and provenance-first.
-- Account participation integrates without contaminating `trope_graph`.
-- Shared visual/navigation patterns are used consistently.
-- Responsive and accessibility requirements are addressed.
-- Repository verification is green, or any remaining failures are explicitly documented as pre-existing/unrelated.
+- Account onboarding and participation integrate without contaminating `trope_graph` or silently migrating anonymous activity.
+- Shared visual/navigation patterns are coherent and accessible at supported viewports.
+- Security/privacy decisions are documented and product claims are scoped to verified facts.
+- Required repository checks are green, or remaining failures are explicitly documented as blocked/pre-existing with an owner and follow-up.
