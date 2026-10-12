@@ -39,6 +39,18 @@ const GENERATED_DIR = join(TROPE_CARDS_DIR, 'drizzle-kit/generated')
 const SCRATCH_DB = 'trope_graph_drift_check'
 const TARGET_SCHEMA = 'trope_graph'
 
+/**
+ * Extensions the graph schema depends on.
+ *
+ * Drizzle Kit emits the indexes that use these (`gin_trgm_ops` for the card search
+ * indexes) but never the `CREATE EXTENSION` statements, whereas the canonical
+ * migrations create them (`drizzle/0010_card_search.sql`). A scratch database built
+ * from `template1` therefore lacks the operator classes and the apply step aborts.
+ * Provisioning them here keeps both sources on equal footing. Extensions live outside
+ * the `trope_graph` schema, so they do not appear as compared facts.
+ */
+const REQUIRED_EXTENSIONS = ['pg_trgm', 'unaccent']
+
 /** Runs a command, returning stdout, and throws with stderr on failure. */
 const run = (command, args, options = {}) =>
   execFileSync(command, args, {
@@ -225,6 +237,18 @@ const main = () => {
     }
     runQuiet('createdb', [SCRATCH_DB])
     scratchCreated = true
+
+    for (const extension of REQUIRED_EXTENSIONS) {
+      runQuiet('psql', [
+        '-d',
+        SCRATCH_DB,
+        '-v',
+        'ON_ERROR_STOP=1',
+        '-q',
+        '-c',
+        `CREATE EXTENSION IF NOT EXISTS ${extension}`,
+      ])
+    }
 
     const sqlFile = join(workDir, 'generated.sql')
     writeFileSync(sqlFile, generatedSql)
