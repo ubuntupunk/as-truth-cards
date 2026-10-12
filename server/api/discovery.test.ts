@@ -49,6 +49,7 @@ function candidateRow(id = '11111111-1111-1111-1111-111111111111'): CandidateRow
     reviewedAt: null,
     reviewNotes: null,
     promotedSourceId: null,
+    revision: 0,
     createdAt: new Date('2026-10-12T00:00:00.000Z'),
   }
 }
@@ -87,12 +88,18 @@ class FakeService implements DiscoveryServicePort {
     decision: ReviewDecision
     reviewedBy: string
     notes: string | null
+    expectedRevision: number
   }) {
     this.reviewCalls.push(input)
     return this.reviewOutcome
   }
 
-  async promote(input: { id: string; sourceId: string; reviewedBy: string }) {
+  async promote(input: {
+    id: string
+    sourceId: string
+    reviewedBy: string
+    expectedRevision: number
+  }) {
     this.promoteCalls.push(input)
     return this.promoteOutcome
   }
@@ -316,8 +323,10 @@ describe('POST /api/discovery/candidates/:id/review', () => {
     const service = new FakeService()
     await withServer({ role: 'ADMIN', service }, async ({ request }) => {
       assert.equal(
-        (await request('POST', '/api/discovery/candidates/nope/review', { decision: 'APPROVED' }))
-          .status,
+        (await request('POST', '/api/discovery/candidates/nope/review', {
+          decision: 'APPROVED',
+          expectedRevision: 0,
+        })).status,
         400,
       )
     })
@@ -328,6 +337,7 @@ describe('POST /api/discovery/candidates/:id/review', () => {
     await withServer({ role: 'ADMIN', service }, async ({ request }) => {
       const response = await request('POST', `/api/discovery/candidates/${id}/review`, {
         decision: 'MAYBE',
+        expectedRevision: 0,
       })
       assert.equal(response.status, 400)
     })
@@ -338,8 +348,10 @@ describe('POST /api/discovery/candidates/:id/review', () => {
     service.reviewOutcome = { ok: false, reason: 'not_found' }
     await withServer({ role: 'ADMIN', service }, async ({ request }) => {
       assert.equal(
-        (await request('POST', `/api/discovery/candidates/${id}/review`, { decision: 'DEFERRED' }))
-          .status,
+        (await request('POST', `/api/discovery/candidates/${id}/review`, {
+          decision: 'DEFERRED',
+          expectedRevision: 3,
+        })).status,
         404,
       )
     })
@@ -350,19 +362,35 @@ describe('POST /api/discovery/candidates/:id/review', () => {
     service.reviewOutcome = { ok: false, reason: 'already_promoted' }
     await withServer({ role: 'ADMIN', service }, async ({ request }) => {
       assert.equal(
-        (await request('POST', `/api/discovery/candidates/${id}/review`, { decision: 'REJECTED' }))
-          .status,
+        (await request('POST', `/api/discovery/candidates/${id}/review`, {
+          decision: 'REJECTED',
+          expectedRevision: 0,
+        })).status,
         409,
       )
     })
   })
 
-  it('200s a recorded decision', async () => {
+  it('409s a stale review whose revision predates an intervening decision', async () => {
+    const service = new FakeService()
+    service.reviewOutcome = { ok: false, reason: 'stale' }
+    await withServer({ role: 'ADMIN', service }, async ({ request }) => {
+      const response = await request('POST', `/api/discovery/candidates/${id}/review`, {
+        decision: 'APPROVED',
+        expectedRevision: 1,
+      })
+      assert.equal(response.status, 409)
+      assert.match((response.body as { error: string }).error, /reload and retry/i)
+    })
+  })
+
+  it('200s a recorded decision against the read revision', async () => {
     const service = new FakeService()
     await withServer({ role: 'ADMIN', service }, async ({ request }) => {
       const response = await request('POST', `/api/discovery/candidates/${id}/review`, {
         decision: 'DEFERRED',
         notes: 'second look',
+        expectedRevision: 4,
       })
       assert.equal(response.status, 200)
       assert.deepEqual(service.reviewCalls[0], {
@@ -370,6 +398,7 @@ describe('POST /api/discovery/candidates/:id/review', () => {
         decision: 'DEFERRED',
         reviewedBy: 'user-1',
         notes: 'second look',
+        expectedRevision: 4,
       })
     })
   })
@@ -383,8 +412,10 @@ describe('POST /api/discovery/candidates/:id/promote', () => {
     const service = new FakeService()
     await withServer({ role: 'ADMIN', service }, async ({ request }) => {
       assert.equal(
-        (await request('POST', `/api/discovery/candidates/${id}/promote`, { sourceId: 'nope' }))
-          .status,
+        (await request('POST', `/api/discovery/candidates/${id}/promote`, {
+          sourceId: 'nope',
+          expectedRevision: 0,
+        })).status,
         400,
       )
     })
@@ -395,20 +426,41 @@ describe('POST /api/discovery/candidates/:id/promote', () => {
     service.promoteOutcome = { ok: false, reason: 'source_not_found' }
     await withServer({ role: 'ADMIN', service }, async ({ request }) => {
       assert.equal(
-        (await request('POST', `/api/discovery/candidates/${id}/promote`, { sourceId })).status,
+        (await request('POST', `/api/discovery/candidates/${id}/promote`, {
+          sourceId,
+          expectedRevision: 0,
+        })).status,
         400,
       )
     })
   })
 
-  it('200s an explicit promotion', async () => {
+  it('409s a promotion racing an intervening decision', async () => {
+    const service = new FakeService()
+    service.promoteOutcome = { ok: false, reason: 'stale' }
+    await withServer({ role: 'ADMIN', service }, async ({ request }) => {
+      const response = await request('POST', `/api/discovery/candidates/${id}/promote`, {
+        sourceId,
+        expectedRevision: 2,
+      })
+      assert.equal(response.status, 409)
+    })
+  })
+
+  it('200s an explicit promotion against the read revision', async () => {
     const service = new FakeService()
     await withServer({ role: 'ADMIN', service }, async ({ request }) => {
       const response = await request('POST', `/api/discovery/candidates/${id}/promote`, {
         sourceId,
+        expectedRevision: 5,
       })
       assert.equal(response.status, 200)
-      assert.deepEqual(service.promoteCalls[0], { id, sourceId, reviewedBy: 'user-1' })
+      assert.deepEqual(service.promoteCalls[0], {
+        id,
+        sourceId,
+        reviewedBy: 'user-1',
+        expectedRevision: 5,
+      })
     })
   })
 })

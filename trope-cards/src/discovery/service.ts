@@ -63,18 +63,20 @@ export interface DiscoveryServicePort {
   ): Promise<{ readonly items: CandidateRow[]; readonly total: number }>
   /** The append-only review/promotion history for one candidate, newest first. */
   listEvents(candidateId: string): Promise<ReviewEvent[]>
-  /** Record a review decision. */
+  /** Record a review decision against the revision the caller read. */
   review(input: {
     readonly id: string
     readonly decision: ReviewDecision
     readonly reviewedBy: string
     readonly notes: string | null
+    readonly expectedRevision: number
   }): Promise<ReviewOutcome>
-  /** Explicitly promote a candidate onto a canonical source. */
+  /** Explicitly promote a candidate onto a canonical source, against the read revision. */
   promote(input: {
     readonly id: string
     readonly sourceId: string
     readonly reviewedBy: string
+    readonly expectedRevision: number
   }): Promise<ReviewOutcome>
 }
 

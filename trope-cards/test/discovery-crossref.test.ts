@@ -266,27 +266,17 @@ describe('crossrefSourceTypeHint', () => {
 })
 
 describe('createCrossrefProvider retention and pagination scope', () => {
-  it('omits the raw payload by default', async () => {
+  it('never carries the raw provider record (retention unavailable)', async () => {
     const { fetch } = mockFetch([json(page([work()]))])
     const provider = createCrossrefProvider({ fetch, minIntervalMs: 0 })
 
     const records = await provider.search({ query: 'x', limit: 1 })
 
     assert.equal(records.length, 1)
-    assert.equal(records[0]!.rawPayload, undefined)
-  })
-
-  it('retains the raw payload only when explicitly opted in', async () => {
-    const { fetch } = mockFetch([json(page([work()]))])
-    const provider = createCrossrefProvider({
-      fetch,
-      minIntervalMs: 0,
-      retainRawPayload: true,
-    })
-
-    const records = await provider.search({ query: 'x', limit: 1 })
-
-    assert.deepEqual(records[0]!.rawPayload, work())
+    assert.ok(
+      !('rawPayload' in records[0]!),
+      'the port must not be able to express verbatim retention while report §5 is unresolved',
+    )
   })
 
   it('issues exactly one unpaginated request per search', async () => {

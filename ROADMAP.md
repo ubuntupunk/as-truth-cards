@@ -196,25 +196,28 @@ identifiers, one identifier → one source), `discovery_candidates` (a human rev
 not a source and not evidence), `source_metrics` (transparent attention/use observations,
 each with a required definition), and provenance/verification columns on `sources`.
 Migration `0013_discovery_review_events.sql` adds `discovery_candidate_events`, the
-append-only history of review decisions and promotions. No PlumX/Elsevier dependency was
-added; the layer is useful with open metadata on its own. Support semantics are unchanged:
-a discovered, cited, or popular source is not evidence, and the support chain still runs
-through `claim_sources`/`evidence_claims`.
+append-only history of review decisions and promotions; `0014_discovery_candidate_revision.sql`
+adds the `revision` optimistic-concurrency token the review queue needs to keep competing
+decisions mutually exclusive; and `0015_discovery_events_append_only.sql` installs triggers
+that make the event log append-only at the database, not merely by convention. No
+PlumX/Elsevier dependency was added; the layer is useful with open metadata on its own.
+Support semantics are unchanged: a discovered, cited, or popular source is not evidence, and
+the support chain still runs through `claim_sources`/`evidence_claims`.
 
 Per-deliverable status:
 
 | Deliverable | Status | Evidence |
 | --- | --- | --- |
 | Storage: identifiers, candidates, metrics, provenance columns | Implemented, verified | migration `0012` applied locally; `trope-cards/test/schema-research-sources.test.ts` (DB-free) + migrate-check round-trip |
-| Append-only review/promotion event log | Implemented, verified | migration `0013`; store integration test asserts one event per decision/promotion and none on refusal |
+| Append-only review/promotion event log | Implemented, verified | migrations `0013` + `0015`; store integration test asserts one event per decision/promotion, none on refusal, and that direct UPDATE/DELETE is rejected by the trigger |
 | Identifier normalization (DOI/URL/Crossref fallback) | Implemented, verified | `trope-cards/test/discovery-identifiers.test.ts` |
 | Crossref provider adapter (bounded rows, timeout, throttle, tolerant mapping, single-page) | Implemented, verified | `trope-cards/test/discovery-crossref.test.ts` (mocked HTTP) |
 | Discovery service (allow-list provider, limit clamp, dedupe) | Implemented, verified | `trope-cards/test/discovery-service.test.ts` |
 | Idempotent candidate ingest preserving review state | Implemented, verified | `trope-cards/test/discovery-store.integration.test.ts` (live Postgres) |
 | Explicit promotion; no auto-promotion, no evidence edge | Implemented, verified | store integration test (link only; `claim_sources`/`evidence_sources` stay empty) |
-| Concurrency-safe review/promote (atomic conditional update) | Implemented, verified | store integration test: two pool connections race; exactly one wins |
+| Concurrency-safe review/promote (revision-token conditional update) | Implemented, verified | migration `0014`; store integration tests: two promotions race, two reviews race, and a promotion races a review — exactly one decision applies and one consistent event is written; the loser is `stale`/`already_promoted` |
 | Review API: list / search / review / promote / events, admin-gated | Implemented, verified | `server/api/discovery.test.ts` (401/403, 400, 404, 409, 502) |
-| Default raw-payload retention | **Off by default** (reviewed opt-in only); retention terms unresolved | report §3.3/§5; adapter `retainRawPayload: false` |
+| Raw-payload retention | **Unavailable** while retention terms are unresolved | report §3.3/§5; no adapter option exists and `discovery_candidates.raw_payload` is a reserved, unpopulated column |
 | Provider pagination | Outstanding (single-page only) | report §7 |
 | Second provider (OpenCitations/DataCite/OpenAlex) | Outstanding | — |
 | Discovery-review UI | Outstanding (API-only today) | report §3.3 "Acceptance" |

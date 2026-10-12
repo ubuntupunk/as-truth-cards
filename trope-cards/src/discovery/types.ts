@@ -69,10 +69,12 @@ export type CandidateProvenance = {
  * One provider record, normalized to the fields the review queue stores.
  *
  * `identifiers` is the full normalized identifier set the provider supplied and is used for
- * reconciliation. `rawPayload` is optional and **off by default**: retaining a provider's
- * record verbatim is subject to that provider's licence, and while the retention/republication
- * review is unresolved the adapter must not persist it. A provider that has a *reviewed* reason
- * to retain the payload sets it explicitly; the store persists it only when present.
+ * reconciliation. There is deliberately no `rawPayload`: verbatim retention of a provider's
+ * record is subject to that provider's licence, and the retention/republication review in
+ * `docs/issue-12-plumx-research-report.md` §5 is unresolved. The port therefore cannot even
+ * express "keep it as received" — retention is *unavailable*, not merely off by default. The
+ * `discovery_candidates.raw_payload` column stays in the schema, reserved and unpopulated,
+ * until that review produces a recorded, reviewed basis for retention.
  */
 export type DiscoveredRecord = {
   readonly provider: string
@@ -85,7 +87,6 @@ export type DiscoveredRecord = {
   readonly url: string | null
   readonly identifiers: readonly NormalizedIdentifier[]
   readonly provenance: CandidateProvenance
-  readonly rawPayload?: unknown
   readonly query: string
 }
 

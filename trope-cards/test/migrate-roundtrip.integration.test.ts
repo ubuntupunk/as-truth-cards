@@ -46,6 +46,14 @@ describe(
         expected.includes('0013_discovery_review_events.sql'),
         'the review-event migration must be part of the canonical set',
       )
+      assert.ok(
+        expected.includes('0014_discovery_candidate_revision.sql'),
+        'the review-revision migration must be part of the canonical set',
+      )
+      assert.ok(
+        expected.includes('0015_discovery_events_append_only.sql'),
+        'the append-only migration must be part of the canonical set',
+      )
       assert.equal(
         result.skipped.length,
         expected.length,
