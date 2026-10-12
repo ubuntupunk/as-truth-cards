@@ -151,6 +151,37 @@ async function integrityChecks(): Promise<{
     )
   }
 
+  // B3 (§11 Q5, `as-truth-cards-o1t`): `relationships` is polymorphic and unconstrained by
+  // design, so the projection's defensive filter is the integrity story, and this mirrors it.
+  // A non-CARD row is dropped with a warning — the table's type-expansion path, not corruption
+  // — and therefore still an error here if it ever appears in the shipped corpus. A row that
+  // declares a CARD endpoint whose uuid does not exist is a dangling edge no view can emit.
+  const {
+    rows: [relationshipShape],
+  } = await db.execute<{ nonCard: number; dangling: number }>(sql`
+    SELECT
+      count(*) FILTER (
+        WHERE rel.from_entity_type <> 'CARD' OR rel.to_entity_type <> 'CARD'
+      )::int AS "nonCard",
+      count(*) FILTER (
+        WHERE (rel.from_entity_type = 'CARD'
+               AND NOT EXISTS (SELECT 1 FROM trope_graph.cards c WHERE c.id = rel.from_entity_id))
+           OR (rel.to_entity_type = 'CARD'
+               AND NOT EXISTS (SELECT 1 FROM trope_graph.cards c WHERE c.id = rel.to_entity_id))
+      )::int AS "dangling"
+    FROM trope_graph.relationships rel
+  `)
+  if (relationshipShape && relationshipShape.nonCard > 0) {
+    errors.push(
+      `${relationshipShape.nonCard} relationships row(s) are not CARD→CARD; the projection drops these with a warning and the shipped corpus must not contain them`,
+    )
+  }
+  if (relationshipShape && relationshipShape.dangling > 0) {
+    errors.push(
+      `${relationshipShape.dangling} relationships row(s) name a CARD endpoint that resolves to no card (see drizzle/0011_relationships_endpoint_integrity.sql)`,
+    )
+  }
+
   // Referential integrity below is guaranteed by foreign keys. These instead check that
   // the graph is actually wired up rather than merely well-formed.
   const {

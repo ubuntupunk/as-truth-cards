@@ -276,9 +276,9 @@ All five share the §3 node model and §4 edge model; only the allowed `(node, e
 
 - **B1 — RESOLVED, corpus and projection.** Was: `card_concepts` never populated, all 6 concepts orphaned, no `cardConcepts` insert anywhere. *Now:* Q2's corpus task is done. `card_concepts` has 12 rows across 8 cards, each link citing the card sentence that supports it, and the mechanism/concept slug collision is resolved (concepts 6→4; `collectivisation` and `racial-essentialism` were **removed from the concept vocabulary**, not renamed, because each restated an existing mechanism and a renamed duplicate would still be indistinguishable by slug). `anti-zionism` remains a deliberate orphan — no card discusses it, and inventing a link is what Q2 forbids — so the verifier names it as a recorded gap and still fails on any *new* orphan. 12 links reach 11 cards (`zionist-as-slur` carries two). *Projection side, now done:* `DrizzleGraphReader` loads `card_concepts` joined to `concepts`, carrying `definition` and the authored `relationship`; `taxonomy` emits one `ConceptNode` and one `HAS_CONCEPT` edge per row; v1 excludes the type by scope. **B1 is closed.**
 - **B2 — RESOLVED by the v0.11 corpus increment.** Was: 0 rows and no code path. The 5 authored rows now exist, written by `seed/claimRelations.ts` and read by the projection through `claimRelationCandidate`. *Resolved as:* `claim_relations` is **first-class, not duplicative**. It records that one claim stands in a stated relation to another; `inference_*` records that a conclusion follows from premises by a named inferential form. The two are different propositions, so a pair may legitimately appear in one and not the other — and `seed/claimRelations.ts` enforces that a pair already wired as an inference binding is never also written as a claim relation. No projection change was needed, which is what Q1 predicted.
-- **B3 — `relationships` is polymorphic with no referential integrity.** `from_entity_type`/`to_entity_type` are free text; `from_entity_id`/`to_entity_id` are unconstrained uuids with **no FKs**. A projection cannot verify an endpoint exists or that a `*_entity_type` string is a known type. *Effect:* reading `relationships` as a trusted edge source is unsafe for arbitrary types. *Mitigation (v1):* only project rows where both `*_entity_type == 'CARD'` and both uuids resolve to cards; surface any other row as a `meta.warnings[]` entry rather than dropping it silently. All 11 current rows are CARD→CARD, so v1 is safe today. *Decision:* harden to typed FKs / an entity-type enum, or keep polymorphic + defensive filter (§11 Q5).
+- **B3 — `relationships` is polymorphic with no referential integrity.** `from_entity_type`/`to_entity_type` are free text; `from_entity_id`/`to_entity_id` are unconstrained uuids with **no FKs**. A projection cannot verify an endpoint exists or that a `*_entity_type` string is a known type. *Effect:* reading `relationships` as a trusted edge source is unsafe for arbitrary types. *Mitigation (v1):* only project rows where both `*_entity_type == 'CARD'` and both uuids resolve to cards; surface any other row as a `meta.warnings[]` entry rather than dropping it silently. All 11 current rows are CARD→CARD, so v1 is safe today. *Decision (settled, `as-truth-cards-o1t`, §11 Q5):* type-qualified FKs / an entity-type enum are **rejected**; the polymorphic pair stays and the defensive filter is permanent. Trade-off documented in `ADR_GRAPH_LAYER.md` §5.1; provably dead rows cleaned by `drizzle/0011_relationships_endpoint_integrity.sql` and guarded by `verify-seed.ts`.
 - **B4 — Status is modelled inconsistently; a single cross-entity status filter is unsound.** `epistemic_status` is the `enum` on `cards`/`claims` but `text` on `inference_steps`/`argument_chains`; lifecycle uses four unrelated enums plus `inference_steps.is_canonical` (boolean) and `evidence_items.evidence_status` (text, no vocabulary). *Effect:* a projection offering one graph-wide "status" filter/rollup would be wrong. *Mitigation:* expose `epistemicStatus` per node type only (§3); no global status. *Decision (§11 Q4):* unify inference status onto the enum, or keep it deliberately decoupled per `EVIDENCE_LAYER.md`?
-- **B5 (evidence view only) — two competing source-attachment paths.** `claim_sources` (claim→source directly, with `quote_or_excerpt`/`page_reference`) bypasses the located-passage model, and a source can be reached four ways (`claim_sources`, `interpretation_sources`, `question_sources`, `evidence_sources`). `EVIDENCE_LAYER.md` says do not use `claim_sources` when the passage is known, but the table remains. *Effect:* the `evidence` view has no unambiguous claim→source path. Not a v1 blocker (0 rows). *Decision:* retire/deprecate `claim_sources` when the evidence corpus is populated. **Still open:** v0.11 added 6 `claim_sources` rows and 0 `evidence_items`, so the deprecation trigger has *not* fired. Those rows are bibliographic only — `relationship = ATTRIBUTED_TO` with `quote_or_excerpt` and `page_reference` null — which is the one use `EVIDENCE_LAYER.md` permits while the passage is unknown. Both the verifier and an integration test assert the quotes stay null, so the table cannot drift into impersonating the located-passage model.
+- **B5 (evidence view only) — two competing source-attachment paths.** `claim_sources` (claim→source directly, with `quote_or_excerpt`/`page_reference`) bypasses the located-passage model, and a source can be reached four ways (`claim_sources`, `interpretation_sources`, `question_sources`, `evidence_sources`). `EVIDENCE_LAYER.md` says do not use `claim_sources` when the passage is known, but the table remains. *Effect:* the `evidence` view has no unambiguous claim→source path. Not a v1 blocker (0 rows). *Decision (settled, `as-truth-cards-lpp`, §11 Q11):* `claim_sources` is **attribution only** — kept and documented as deprecated-when-the-passage-is-known, never a support path; claim→source support exists only through the evidence chain. The current 6 `claim_sources` rows are bibliographic (`ATTRIBUTED_TO`, quote/page null), the exact use the rule permits. Both the verifier and an integration test assert the quotes stay null, so the table cannot drift into impersonating the located-passage model.
 
 **Data gaps that are not schema defects but gate the richer views:** the evidence layer, `cases`, `interpretations`, and `questions` are schema-only (0 rows); only 2 cards have argument chains. `sources` and `claim_relations` are no longer gaps — v0.11 populated 3 and 5 respectively. Cards without claims fell from 41 to 34 with that increment; the remainder are tactic cards whose summaries describe an operation rather than assert a proposition, plus the deferred v0.4 corpus. These are corpus-population tasks, not blockers of the v1 projection.
 
@@ -328,11 +328,12 @@ Mirrors ADR §9, grounded in the findings above. Status as of the implementation
 2. ~~**Concept: first-class or retired?**~~ **settled** — first-class, populated (12 rows), projected in `taxonomy`; the mechanism/concept slug collision is resolved.
 3. **Suit vocabulary reconciliation (Issue #2).** Issue #2 names suits `CLASSIC/ZIONISM_CODED/REGIONAL/REFERENCE/CONTESTED`; the live collections are `classic/zionism-coded/south-africa/fact-rebuttal/foundational` and no `contested` collection exists. Which vocabulary is canonical? (Issue #2's decision; this design uses `collections` as-is.)
 4. **Epistemic status: unify or keep decoupled?** (B4) Should `inference_steps`/`argument_chains` migrate to the `epistemic_status` enum, or stay deliberately independent text per `EVIDENCE_LAYER.md` "never collapse these"? Affects node metadata and any status filter.
-5. **`relationships` hardening.** (B3) Keep polymorphic with a defensive projection filter, or migrate to typed FKs / an entity-type enum?
+5. ~~**`relationships` hardening.** (B3) Keep polymorphic with a defensive projection filter, or migrate to typed FKs / an entity-type enum?~~ **settled** — keep polymorphic + defensive filter as permanent (§11 Q5, `as-truth-cards-o1t`).
 6. **Are `argument_chains` first-class graph nodes, or grouping metadata on inference steps?** This design uses metadata; a chain-as-node model would enable chain-level focus/traversal.
 7. **Stable public identifiers.** Expose uuid only, or also slugs? `claims` have no slug. Related: should the API resolve a card by its human slug, uuid, or both?
 8. **Card identity across the two card models.** How should the graph `card` relate to the separate Prisma `public.cards` deck model (different ids/fields, no shared key) without creating a second ontology? This design does not bridge them.
 9. **Depth semantics.** Is `depth` a hop count across all edge families combined, or tracked per family (e.g. taxonomy depth vs argument depth)?
+10. ~~**Claim→source paths.** (B5) Which of the four attachment tables is authoritative for the `evidence` view?~~ **settled** — support via evidence, `claim_sources` is attribution-only (§11 Q11, `as-truth-cards-lpp`).
 10. **Projection caching/materialisation.** Computed on demand per request for v1; should a cache or materialised projection (e.g. per corpus version) be introduced on demonstrated need?
 
 ---
@@ -434,7 +435,11 @@ a card beyond the traversal frontier cannot produce a dangling edge.
 **Why.** The table has no FKs and free-text discriminators (B3). All 11 live rows are CARD→CARD, so
 this is safe today and *safe-by-construction* if tomorrow's rows are not.
 
-**Consequence.** A malformed row is visible, not silent. Follow-up: B3.
+**Consequence.** A malformed row is visible, not silent. B3 is **settled** (`as-truth-cards-o1t`):
+the polymorphic pair stays and this filter is permanent — the trade-off is documented in
+`ADR_GRAPH_LAYER.md` §5.1, provably dead rows are removed by
+`drizzle/0011_relationships_endpoint_integrity.sql`, and `verify-seed.ts` asserts the shipped
+corpus contains no non-CARD or dangling row.
 
 ### Q6 — Argument chains are step metadata; chain-as-node is future work
 
@@ -491,6 +496,31 @@ invalidation the domain has no vocabulary for yet.
 **Consequence.** Response is deterministic for identical input (asserted by test), and the
 projection cost is bounded by `maxNodes`.
 
+### Q11 — Claim→source: support is evidence-mediated; `claim_sources` is attribution only
+
+**Decision.** A claim reaches a source by two routes that never collapse. **Support** exists only
+through the evidence chain (`evidence_claims → evidence_items → evidence_sources`, the `evidence`
+edge families). `claim_sources` is **attribution only**: a bibliographic, passage-less record
+that a claim was read from a source, projected as the `source` family edge `ATTRIBUTED_TO`, and it
+is deprecated in the sense that editors must not add to it once a passage/page/data point is
+known — that goes into an evidence item (`EVIDENCE_LAYER.md`).
+
+**Why.** B5: a source is reachable from a claim through four tables (`claim_sources`,
+`interpretation_sources`, `question_sources`, `evidence_sources`), and `claim_sources` bypasses
+the located-passage model by recording no `where in the source`. `EVIDENCE_LAYER.md` already says
+not to attach a source directly when the passage is known, but the table remains populated
+(`ATTRIBUTED_TO`, quote/page null) because the corpus has no evidence rows yet — retiring it
+outright would leave no way to record a claim's bibliography. Keeping it with a documented rule
+(Option 1) preserves that, while making the evidence view unambiguous: the only claim→source path
+the view treats as support is the evidence chain.
+
+**Consequence.** `evidence_claims`, `evidence_sources`, `evidence_inferences`, `claim_sources`,
+`interpretation_sources` and `card_concepts` share one documented relation vocabulary in
+`docs/EVIDENCE_LAYER.md`, split into *structural* (DERIVED_FROM, USED_BY, …) and *asserted*
+(SUPPORTS, CHALLENGES, QUALIFIES, …) relations. The projection emits them in distinct families
+(`source` vs `evidence`), so an attribution edge can never be mistaken for support (asserted by
+test).
+
 ### Decision → blocking-issue map
 
 | Question | Decision | Blocking issue | Disposition |
@@ -499,13 +529,14 @@ projection cost is bounded by `maxNodes`.
 | Q2 | first-class Concept, read from authored rows only | B1 `card_concepts` | **closed** — 12 rows, projected in `taxonomy`, v1 excludes by scope |
 | Q3 | use live suits | Issue #2 owns Suit/Axis | not this issue's to settle |
 | Q4 | keep statuses decoupled | B4 inconsistent status modelling | deferred, documentation issue |
-| Q5 | defensive projection filter | B3 unconstrained `relationships` | deferred, hardening issue |
+| Q5 | keep polymorphic + defensive filter permanently; trade-off in ADR §5.1 | B3 unconstrained `relationships` | **settled** — `as-truth-cards-o1t`; `drizzle/0011_relationships_endpoint_integrity.sql` + `verify-seed.ts` |
 | Q6 | chains as metadata | — | revisit with the `argument` view |
 | Q7 | uuid canonical, slug alias | — | settled |
 | Q7b | node id stays bare uuid; uniqueness a contract invariant | `as-truth-cards-2bq` | **settled** — enforced by `assertUniqueNodeIds` |
 | Q8 | no Prisma bridge | — | settled |
 | Q9 | depth = hops | — | settled |
 | Q10 | on-demand only | — | settled until demonstrated need |
+| Q11 | support via evidence; `claim_sources` attribution-only | B5 competing attach paths | **settled** — `as-truth-cards-lpp`; rule in `EVIDENCE_LAYER.md` |
 
 ---
 
