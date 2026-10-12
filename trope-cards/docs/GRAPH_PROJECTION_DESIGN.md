@@ -502,6 +502,7 @@ projection cost is bounded by `maxNodes`.
 | Q5 | defensive projection filter | B3 unconstrained `relationships` | deferred, hardening issue |
 | Q6 | chains as metadata | — | revisit with the `argument` view |
 | Q7 | uuid canonical, slug alias | — | settled |
+| Q7b | node id stays bare uuid; uniqueness a contract invariant | `as-truth-cards-2bq` | **settled** — enforced by `assertUniqueNodeIds` |
 | Q8 | no Prisma bridge | — | settled |
 | Q9 | depth = hops | — | settled |
 | Q10 | on-demand only | — | settled until demonstrated need |
@@ -701,19 +702,24 @@ depth-bounded, filtered slice — so a mutation cannot be promoted to canonical 
 about which view asserted it and with what authority. Issue #3 lists graph editing as a non-goal
 for this reason, not merely as scope.
 
-**The id question was deliberately left open.** Issue #3 asks whether `GraphNode.id` should
-become type-qualified. This layer does not answer it, because the adapter does not need to: node
-ids are `trope_graph` uuids and edge ids are `family|from|TYPE|to[|discriminator]`, so a uuid
-cannot contain the `|` delimiter and the two id spaces cannot collide. That is now pinned by a
-test rather than asserted here, and it is tracked as a graph-contract hardening item
-(`as-truth-cards-2bq`) rather than left to a future reader. What makes it non-optional is
-Cytoscape's silence about ids —
-measured against 3.34.3, two nodes sharing an id merge into one node, two edges sharing an id
-merge into one edge, and an edge whose id equals a node id is **discarded with no error**, so a
-projection bug would render a quietly smaller graph with nothing failing. The adapter therefore
-refuses all three (`CytoscapeAdapterError`) rather than disambiguating. If a type-qualified id
-scheme ever produces a real collision, the correct response is to stop and take it to Issue #3,
-not to prefix ids inside a presentation layer.
+**The id question is decided: node ids stay bare uuids.** Issue #3 asked whether `GraphNode.id`
+should become type-qualified (e.g. `card:<uuid>`). The decision (`as-truth-cards-2bq`) is **not
+to** type-qualify it, for v1. Node ids are `trope_graph` uuids and edge ids are
+`family|from|TYPE|to[|discriminator]`; a uuid cannot contain the `|` delimiter, so the two id
+spaces cannot collide. Type-qualifying would be a wire-contract change — this field,
+`GraphEdge.from`/`to`, `focus.id`, the server query, and every client that stores a node id —
+with no reachable bug behind it, since each node type is projected from its own table with its own
+uuid primary key. What the question actually guards against is now a **contract invariant**, not an
+adapter convenience: `projection.ts`'s `assertUniqueNodeIds` refuses a projection whose node ids
+are not unique or contain `|`, both adapters refuse non-unique ids, and
+`test/cytoscape-adapter.test.ts` pins node-id/edge-id disjointness end to end. What makes the guard
+non-optional is Cytoscape's silence about ids — measured against 3.34.3, two nodes sharing an id
+merge into one node, two edges sharing an id merge into one edge, and an edge whose id equals a
+node id is **discarded with no error**, so a projection bug would render a quietly smaller graph
+with nothing failing. **Revisit at the contract layer** (`types.ts` + `projection.ts` + both
+adapters + their tests) if a real cross-kind collision is ever observed, or if any scheme is
+adopted that lets a node id contain `|`; never prefix or deduplicate ids inside a presentation
+layer.
 
 ### Deliberately not built
 

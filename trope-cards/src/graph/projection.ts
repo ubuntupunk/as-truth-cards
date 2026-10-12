@@ -148,6 +148,52 @@ export class GraphFocusNotFoundError extends Error {
   }
 }
 
+/**
+ * Thrown when a computed projection would violate a graph-contract invariant.
+ *
+ * Only one invariant is enforced here: node identity. Every emitted {@link GraphNode.id} must be
+ * unique within a projection and must not contain the `|` edge-id delimiter. Node ids are bare
+ * `trope_graph` uuids (Q7) while {@link buildEdgeId} namespaces edges as
+ * `family|from|TYPE|to[|discriminator]`, and those two facts are what keep the node and edge id
+ * spaces disjoint. The projection's own bookkeeping is keyed by `type|id` (see `refKey`), so a
+ * cross-kind uuid collision — one card and one claim sharing a uuid — would otherwise emit two
+ * nodes with the same bare id and silently merge their degrees and edge endpoints. This error
+ * turns that into a loud contract failure at the boundary rather than a quietly smaller graph
+ * inside an adapter. Type-qualifying `GraphNode.id` was considered and rejected for v1
+ * (`as-truth-cards-2bq`); see {@link GraphNodeBase.id}.
+ */
+export class GraphProjectionInvariantError extends Error {
+  constructor(readonly detail: string) {
+    super(`Graph projection violates a contract invariant: ${detail}`)
+    this.name = 'GraphProjectionInvariantError'
+  }
+}
+
+/**
+ * Enforce the node-id half of the graph projection contract before a projection is returned.
+ *
+ * @param nodes The nodes about to be emitted.
+ * @throws {GraphProjectionInvariantError} If a node id contains the `|` edge-id delimiter, or two
+ * nodes share an id — the latter only reachable if two node types collide on one uuid, since
+ * `refKey` keeps within-type ids distinct.
+ */
+function assertUniqueNodeIds(nodes: readonly GraphNode[]): void {
+  const seen = new Set<string>()
+  for (const node of nodes) {
+    if (node.id.includes('|')) {
+      throw new GraphProjectionInvariantError(
+        `node id "${node.id}" contains the edge-id delimiter "|"`,
+      )
+    }
+    if (seen.has(node.id)) {
+      throw new GraphProjectionInvariantError(
+        `node id "${node.id}" is emitted more than once; node ids must be unique across node types`,
+      )
+    }
+    seen.add(node.id)
+  }
+}
+
 /** Map key for a node reference. */
 function refKey(ref: NodeRef): string {
   return `${ref.type}|${ref.id}`
@@ -300,6 +346,7 @@ export async function projectGraph(
   warnings.push(...(await populationWarnings(reader, view)))
 
   const nodeList = buildNodes(refs, distances, focusRef, hydration, warnings)
+  assertUniqueNodeIds(nodeList)
   // Normalising against the nodes that were *actually emitted* rather than the refs that
   // were discovered is what makes invariant 1 hold for references hydration could not
   // resolve. A `relationships` row pointing at a deleted card produces a discovered ref, an

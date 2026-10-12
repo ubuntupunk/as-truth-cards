@@ -391,6 +391,25 @@ type GraphNodeBase<T extends GraphNodeType> = {
    * Issue #3 Q7. Never a slug, a title, or a `claim.statement`: `claims` has no slug at all,
    * and text identity would change whenever an author rewrites a sentence. Slugs appear only
    * as `metadata.slug` on the node types that have one, and as a `focus` alias.
+   *
+   * The id is the **bare** uuid, not a type-qualified one such as `card:<uuid>`. Issue #3 asked
+   * whether to type-qualify it; the decision (`as-truth-cards-2bq`) is **not to**, for v1:
+   *
+   * - The presentation layer does not need it. {@link GraphEdge.id} is a deterministic composite
+   *   `family|from|TYPE|to[|discriminator]` and a uuid cannot contain `|`, so node and edge ids
+   *   occupy disjoint spaces and cannot collide.
+   * - Qualifying is a wire-contract change (this field, `GraphEdge.from`/`to`, `focus.id`, the
+   *   server query and every client that stores a node id) with no reachable bug behind it: each
+   *   node type is projected from its own table with its own uuid primary key.
+   * - What the question actually guards against — two node types colliding on one uuid — is now
+   *   a contract invariant rather than an adapter convenience: `assertUniqueNodeIds` in
+   *   `projection.ts` refuses a projection whose node ids are not unique or contain `|`, both
+   *   adapters refuse non-unique ids, and `test/cytoscape-adapter.test.ts` pins that a node id
+   *   can never equal an edge id.
+   *
+   * Revisit at the **contract layer** (`types.ts` + `projection.ts` + both adapters + their
+   * tests) if a real cross-kind collision is ever observed, or if any scheme is adopted that lets
+   * a node id contain `|`. Never prefix or deduplicate ids inside a presentation adapter.
    */
   readonly id: string
   readonly type: T
