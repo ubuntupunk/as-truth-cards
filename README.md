@@ -222,6 +222,7 @@ Set the `sync: false` variables in the Render dashboard. They are deliberately n
 | `DATABASE_URL` | yes | Neon Postgres connection string. Serves the Prisma `public` schema and the Drizzle `trope_graph` schema |
 | `BETTER_AUTH_SECRET` | yes | Session signing. Render generates it once from the blueprint. **Without it the deploy looks healthy but is not secure** — see below. Rotating it logs out every session |
 | `BETTER_AUTH_URL` | yes | Public origin, e.g. `https://as-truth-cards.onrender.com`. Better Auth validates the `Origin` header against it |
+| `CORS_ORIGINS` | no | Comma-separated browser origins that may call `/api/*` cross-origin. Overrides the default allow-list (`http://localhost:8080`, `http://localhost:3001`, plus `BETTER_AUTH_URL` in production). Never `*`. See [Reverse proxy and origins](#reverse-proxy-and-origins) |
 | `NODE_ENV` | set by blueprint | `production`, which is what enables serving `dist/` |
 | `TROPE_GRAPH_DATABASE_URL` | no | Only if the graph lives in a *different* database from the host app. Takes precedence over `DATABASE_URL`. Do not set it to an empty string — that is not treated as unset |
 | `TROPE_GRAPH_ALLOW_REMOTE` | set by blueprint | `1`. Required for the manual seed step above; the seeder and verifier read this and have no CLI flag |
@@ -234,6 +235,25 @@ The build-time guarantee: in production, `server/auth.ts` calls `assertAuthSecre
 Generate one with `openssl rand -base64 32`.
 
 Local development uses a different set — see `.env.example`.
+
+### Reverse proxy and origins
+
+The Express server trusts **exactly one reverse-proxy hop** (`app.set('trust proxy', 1)`), so
+behind Render's edge `req.ip` resolves to the client address from `X-Forwarded-For` and
+`req.protocol`/`req.secure` reflect `X-Forwarded-Proto` (public HTTPS reads as `https`). This
+matters because Better Auth records IP/user-agent in account/session records. The second
+trusted hop is never enabled, and `X-Forwarded-For`/`X-Forwarded-Proto` arrive overwritten by
+Render — if a deploy check ever shows `req.ip` as a proxy or `10.*` address, re-verify Render's
+header semantics before shipping.
+
+CORS is an **explicit allow-list**, never the package default and never `*`: the SPA is
+same-origin in production, and the only cross-origin consumers are the known development
+origins (`:8080`, `:3001`) — the same list Better Auth already trusts. A disallowed browser
+origin receives no `Access-Control-Allow-Origin` and is blocked by the browser; non-browser
+callers (curl, health checks) are unaffected. Add any sanctioned consumer to `CORS_ORIGINS`.
+Session cookies are `Secure` (https base URL) + `SameSite=Lax` + `httpOnly` by Better Auth
+default; no override is set. The policy is reviewed and tested in
+[`docs/issue-10-security-review.md`](docs/issue-10-security-review.md) (`server/security-policy.test.ts`).
 
 ### Deploying by hand
 
