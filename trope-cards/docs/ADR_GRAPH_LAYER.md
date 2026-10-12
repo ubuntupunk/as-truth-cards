@@ -306,9 +306,11 @@ A future change of visualization library should not require an ontology or API r
    database access and no `cytoscape.Core` instantiated. It copies ids, direction, `family`,
    `relation`, `sourceTable`, `traversal` and per-node `status`/`classification`/`metadata`
    unchanged, and derives only stylesheet `classes`. It deliberately does **not** resolve the
-   open type-qualified `GraphNode` id question; it refuses id collisions instead, because
-   Cytoscape silently merges duplicate ids and silently discards an edge whose id matches a node
-   id. The UI itself (layout, stylesheet, lazy-loading) remains.
+   `GraphNode` id question itself; it refuses id collisions instead, because Cytoscape silently
+   merges duplicate ids and silently discards an edge whose id matches a node id. That question
+   (`as-truth-cards-2bq`) is now **decided at the contract layer**: node ids stay bare uuids and
+   the projection refuses a non-unique or `|`-containing node id (see §11 of
+   `GRAPH_PROJECTION_DESIGN.md`). The UI itself (layout, stylesheet, lazy-loading) remains.
 7. Connect Card, Claim, Source, Evidence, and Argument views to graph selections.
 8. Add richer graph projections as the corpus becomes populated.
 9. Consider persisted derived metrics only when there is a demonstrated product need.

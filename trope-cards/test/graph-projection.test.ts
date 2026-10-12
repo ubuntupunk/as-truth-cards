@@ -3,6 +3,7 @@ import { describe, it } from 'node:test'
 
 import {
   GraphFocusNotFoundError,
+  GraphProjectionInvariantError,
   buildEdgeId,
   projectGraph,
 } from '../src/graph/projection'
@@ -182,6 +183,49 @@ describe('invariant 2: node and edge ids are unique and deterministic', () => {
       buildEdgeId('card_relationship', 'a', 'SUPPORTS', 'b'),
     )
     assert.equal(buildEdgeId('domain', 'a', 'ASSERTS', 'b'), 'domain|a|ASSERTS|b')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Q7b: node ids stay bare uuids — the projection enforces the invariant
+// ---------------------------------------------------------------------------
+
+describe('Q7b: the projection refuses ids that break the bare-uuid contract', () => {
+  it('throws when two node types collide on one bare uuid', async () => {
+    // A card and one of its own claims sharing a uuid. `refKey` keys them as `card|sha-1` and
+    // `claim|sha-1`, so they are distinct nodes internally; only the emitted bare id collides.
+    // Before the guard this projected two nodes with the same id, silently merging degrees and
+    // endpoints, and only an adapter noticed.
+    const corpus: FakeCorpus = {
+      ...emptyCorpus(),
+      cards: [card({ id: 'sha-1', slug: 'shared-uuid' })],
+      claims: [
+        claim({ id: 'sha-1', cardId: 'sha-1', statement: 'A claim sharing its card uuid' }),
+      ],
+    }
+    await assert.rejects(
+      project(corpus, { focus: 'sha-1', depth: 1 }),
+      (err) =>
+        err instanceof GraphProjectionInvariantError &&
+        /emitted more than once/.test(err.message),
+      'a cross-kind uuid collision must fail at the projection boundary',
+    )
+  })
+
+  it('throws when a node id contains the edge-id delimiter', async () => {
+    // Unreachable with real uuids, which is the point: if the id scheme ever lets a node id
+    // contain `|`, the node and edge id spaces could overlap, so the projection refuses it.
+    const corpus: FakeCorpus = {
+      ...emptyCorpus(),
+      cards: [card({ id: 'a|b', slug: 'delimiter' })],
+    }
+    await assert.rejects(
+      project(corpus, { focus: 'a|b', depth: 0 }),
+      (err) =>
+        err instanceof GraphProjectionInvariantError &&
+        /contains the edge-id delimiter/.test(err.message),
+      'a node id containing "|" must fail at the projection boundary',
+    )
   })
 })
 

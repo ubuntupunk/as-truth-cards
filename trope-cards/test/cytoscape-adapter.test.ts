@@ -762,12 +762,12 @@ describe('projection -> Cytoscape: a real cytoscape core accepts the output', ()
 
 describe('projection -> Cytoscape: the id contract holds without a type-qualified id', () => {
   it('never lets a node id equal an edge id, because the delimiters cannot overlap', async () => {
-    // The open graph-contract question is whether `GraphNode.id` should become type-qualified.
-    // This phase must not decide it. What it can do is prove the collision is impossible under
-    // today's ids: node ids are `trope_graph` primary-key uuids and `buildEdgeId` always emits
-    // `family|from|TYPE|to[|discriminator]`, so a node id can contain no `|`. If that ever stops
-    // being true, the guard below fires and the adapter refuses rather than disambiguating.
-    // Tracked as `as-truth-cards-2bq`.
+    // The `GraphNode` id question (`as-truth-cards-2bq`) is decided: node ids stay bare uuids,
+    // not type-qualified. This proves the collision is impossible under that decision: node ids
+    // are `trope_graph` primary-key uuids and `buildEdgeId` always emits
+    // `family|from|TYPE|to[|discriminator]`, so a node id can contain no `|`. The adapter guards
+    // below fire if that ever stops being true, and `projection.ts`'s `assertUniqueNodeIds`
+    // refuses it at the contract layer first.
     const { projection, elements } = await adapt()
     for (const node of projection.nodes) {
       assert.ok(

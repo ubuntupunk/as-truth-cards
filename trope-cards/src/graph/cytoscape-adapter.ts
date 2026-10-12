@@ -39,14 +39,16 @@
  * and nothing would fail. Every guard below exists to turn that into a throw, because "the view
  * quietly shows fewer nodes than the projection emitted" is the exact failure this phase forbids.
  *
- * The cross-kind collision is the sharp one, and it is also the reason the adapter does not
- * need to solve the outstanding type-qualified `GraphNode` id question. `types.ts` fixes node
- * ids to `trope_graph` primary-key uuids while `buildEdgeId` always emits
- * `family|from|TYPE|to[|discriminator]`. A uuid contains no `|`, so a node id and an edge id
- * cannot be equal by construction — `test/cytoscape-adapter.test.ts` pins that invariant rather
- * than leaving it to this comment. If the id contract ever changes to something type-qualified
- * and a real collision appears, the correct response is to stop and report (Issue #3), not to
- * disambiguate ids inside a presentation adapter. Tracked as `as-truth-cards-2bq`.
+ * The cross-kind collision is the sharp one, and it is now handled at the contract layer rather
+ * than here. The `GraphNode` id question (`as-truth-cards-2bq`) is decided: node ids stay bare
+ * `trope_graph` primary-key uuids rather than becoming type-qualified. `types.ts` fixes node ids
+ * to those uuids while `buildEdgeId` always emits `family|from|TYPE|to[|discriminator]`. A uuid
+ * contains no `|`, so a node id and an edge id cannot be equal by construction.
+ * `projection.ts`'s `assertUniqueNodeIds` refuses a projection whose node ids are non-unique or
+ * contain `|`, and `test/cytoscape-adapter.test.ts` pins the node-id/edge-id disjointness end to
+ * end. This adapter keeps its own guards as defence in depth. If an id scheme is ever adopted
+ * that lets a node id contain `|`, the response is to stop and resolve it at the contract layer,
+ * not to disambiguate ids inside a presentation adapter.
  *
  * ## Semantic identity vs presentation metadata
  *
