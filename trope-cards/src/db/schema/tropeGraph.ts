@@ -356,6 +356,18 @@ export const sources = tropeGraph.table(
     archiveUrl: text('archive_url'),
     citation: text('citation'),
     description: text('description'),
+    // Provenance/verification metadata added by migration 0012. Nullable: the authored
+    // corpus predates any provider retrieval and must not be forced to invent one. These
+    // describe where the *record* came from, not whether the source proves anything.
+    metadataProvider: text('metadata_provider'),
+    metadataRetrievedAt: timestamp('metadata_retrieved_at', {
+      withTimezone: true,
+    }),
+    metadataVerifiedAt: timestamp('metadata_verified_at', {
+      withTimezone: true,
+    }),
+    accessStatus: text('access_status'),
+    correctionStatus: text('correction_status'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
