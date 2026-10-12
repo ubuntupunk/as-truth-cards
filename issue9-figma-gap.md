@@ -310,7 +310,7 @@ A genuine interaction harness was built so the verification is **not** code-leve
 ### 6.1 Legend and standing caveats
 
 - Status vocabulary: **implemented**, **verified**, **partially implemented**, **blocked**, **deferred**.
-- **No route test for canonical vs legacy routing.** There is no automated assertion that `/` renders `Deck` and `/legacy/deck` renders `LegacyDeck` (`src/App.tsx:31-32`). This is the single explicit unmet acceptance criterion in Milestone 1.
+- **Canonical vs legacy routing is now tested.** `src/app-routes.test.tsx` (commit `e30898d`) runs react-router's own matcher (`matchRoutes`, a pure function) over the exported `APP_ROUTES` table and asserts `/` → `Deck`, `/legacy/deck` → `LegacyDeck` (and not `Deck`), unknown paths → `NotFound`, every header destination resolves to a real surface, and the legacy route stays **out of** `NAV_ENTRIES`. This closes the one explicit unmet Milestone 1 criterion. The table was extracted out of `App.tsx` into `src/app-routes.tsx` so it is assertable without mounting a browser router (`App` maps it into `<Route>`s).
 - **`trope-graph:check` environment caveat (see §6.3, landmark 10):** the gate still requires `TROPE_GRAPH_DATABASE_URL` to be exported (the graph scripts do not load `.env`). The former `check-drift` extension-provisioning blocker is **fixed** in `trope-cards/scripts/check-drift.mjs` (this pass); the gate no longer depends on manually provisioning `pg_trgm`/`unaccent` in `template1`.
 - **Automation channel limit:** BiDi synthetic `Enter`/`Space` do not activate buttons; real XTest OS-level keys do. The keyboard pass therefore uses XTest, not BiDi key actions (`tools/bidi-firefox/`).
 
@@ -318,7 +318,7 @@ A genuine interaction harness was built so the verification is **not** code-leve
 
 | # | Landmark | Route integrity | Navigation usability | Status | Evidence (class · object) | Remaining acceptance test |
 |---|---|---|---|---|---|---|
-| 1 | **Decks `/` + legacy route** | `/` → `src/pages/Deck.tsx`; `/legacy/deck` → `src/pages/LegacyDeck.tsx` (`src/App.tsx:31-32`). Legacy uses the legacy `/api/cards` store, labelled legacy/reference. | `/` is the first `NAV_ENTRIES` destination ("Decks"); legacy is intentionally **absent** from nav. | **partially implemented** (feature shipped; route criterion untested) | A · app — `test:ui` 479/479 incl. `featured-card.test.tsx` face/state tests; commit `9b71931`. | **Missing test:** assert `/` → Deck and `/legacy/deck` → LegacyDeck (and that legacy is not in `NAV_ENTRIES`). This is the Milestone 1 "route/navigation tests" criterion. |
+| 1 | **Decks `/` + legacy route** | `/` → `src/pages/Deck.tsx`; `/legacy/deck` → `src/pages/LegacyDeck.tsx`, via the exported `APP_ROUTES` table (`src/app-routes.tsx`) mapped in `src/App.tsx:17-23`. Legacy uses the legacy `/api/cards` store, labelled legacy/reference. | `/` is the first `NAV_ENTRIES` destination ("Decks"); legacy is intentionally **absent** from nav. | **implemented + verified** (feature shipped; routing criterion covered by test) | A · app — `test:ui` **487/487** incl. new `app-routes.test.tsx` (8 assertions: `/`, `/legacy/deck`, catch-all, per-path uniqueness, nav↔route contract) + `featured-card.test.tsx` face/state tests; commits `9b71931`, `e30898d`. | None for M1 routing. Deck surface responsive/a11y review remains under landmark 8. |
 | 2 | **Graph Explorer `/graph`** | `src/pages/Graph.tsx` → `useGraphPage` (`GET /api/graph`, `/api/graph/views`, `/api/graph/search`). Real canonical projection. | Nav entry "Graph"; reachable ≤1 click at all widths. | **implemented + backend verified**; surface acceptance outstanding | A · app — `trope-graph:check` 452/452 incl. `GET /api/graph`, `/views`, `/search` integration; server-authoritative. | Surface-level responsive/a11y review of the Explorer UI (not the API); not yet formalised in the sprint. |
 | 3 | **Explore / Browse `/explore`** | `src/pages/Explore.tsx` → `useDeckCards()` + `useCardSearch()` (`GET /api/graph/search`). Real canonical. | Nav entry "Explorer"; reachable ≤1 click. | **implemented**; surface acceptance outstanding | C · app — code inspection; `GET /api/graph/search` covered by graph tests. | Documented + tested **search/filter semantics and limits**; in/out-of-result context preservation; responsive/a11y. Coordinate the shared search contract with **Issue #8** before page-specific search hardens (ROADMAP M3). |
 | 4 | **Compose / Decompose `/research/compose`** | `src/pages/Compose.tsx` → canonical projection + `GET/PUT/DELETE /api/drafts/*`. Real; writes are auth-gated (401 signed-out). | Nav entry "Compose"; reachable ≤1 click. | **partially implemented** | A · app — `drafts.test.ts` (401 signed-out, cross-user isolation ✓); `compose-editor.test.tsx` `PermissionGate`. | **Blocked by the account layer:** the "Sign in" handoff navigates to `/admin`, which renders "Sign in required" with **no sign-in form** — a dead end. Complete end-to-end composition + account gate once onboarding exists (ROADMAP M4). |
@@ -329,7 +329,7 @@ A genuine interaction harness was built so the verification is **not** code-leve
 | 9 | **Privacy / security follow-ups** | `/privacy` renders audited app-side flows; provider (Render/Neon) logging explicitly labelled **unverified**. | Footer link (`FOOTER_LINKS`), reachable ≤1 click. | **partially implemented**; security **deferred → Issue #10** | M/C · app + provider — privacy copy tightened (`server/index.ts` has no request-logging middleware); provider behaviour **not** attested. | Issue #10: intentional CORS policy (default `cors()` today), trusted-proxy/IP, Better Auth cookie Secure/SameSite behind the Render proxy, and tests. **Not** folded into visual cleanup. |
 | 10 | **Full repo + deployment verification** | n/a | n/a | **verified with documented caveats** | A · app (+ provider not exercised) | See §6.3. |
 
-### 6.3 Landmark 10 — verification log (HEAD `851ba72`)
+### 6.3 Landmark 10 — verification log (HEAD `e30898d`)
 
 | Gate | Command | Result | Notes |
 |---|---|---|---|
@@ -337,7 +337,7 @@ A genuine interaction harness was built so the verification is **not** code-leve
 | Typecheck (all projects) | `pnpm run typecheck:all` | ❌ fail | **Pre-existing baseline** — `src/components/ui/{resizable,sheet,sidebar,skeleton,sonner}.tsx` (preact vs `React` namespace, union type mismatches). Untouched by this work. |
 | Lint | `pnpm run lint` | ❌ 14 errors / 9 warnings / 1 info | **Pre-existing baseline**; 0 in files changed this sprint. |
 | Server tests | `pnpm run test:server` | ✅ 53/53 | |
-| UI tests | `pnpm run test:ui` | ✅ 479/479 | Includes 3 new face tests from `9b71931`. |
+| UI tests | `pnpm run test:ui` | ✅ 487/487 | Includes 3 face tests from `9b71931` and 8 routing assertions from `app-routes.test.tsx` (`e30898d`). |
 | Build | `pnpm run build` | ✅ pass | Chunk-size warning (892 kB JS) — pre-existing. |
 | Trope graph gate | `pnpm run trope-graph:check` | ✅ pass **with conditions** | migrate:check ✓ · validate ✓ · typecheck:graph ✓ · verify ✓ · tests **452/452** ✓ · check-drift ✓ (`drift:false`, 406 facts). |
 
