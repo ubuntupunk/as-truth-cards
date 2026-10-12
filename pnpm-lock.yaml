@@ -179,6 +179,9 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@3.4.17)
+      tsx:
+        specifier: ^4.19.0
+        version: 4.21.0
       vaul:
         specifier: ^0.9.3
         version: 0.9.9(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -231,9 +234,6 @@ importers:
       tailwindcss:
         specifier: 3.4.17
         version: 3.4.17
-      tsx:
-        specifier: ^4.19.0
-        version: 4.21.0
       typescript:
         specifier: ^5.5.3
         version: 5.9.3

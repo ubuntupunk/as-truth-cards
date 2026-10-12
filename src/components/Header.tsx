@@ -21,6 +21,11 @@ import { ThemeToggle } from './ThemeToggle'
  * ~648px), so the entries move into a toggleable menu behind a hamburger button.
  * That keeps every primary destination reachable at 320–375px instead of
  * overflowing a `fixed` header that produces no scroll to recover them.
+ *
+ * The brand renders with an editorial sub-heading identifying the project's
+ * scope. It lives in its own `min-w-0` column so it wraps instead of widening
+ * the header on narrow viewports, which would otherwise reintroduce the
+ * clipping this responsive nav exists to prevent.
  */
 type NavEntry = {
   label: string
@@ -110,10 +115,18 @@ const Header = () => {
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4',
       )}
     >
-      <div className="container mx-auto flex justify-between items-center">
-        <Link to="/" className="text-2xl font-medium tracking-tight hover-lift">
-          Trope Deck
-        </Link>
+      <div className="container mx-auto flex justify-between items-center gap-4">
+        <div className="flex min-w-0 flex-col">
+          <Link
+            to="/"
+            className="self-start text-2xl font-medium tracking-tight hover-lift"
+          >
+            Trope Deck
+          </Link>
+          <span className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
+            Antisemitism Ontologies &amp; Counter-Tactics
+          </span>
+        </div>
 
         <div className="flex items-center gap-2 md:gap-4">
           <nav
