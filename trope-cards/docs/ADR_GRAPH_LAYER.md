@@ -206,6 +206,42 @@ with explicit relations such as:
 
 The graph UI may present a simplified view such as “evidence supporting this claim” or “claims challenging this claim”, but those labels must be projections of canonical relationships.
 
+### 5.1 `relationships` stays polymorphic (B3, `as-truth-cards-o1t`)
+
+`relationships` has free-text `from_entity_type` / `to_entity_type` and unconstrained uuid
+endpoints with no foreign keys. Hardening to typed FKs (Option 1) is the only way to prevent a
+dangling edge at write time, but it was rejected: it is the largest possible schema change for a
+problem no live corpus has (all 11 rows are CARD→CARD), and the projection layer already refuses
+everything it cannot trust. The accepted trade-off:
+
+- **Adopted (Option 3):** the projection trusts a row only when both discriminators are exactly
+  `CARD` and both uuids resolve to cards; every other row is dropped and recorded in
+  `meta.warnings[]`. `drizzle/0011_relationships_endpoint_integrity.sql` removes rows that are
+  provably dead (a `CARD` endpoint naming no card), and `verify-seed.ts` asserts the shipped
+  corpus contains no non-CARD or dangling row.
+- **Given up:** a dangling CARD edge can still be inserted by hand. It will never render: the
+  projection drops it, the endpoint re-check drops it even if it traversed, and verify-seed fails
+  on it. The cost of carelessness is a visible warning, not a wrong graph.
+
+The projection's filter is the integrity story, and it is deliberately narrower than the table:
+non-CARD rows are the type-expansion path, and a future entity type must bring its own integrity
+story rather than relying on the polymorphic pair to validate it.
+
+### 5.2 Claim→source support goes through evidence (B5, `as-truth-cards-lpp`)
+
+A claim may reach a source by two routes: `claim_sources` (direct attribution) and the evidence
+chain (`evidence_claims → evidence_items → evidence_sources`). They are not interchangeable and
+never collapse:
+
+- **Support** is evidence-mediated only. When a passage/page/data point is known, the editor
+  records it as an evidence item, and the claim→source support edge exists only through that
+  chain.
+- **Attribution** (`claim_sources`, family `source`, edge `ATTRIBUTED_TO`) is bibliographic and
+  passage-less. It is kept and deprecated in the documentation sense of *do not add to it when
+  the passage is known* (`docs/EVIDENCE_LAYER.md`), because the corpus still has no evidence rows
+  and there must be a way to record that a claim was read from a source without inventing a
+  quotation.
+
 ## 6. Graph projections
 
 The same canonical graph should support multiple graph views rather than forcing the entire ontology into one visual network.

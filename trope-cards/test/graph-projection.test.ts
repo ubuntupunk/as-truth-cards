@@ -1579,6 +1579,61 @@ describe('slice 3: evidence items project on their own family, with their own st
   })
 })
 
+describe('slice 3: the two claim→source routes stay distinct (B5, as-truth-cards-lpp)', () => {
+  it('never collapses attribution and support for one claim→source pair', async () => {
+    // `evidenceCorpus` reaches `source-1` twice from `claim-1`: once through the direct
+    // `claim_sources` row and once through the evidence chain. The decision rule (EVIDENCE_LAYER.md):
+    // support is evidence-mediated only, and `claim_sources` is attribution only. If the two ever
+    // collapsed into one edge, the evidence view would misread a bibliography entry as support.
+    const evidenceView = getGraphView('evidence')!
+    const { result } = await project(evidenceCorpus(), {
+      focus: 'claim-1',
+      view: evidenceView,
+      depth: 3,
+    })
+    assert.equal(
+      new Set(result.edges.map((e) => e.id)).size,
+      result.edges.length,
+      'no two edges may share an id',
+    )
+
+    const attribution = result.edges.find((e) => e.family === 'source')
+    assert.ok(attribution, 'the direct attribution must project')
+    assert.equal(attribution.sourceTable, 'claim_sources')
+    assert.equal(attribution.type.value, 'ATTRIBUTED_TO')
+    assert.equal(attribution.from, 'claim-1')
+    assert.equal(attribution.to, 'source-1')
+
+    const assertClaim = result.edges.find(
+      (e) => e.family === 'evidence' && e.sourceTable === 'evidence_claims',
+    )
+    assert.ok(assertClaim, 'the authored evidence relation must project')
+    assert.equal(assertClaim.from, 'ev-1')
+    assert.equal(assertClaim.to, 'claim-1')
+    assert.equal(assertClaim.type.value, 'SUPPORTS')
+
+    const derivation = result.edges.find(
+      (e) => e.sourceTable === 'evidence_sources',
+    )
+    assert.ok(derivation, 'the located-passage derivation must project')
+    assert.equal(derivation.type.value, 'DERIVED_FROM')
+
+    // The vocabularies never cross between families.
+    assert.ok(
+      result.edges
+        .filter((e) => e.family === 'source')
+        .every((e) => e.type.value === 'ATTRIBUTED_TO'),
+      'a direct attribution never wears an evidential relation',
+    )
+    assert.ok(
+      !result.edges.some(
+        (e) => e.family === 'evidence' && e.type.value === 'ATTRIBUTED_TO',
+      ),
+      'the evidence chain never wears the attribution vocabulary',
+    )
+  })
+})
+
 describe('slice 3: data-blocked warnings read the corpus, not the hydration', () => {
   it('names the empty table behind the evidence view', async () => {
     const evidenceView = getGraphView('evidence')!
