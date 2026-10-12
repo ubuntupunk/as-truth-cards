@@ -224,7 +224,7 @@ Set the `sync: false` variables in the Render dashboard. They are deliberately n
 | `BETTER_AUTH_URL` | yes | Public origin, e.g. `https://as-truth-cards.onrender.com`. Better Auth validates the `Origin` header against it |
 | `CORS_ORIGINS` | no | Comma-separated browser origins that may call `/api/*` cross-origin. Overrides the default allow-list (`http://localhost:8080`, `http://localhost:3001`, plus `BETTER_AUTH_URL` in production). Never `*`. See [Reverse proxy and origins](#reverse-proxy-and-origins) |
 | `NODE_ENV` | set by blueprint | `production`, which is what enables serving `dist/` |
-| `TROPE_GRAPH_DATABASE_URL` | no | Only if the graph lives in a *different* database from the host app. Takes precedence over `DATABASE_URL`. Do not set it to an empty string — that is not treated as unset |
+| `TROPE_GRAPH_DATABASE_URL` | no | Only if the graph lives in a *different* database from the host app. Takes precedence over `DATABASE_URL`; an empty or whitespace-only value is treated as unset and falls back to `DATABASE_URL` |
 | `TROPE_GRAPH_ALLOW_REMOTE` | set by blueprint | `1`. Required for the manual seed step above; the seeder and verifier read this and have no CLI flag |
 | `PORT` | set by Render | Injected automatically; `server/index.ts` falls back to `3001` |
 
