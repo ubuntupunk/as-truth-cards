@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Shuffle } from 'lucide-react'
-import { useEffect, useState } from 'preact/hooks'
+import { useState } from 'preact/hooks'
 import type React from 'react'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
@@ -25,7 +25,6 @@ interface CardDeckProps {
 
 const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
   const [selectedCard, setSelectedCard] = useState<number | null>(null)
-  const [isSelecting, setIsSelecting] = useState(false)
   const [isDeckVisible, setIsDeckVisible] = useState(true)
   const isVisible = useDelayedVisibility(300)
 
@@ -46,13 +45,11 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
 
   const handleDrawCard = () => {
     if (filteredCards.length === 0) return
-    setIsSelecting(true)
     setIsDeckVisible(false)
 
     setTimeout(() => {
       const randomIndex = Math.floor(Math.random() * filteredCards.length)
       setSelectedCard(randomIndex)
-      setIsSelecting(false)
     }, 1200)
   }
 
@@ -104,9 +101,9 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
               </div>
 
               <div className="relative w-64 h-96 mx-auto">
-                {filteredCards.slice(0, 5).map((_, index) => (
+                {filteredCards.slice(0, 5).map((card, index) => (
                   <div
-                    key={index}
+                    key={card.id}
                     className={cn(
                       'absolute inset-0 rounded-xl border border-border shadow-lg',
                       'bg-gradient-to-br from-card to-background',
@@ -121,6 +118,7 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
               </div>
 
               <button
+                type="button"
                 onClick={handleDrawCard}
                 disabled={filteredCards.length === 0}
                 className="rounded-full px-8 py-3 bg-primary text-primary-foreground font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -153,6 +151,7 @@ const CardDeck: React.FC<CardDeckProps> = ({ includePalestineStack }) => {
 
           <div className="text-center">
             <button
+              type="button"
               onClick={handleReset}
               className="rounded-full px-8 py-3 bg-primary text-primary-foreground font-medium transition-all duration-300 hover:scale-105 hover:shadow-lg dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
             >

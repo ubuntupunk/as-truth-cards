@@ -1,5 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/2.4.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.4.9/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
@@ -43,7 +43,7 @@
       "trope-cards/drizzle.config.ts",
       "trope-cards/src/**/*.ts",
       "trope-cards/scripts/**/*.mjs",
-      "!trope-cards/versions/**"
+      "!trope-cards/versions"
     ]
   },
   "formatter": {

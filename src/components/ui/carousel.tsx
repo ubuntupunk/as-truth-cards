@@ -131,6 +131,7 @@ const Carousel = React.forwardRef<
           canScrollNext,
         }}
       >
+        {/* biome-ignore lint/a11y/useSemanticElements: roles come from the WAI-ARIA Carousel pattern (role="region" + aria-roledescription="carousel" on the scroll region); swapping to a section would change the landmark semantics the pattern specifies. */}
         <div
           ref={ref}
           onKeyDownCapture={handleKeyDown}
@@ -176,17 +177,20 @@ const CarouselItem = React.forwardRef<
   const { orientation } = useCarousel()
 
   return (
-    <div
-      ref={ref}
-      role="group"
-      aria-roledescription="slide"
-      className={cn(
-        'min-w-0 shrink-0 grow-0 basis-full',
-        orientation === 'horizontal' ? 'pl-4' : 'pt-4',
-        className,
-      )}
-      {...props}
-    />
+    <>
+      {/* biome-ignore lint/a11y/useSemanticElements: WAI-ARIA Carousel marks each slide with role="group" + aria-roledescription="slide"; the suggested fieldset implies form grouping and would mislabel the slide region. */}
+      <div
+        ref={ref}
+        role="group"
+        aria-roledescription="slide"
+        className={cn(
+          'min-w-0 shrink-0 grow-0 basis-full',
+          orientation === 'horizontal' ? 'pl-4' : 'pt-4',
+          className,
+        )}
+        {...props}
+      />
+    </>
   )
 })
 CarouselItem.displayName = 'CarouselItem'

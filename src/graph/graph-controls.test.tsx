@@ -75,14 +75,7 @@ function rowsOf(root: VNode): FacetRowVNode[] {
 }
 
 /** Build a control strip tree with the given facet wiring. */
-function build(
-  filter: FacetFilter,
-  projection = CARD_PROJECTION,
-  extra: {
-    onClearFacets?: () => void
-    onTreatmentChange?: (next: GraphTreatment) => void
-  } = {},
-) {
+function build(filter: FacetFilter, projection = CARD_PROJECTION) {
   const changes: FacetFilter[] = []
   const clears: unknown[] = []
   const treatmentChanges: GraphTreatment[] = []
@@ -381,7 +374,7 @@ describe('graph-controls facet wiring', () => {
       active.tree,
       (vnode) =>
         typeof vnode.type === 'string' &&
-        (vnode.props ?? {})['data-testid'] === 'clear-facets',
+        vnode.props?.['data-testid'] === 'clear-facets',
     )[0]
     assert.ok(clearButton)
     ;(clearButton.props?.onClick as () => void)()
@@ -408,7 +401,7 @@ describe('graph-controls appearance switcher', () => {
       tree,
       (vnode) =>
         typeof vnode.type === 'string' &&
-        (vnode.props ?? {})['data-appearance'] === 'editorial',
+        vnode.props?.['data-appearance'] === 'editorial',
     )[0]
     assert.ok(editorial)
     ;(editorial.props?.onClick as () => void)()
@@ -543,7 +536,7 @@ describe('graph-controls focus typeahead', () => {
       tree,
       (vnode) =>
         typeof vnode.type === 'string' &&
-        (vnode.props ?? {})['data-slug'] === 'blood-libel',
+        vnode.props?.['data-slug'] === 'blood-libel',
     )[0]
     assert.ok(button)
     ;(button.props?.onClick as () => void)()
