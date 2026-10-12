@@ -293,3 +293,57 @@ A genuine interaction harness was built so the verification is **not** code-leve
 
 - ✅ **Privacy (unchanged):** `src/pages/Privacy.tsx` keeps provider-side (Render/Neon) logging explicitly **unverified**; no change made.
 - 🔐 **CORS/security follow-up:** the open `cors()` default and trusted-proxy/IP assumptions in `server/index.ts` are tracked as a **separate** security-review issue, not folded into this product-shell acceptance.
+
+---
+
+## 6. Product-shell landmark acceptance matrix (sprint close-out, 2026-10-12)
+
+> **Purpose.** Truthful close-out of the current product-shell sprint. Each landmark is scored independently on four axes the maintainer asked to keep separate:
+>
+> - **Route integrity** — the route mounts and renders the intended component/data.
+> - **Navigation usability** — a user can find and operate the route from a real viewport.
+> - **Evidence class** — `A` automated (test/assertion), `M` manually exercised in a real browser, `C` code-inspected only, `—` not performed.
+> - **Object observed** — `app` (our code/behaviour) vs `provider` (hosting/DB/platform behaviour).
+>
+> `Implemented` ≠ `verified` ≠ `accepted`. Nothing here closes Issue #9; it records what is actually true today.
+
+### 6.1 Legend and standing caveats
+
+- Status vocabulary: **implemented**, **verified**, **partially implemented**, **blocked**, **deferred**.
+- **No route test for canonical vs legacy routing.** There is no automated assertion that `/` renders `Deck` and `/legacy/deck` renders `LegacyDeck` (`src/App.tsx:31-32`). This is the single explicit unmet acceptance criterion in Milestone 1.
+- **`trope-graph:check` environment caveat (see §6.3, landmark 10):** the gate still requires `TROPE_GRAPH_DATABASE_URL` to be exported (the graph scripts do not load `.env`). The former `check-drift` extension-provisioning blocker is **fixed** in `trope-cards/scripts/check-drift.mjs` (this pass); the gate no longer depends on manually provisioning `pg_trgm`/`unaccent` in `template1`.
+- **Automation channel limit:** BiDi synthetic `Enter`/`Space` do not activate buttons; real XTest OS-level keys do. The keyboard pass therefore uses XTest, not BiDi key actions (`tools/bidi-firefox/`).
+
+### 6.2 Landmark matrix
+
+| # | Landmark | Route integrity | Navigation usability | Status | Evidence (class · object) | Remaining acceptance test |
+|---|---|---|---|---|---|---|
+| 1 | **Decks `/` + legacy route** | `/` → `src/pages/Deck.tsx`; `/legacy/deck` → `src/pages/LegacyDeck.tsx` (`src/App.tsx:31-32`). Legacy uses the legacy `/api/cards` store, labelled legacy/reference. | `/` is the first `NAV_ENTRIES` destination ("Decks"); legacy is intentionally **absent** from nav. | **partially implemented** (feature shipped; route criterion untested) | A · app — `test:ui` 479/479 incl. `featured-card.test.tsx` face/state tests; commit `9b71931`. | **Missing test:** assert `/` → Deck and `/legacy/deck` → LegacyDeck (and that legacy is not in `NAV_ENTRIES`). This is the Milestone 1 "route/navigation tests" criterion. |
+| 2 | **Graph Explorer `/graph`** | `src/pages/Graph.tsx` → `useGraphPage` (`GET /api/graph`, `/api/graph/views`, `/api/graph/search`). Real canonical projection. | Nav entry "Graph"; reachable ≤1 click at all widths. | **implemented + backend verified**; surface acceptance outstanding | A · app — `trope-graph:check` 452/452 incl. `GET /api/graph`, `/views`, `/search` integration; server-authoritative. | Surface-level responsive/a11y review of the Explorer UI (not the API); not yet formalised in the sprint. |
+| 3 | **Explore / Browse `/explore`** | `src/pages/Explore.tsx` → `useDeckCards()` + `useCardSearch()` (`GET /api/graph/search`). Real canonical. | Nav entry "Explorer"; reachable ≤1 click. | **implemented**; surface acceptance outstanding | C · app — code inspection; `GET /api/graph/search` covered by graph tests. | Documented + tested **search/filter semantics and limits**; in/out-of-result context preservation; responsive/a11y. Coordinate the shared search contract with **Issue #8** before page-specific search hardens (ROADMAP M3). |
+| 4 | **Compose / Decompose `/research/compose`** | `src/pages/Compose.tsx` → canonical projection + `GET/PUT/DELETE /api/drafts/*`. Real; writes are auth-gated (401 signed-out). | Nav entry "Compose"; reachable ≤1 click. | **partially implemented** | A · app — `drafts.test.ts` (401 signed-out, cross-user isolation ✓); `compose-editor.test.tsx` `PermissionGate`. | **Blocked by the account layer:** the "Sign in" handoff navigates to `/admin`, which renders "Sign in required" with **no sign-in form** — a dead end. Complete end-to-end composition + account gate once onboarding exists (ROADMAP M4). |
+| 5 | **Research Workspace `/research`** | `src/pages/Research.tsx` → graph page + `useResearchSession()` (browser `localStorage`). Explicitly **not** account-synced. | Nav entry "Research"; reachable ≤1 click. | **partially implemented** | A · app — `research-workspace-panel.test.tsx`, `research-tray.test.tsx` assert the "separate from your account" boundary. | Full workflow acceptance; tests for persistence, URL/context, and authorization; keep research vs auth vs durable-activity distinct (ROADMAP M5). |
+| 6 | **Sources `/sources`** | `src/pages/Sources.tsx` → `useSources()` (`GET /api/graph/sources`). Real canonical. | Nav entry "Sources"; reachable ≤1 click. | **partially implemented** | C · app — code inspection; `GET /api/graph/sources` covered by graph tests. | Source→claim/evidence inspection acceptance; design checkpoint (confirm whether a dedicated final Sources frame exists before claiming visual completion); responsive/a11y (ROADMAP M6). |
+| 7 | **Account / participation integration** | Server: `server/auth.ts` (Better Auth email+password only), role enum `ANONYMOUS→…→ADMIN` on `User` with `input:false`; `UserInteraction`, `Session`, `Account`, `Verification` in `public`. | **No account UI:** no sign-in/sign-up/profile/settings/activity route, no header account affordance. `Save card` is unconditionally disabled. | **blocked** (pending M7 inventory → proposal → first slice) | A/C · app — `auth-secret.test.ts`; `drafts.test.ts` (only authed API). | Full lifecycle + one account-gated action (Save card). **Prerequisite:** the inventory + proposal (`docs/issue-9/account-onboarding-inventory-and-proposal.md`). |
+| 8 | **Responsive navigation + drawer accessibility** | Routes mounted; header collapses to hamburger below `md`. | Reachability verified at 320/375/768/1024/1280 real viewports; drawer triggers operable; ≥1280 rails replace triggers by design. | **verified (automated)**; **reviewer sign-off pending** | A(XTest) · app — `tools/bidi-firefox/` document↔drawer keyboard pass (both drawers), viewport matrix; commits `ccd30eb`, `fe747bc`, `666f1e6` (all exist). | Reviewer sign-off of the acceptance checklist; a human screen-reader pass is **not** evidenced (only automated DOM/inert assertions). Mobile-header issue `as-truth-cards-0vn` stays **open** until signed off. |
+| 9 | **Privacy / security follow-ups** | `/privacy` renders audited app-side flows; provider (Render/Neon) logging explicitly labelled **unverified**. | Footer link (`FOOTER_LINKS`), reachable ≤1 click. | **partially implemented**; security **deferred → Issue #10** | M/C · app + provider — privacy copy tightened (`server/index.ts` has no request-logging middleware); provider behaviour **not** attested. | Issue #10: intentional CORS policy (default `cors()` today), trusted-proxy/IP, Better Auth cookie Secure/SameSite behind the Render proxy, and tests. **Not** folded into visual cleanup. |
+| 10 | **Full repo + deployment verification** | n/a | n/a | **verified with documented caveats** | A · app (+ provider not exercised) | See §6.3. |
+
+### 6.3 Landmark 10 — verification log (HEAD `851ba72`)
+
+| Gate | Command | Result | Notes |
+|---|---|---|---|
+| Typecheck (project) | `pnpm run typecheck` | ✅ pass | `tsc --noEmit` |
+| Typecheck (all projects) | `pnpm run typecheck:all` | ❌ fail | **Pre-existing baseline** — `src/components/ui/{resizable,sheet,sidebar,skeleton,sonner}.tsx` (preact vs `React` namespace, union type mismatches). Untouched by this work. |
+| Lint | `pnpm run lint` | ❌ 14 errors / 9 warnings / 1 info | **Pre-existing baseline**; 0 in files changed this sprint. |
+| Server tests | `pnpm run test:server` | ✅ 53/53 | |
+| UI tests | `pnpm run test:ui` | ✅ 479/479 | Includes 3 new face tests from `9b71931`. |
+| Build | `pnpm run build` | ✅ pass | Chunk-size warning (892 kB JS) — pre-existing. |
+| Trope graph gate | `pnpm run trope-graph:check` | ✅ pass **with conditions** | migrate:check ✓ · validate ✓ · typecheck:graph ✓ · verify ✓ · tests **452/452** ✓ · check-drift ✓ (`drift:false`, 406 facts). |
+
+**Landmark 10 caveats (both recorded, neither a pass by omission):**
+
+1. **Environment wiring.** The graph scripts do **not** load `.env`. `resolveDatabaseUrl()` (`trope-cards/src/db/url.ts:26-37`) reads `TROPE_GRAPH_DATABASE_URL ?? DATABASE_URL` from `process.env`, so raw `pnpm run trope-graph:check` from a bare shell fails with *"No database connection string found."* The sanctioned local path is `just graph-check` (or exporting `TROPE_GRAPH_DATABASE_URL=postgresql:///trope_cards_dev`). The local DB was also **behind migration `0010_card_search.sql`** (ledger stopped at 0009); applying it is required (`just graph-migrate`). *Owner: repository tooling; low-risk.*
+2. **`check-drift` provisioning gap (the actual blocker) — 🔧 fixed in this pass.** `trope-cards/scripts/check-drift.mjs` built a scratch DB from `template1` and applied **drizzle-kit–generated** SQL, which emits the `gin_trgm_ops`/`gin (title)` indexes but **not** `CREATE EXTENSION pg_trgm` / `unaccent`. The canonical `0010_card_search.sql:24-25` *does* create them, so the two sources diverged only on extension provisioning: the scratch DB had no `gin_trgm_ops` operator class and the check aborted with `ERROR: operator class "gin_trgm_ops" does not exist for access method "gin"`. **Cause proven** by provisioning `pg_trgm`+`unaccent`, which yields `{"check":"schema-drift","drift":false,"comparedFacts":406}` — i.e. **no real schema drift**. **Fix applied:** `check-drift.mjs` now provisions `REQUIRED_EXTENSIONS` (`pg_trgm`, `unaccent`) in the scratch DB before applying generated SQL. Re-verified with a clean `template1` (plpgsql only): `drift:false`, exit 0. *Owner: graph tooling.*
+
+**Deployment (app-observed vs provider):** `render.yaml` is the canonical host (build + `db:migrate:deploy` + `trope-graph:migrate --allow-remote` + start), health at `/health` (`{"status":"ok"}`), registered before the SPA catch-all. **No deployment run was performed in this pass**, so render-runtime and provider (Render/Neon) behaviour remain **provider-observed / unverified** here; only the local Express `:3001` serving of `dist/` was exercised.
