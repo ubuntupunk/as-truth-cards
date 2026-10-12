@@ -369,7 +369,17 @@ Purpose: close the three "frame existence verified: yes/no" gaps flagged for M3/
 
 **What was done instead.** A **build-ready Sources frame spec** was posted as an in-file comment on `qmVMnfR9DpQFyYtaiSizYD`: comment id **`1962148829`** (2026-10-12T12:02Z). It mirrors the running `/sources` route exactly (no invented data) and is reproduced in **§7** so it is reviewable in-repo.
 
-**Still blocked.** Node **content** reads (`GET /files/:key/nodes`) still return **`429 Rate limit exceeded`** on this account (the same class of Starter-plan limit the maintainer hit). The improved **Sign In (`62:12441`)** and **Onboarding (`62:12550`)** frame *contents* could **not** be inspected, so **which verification states those screens actually draw remains unverified**. Metadata reads (`/files/:key`) do succeed.
+**Still blocked — rate-limit diagnosis (headers read, per `FIGMA_README.md`).** Node **content** reads (`GET /files/:key/nodes`) return **`429`**. The response headers give the exact cause and reset:
+
+```
+x-figma-plan-tier:        starter
+x-figma-rate-limit-type:  high
+retry-after:              127473   (seconds ≈ 35.4 h)
+date:                     Mon, 12 Oct 2026 12:06:39 GMT
+→ reset ≈ 2026-10-13T23:31Z
+```
+
+So this is a **Starter-plan node-read quota lockout** (the same root cause as the maintainer's "Starter-plan call-limit/paywall"), **time-blocked, not effort-blocked** — no in-session backoff can recover it; it resets automatically (~35 h). **Metadata** reads (`/files/:key`) still succeed (lighter bucket). Consequently the improved **Sign In (`62:12441`)** / **Onboarding (`62:12550`)** frame *contents* could not be inspected, so **which verification states those screens draw remains unverified**. After reset, fetch **metadata-first, one node per call, `depth` 2–3, spaced** (per `FIGMA_README.md`); the alternative is a plan upgrade or a Plugin-API-capable Figma MCP.
 
 **Account-frame authority.** The improved frames under **`62:*`** are the **current design targets**; the older **`49:*`** screens are **historical/reference only** — do not map new implementation to `49:*` by default.
 
