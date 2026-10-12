@@ -16,17 +16,22 @@ const LOOPBACK_HOSTS = new Set(['', 'localhost', '127.0.0.1', '[::1]', '::1'])
  * Read the connection string for the Trope Graph database.
  *
  * `TROPE_GRAPH_DATABASE_URL` takes precedence and is the variable to set in deployment.
- * `DATABASE_URL` is accepted as a fallback so the graph can share the host application's
- * existing connection, which is safe because every graph object lives in the
- * `trope_graph` schema and cannot collide with the Prisma-managed `public` schema.
+ * An empty or whitespace-only value is treated as unset, so the graph also falls back to
+ * `DATABASE_URL`, letting it share the host application's existing connection. That is safe
+ * because every graph object lives in the `trope_graph` schema and cannot collide with the
+ * Prisma-managed `public` schema.
  *
  * @returns The resolved connection string.
  * @throws {Error} If neither variable is set.
  */
 export function resolveDatabaseUrl(): string {
-  const url = process.env.TROPE_GRAPH_DATABASE_URL ?? process.env.DATABASE_URL
+  const graphUrl = process.env.TROPE_GRAPH_DATABASE_URL
+  const url =
+    graphUrl !== undefined && graphUrl.trim() !== ''
+      ? graphUrl
+      : process.env.DATABASE_URL
 
-  if (!url) {
+  if (!url || url.trim() === '') {
     throw new Error(
       'No database connection string found. Set TROPE_GRAPH_DATABASE_URL, or DATABASE_URL ' +
         "to share the host application's connection.",
