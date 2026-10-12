@@ -1,10 +1,11 @@
 # Issue 12 — Research/Publication Tracking + Optional PlumX Integration
 
 - **Date:** 2026-10-12
-- **Scope:** Research report, a sent Elsevier eligibility inquiry, and the provider-neutral
-  schema foundation (migration `0012_research_sources.sql`). **PlumX integration remains
-  gated**: no PlumX widget and no PlumX/Elsevier API call is enabled. No discovery adapter,
-  no metrics provider, and no UI component ship with this report.
+- **Scope:** Research report, a sent Elsevier eligibility inquiry, the provider-neutral
+  schema foundation (migration `0012_research_sources.sql`), and a Crossref open-metadata
+  discovery vertical slice with an admin-gated review API. **PlumX integration remains
+  gated**: no PlumX widget and no PlumX/Elsevier API call is enabled. No metrics provider
+  and no UI component ship with this report.
 - **Grounding:** PlumX widget mechanics verified against the shipped widget bundle
   (`//cdn.plu.mx/widget-all.js`), the production OJS Plum plugin (ulsdevteam/ojs-plum-plugin
   templates), and PlumX docs. Screenshots in `docs/PlumX/` could **not** be reviewed by the
@@ -121,20 +122,27 @@ ontology members is a semantics decision that must first check the semantic cont
 explain why `claim_sources` / `evidence_claims` cannot represent the relation; inventing
 members now would change the ontology without that argument. Tracked as follow-up on #12.
 
-### 3.3 Open metadata discovery (PROPOSED — no adapter shipped)
+### 3.3 Open metadata discovery (PARTLY SHIPPED — Crossref vertical slice)
 
-Evaluate then implement modest adapters for **Crossref** and **DataCite** first, add
-**OpenAlex** where its terms and rate limits suit, and consider **OpenCitations** for
-citation relationships. Every adapter:
+Adapters for **Crossref** and **DataCite** first, **OpenAlex** where its terms and rate
+limits suit, and **OpenCitations** for citation relationships. **Crossref is now shipped**
+end to end; the others remain proposed. Every adapter:
 
 - respects the provider's terms, rate limits, attribution, and licence;
-- sends a contact address in requests;
+- sends a contact address in requests (`CROSSREF_MAILTO`, mapped to Crossref's polite pool);
 - records provider provenance, the query, and retrieval time on every candidate;
 - reconciles duplicates by persistent identifier (never by title alone);
 - performs **no paid dependency** and no scraping of third-party social metrics.
 
 Discovery yields **candidates only**. Nothing becomes a curated source or evidence without
-human review, and a discovery match is never treated as support.
+human review, and a discovery match is never treated as support. The shipped slice:
+`src/discovery/identifiers.ts` (normalization), `src/discovery/providers/crossref.ts`
+(bounded rows, timeout, throttle, tolerant mapping), `src/discovery/store.ts` (idempotent
+ingest preserving review state), `src/discovery/service.ts`, and an admin-gated
+`/api/discovery` router (`server/api/discovery.ts`). Promotion to a canonical source is an
+explicit, audited call that links a human-created source row; it never writes attributions
+or evidence edges. Raw provider payloads are retained only per record, pending the terms
+check in §5.
 
 ### 3.4 Metrics model (PROPOSED — definitions)
 
@@ -221,21 +229,37 @@ PlumX widget's cookie/consent behaviour is an explicit question in §4 and a har
 1. Architecture note — this report.
 2. Schema/types/tests — **SHIPPED**: `0012_research_sources.sql`,
    `src/db/schema/researchSources.ts`, provenance columns on `sources` in
-   `src/db/schema/tropeGraph.ts`, and `test/schema-research-sources.test.ts`. Discovery
-   adapters, the metrics provider, and the component are **not** shipped.
-3. Eligibility inquiry — **SENT**, awaiting response (§4).
-4. Release gate — documented in §4 and ROADMAP M6.
-5. ROADMAP/authoritative-doc updates — `ROADMAP.md` M6 updated. SPEC §8 wording proposed,
-   not yet edited.
-6. Reporting — this file + the issue #12 comment.
+   `src/db/schema/tropeGraph.ts`, and `test/schema-research-sources.test.ts`.
+3. Crossref discovery vertical slice — **SHIPPED**: identifier normalization, Crossref
+   provider adapter, discovery service, idempotent store, and an admin-gated
+   `/api/discovery` router (list/search/review/promote). The Metrics provider and the
+   component are **not** shipped; a second provider is not shipped.
+4. Eligibility inquiry — **SENT**, awaiting response (§4).
+5. Release gate — documented in §4, `SPEC.md` §8.4, and ROADMAP M6.
+6. ROADMAP/authoritative-doc updates — `ROADMAP.md` M6 updated with per-deliverable status;
+   `SPEC.md` §8.4 edited.
+7. Reporting — this file + the issue #12 comment.
 
 ### Checks run
 
-- `typecheck:graph` — pass
-- `typecheck:all` — pass
-- `biome check` — pass
-- `trope-graph:check` — pass: `migrate:check`, validators, `verify`, **488 tests pass**,
-  `check-drift` reports `drift: false` over 467 compared facts.
+What a machine verifies (automated, reproducible):
+
+- `pnpm run lint` (`biome check`) — pass.
+- `pnpm run typecheck:all` (`tsc -b`) — pass.
+- `pnpm run test:server` — **109 tests pass** (includes `server/api/discovery.test.ts`).
+- `TROPE_GRAPH_DATABASE_URL=… pnpm run trope-graph:test` — **530 tests pass**, including
+  the live-Postgres suites `discovery-store.integration.test.ts` (idempotent ingest,
+  review-state preservation, explicit promotion, no attributions/evidence edges, FK refusal)
+  and `migrate-roundtrip.integration.test.ts` (idempotent `--check`, no drift).
+- `TROPE_GRAPH_DATABASE_URL=… pnpm run trope-graph:migrate:check` — 12 applied, 0 pending.
+- `node trope-cards/scripts/check-drift.mjs` — `drift: false` over 467 compared facts.
+
+What only a human can confirm (manual, not yet done):
+
+- Whether retained Crossref raw payloads are admissible, and under what retention/
+  republication terms, per provider — pending the §5 licence review.
+- Figma/visual acceptance of any Sources or Research Metrics surface — non-blocking.
+- Screenshot-specific PlumX layout/attributes from `docs/PlumX/*.png` (see §7).
 
 ## 7. Blockers / open decisions
 

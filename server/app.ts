@@ -19,6 +19,7 @@ import cardsRouter from './api/cards.js';
 import interactionsRouter from './api/interactions.js';
 import graphRouter from './api/graph.js';
 import draftsRouter from './api/drafts.js';
+import discoveryRouter from './api/discovery.js';
 
 /**
  * The process-environment keys the app reads, narrowed so callers cannot inject an
@@ -136,6 +137,7 @@ export function createApp(env: AppEnv = process.env): express.Express {
   app.use('/api/interactions', interactionsRouter);
   app.use('/api/graph', graphRouter);
   app.use('/api/drafts', draftsRouter);
+  app.use('/api/discovery', discoveryRouter);
 
   /**
    * Liveness probe, declared before the static handler and the SPA catch-all below.

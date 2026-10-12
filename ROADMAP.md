@@ -195,12 +195,28 @@ provider-neutral storage this milestone needs: `source_identifiers` (persistent
 identifiers, one identifier → one source), `discovery_candidates` (a human review queue —
 not a source and not evidence), `source_metrics` (transparent attention/use observations,
 each with a required definition), and provenance/verification columns on `sources`. No
-provider is wired up and no PlumX/Elsevier dependency was added; the layer is useful with
-open metadata on its own. Support semantics are unchanged: a discovered, cited, or popular
-source is not evidence, and the support chain still runs through
-`claim_sources`/`evidence_claims`. Discovery adapters (Crossref/DataCite/OpenAlex/
-OpenCitations), the Research Metrics component, and the discovery-review workflow remain
-outstanding.
+PlumX/Elsevier dependency was added; the layer is useful with open metadata on its own.
+Support semantics are unchanged: a discovered, cited, or popular source is not evidence,
+and the support chain still runs through `claim_sources`/`evidence_claims`.
+
+Per-deliverable status:
+
+| Deliverable | Status | Evidence |
+| --- | --- | --- |
+| Storage: identifiers, candidates, metrics, provenance columns | Implemented, verified | migration `0012` applied locally; `trope-cards/test/schema-research-sources.test.ts` (DB-free) + migrate-check round-trip |
+| Identifier normalization (DOI/URL/Crossref fallback) | Implemented, verified | `trope-cards/test/discovery-identifiers.test.ts` |
+| Crossref provider adapter (bounded rows, timeout, throttle, tolerant mapping) | Implemented, verified | `trope-cards/test/discovery-crossref.test.ts` (mocked HTTP) |
+| Discovery service (allow-list provider, limit clamp, dedupe) | Implemented, verified | `trope-cards/test/discovery-service.test.ts` |
+| Idempotent candidate ingest preserving review state | Implemented, verified | `trope-cards/test/discovery-store.integration.test.ts` (live Postgres) |
+| Explicit promotion; no auto-promotion, no evidence edge | Implemented, verified | store integration test (link only; `claim_sources`/`evidence_sources` stay empty) |
+| Review API: list / search / review / promote, admin-gated | Implemented, verified | `server/api/discovery.test.ts` (401/403, 400, 404, 409, 502) |
+| Raw-payload retention terms | **Unresolved** | kept only per-record after terms check; see report |
+| Second provider (OpenCitations/DataCite/OpenAlex) | Outstanding | — |
+| Research Metrics UI | Outstanding | provider-neutral port; empty state renders honestly |
+
+Discovery adapters beyond Crossref, the Research Metrics component, and the discovery-review
+UI remain outstanding. Unresolved data-licence/privacy decisions are tracked in
+`docs/issue-12-plumx-research-report.md`.
 
 ---
 
