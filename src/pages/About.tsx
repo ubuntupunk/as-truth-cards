@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { cn } from '@/lib/utils'
@@ -74,8 +75,15 @@ const About = () => {
 
             <p>
               The information presented in these cards is based on historical
-              research and contemporary scholarship. For those interested in
-              learning more, we recommend exploring resources from:
+              research and contemporary scholarship. We curate organizations
+              and materials for learning more on our{' '}
+              <Link
+                to="/resources"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Resources page
+              </Link>
+              , including:
             </p>
 
             <ul>

@@ -14,6 +14,7 @@ import LegacyDeck from './pages/LegacyDeck'
 import NotFound from './pages/NotFound'
 import Privacy from './pages/Privacy'
 import Research from './pages/Research'
+import Resources from './pages/Resources'
 import Sources from './pages/Sources'
 import Terms from './pages/Terms'
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/research" element={<Research />} />
             <Route path="/research/compose" element={<Compose />} />
             <Route path="/sources" element={<Sources />} />
+            <Route path="/resources" element={<Resources />} />
             <Route path="/about" element={<About />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />

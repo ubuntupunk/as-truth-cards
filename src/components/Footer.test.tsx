@@ -27,6 +27,6 @@ describe('Footer links', () => {
 
   it('covers the policy and resource destinations', () => {
     const paths = FOOTER_LINKS.map((link) => link.path)
-    assert.deepEqual(paths, ['/privacy', '/terms', '/sources'])
+    assert.deepEqual(paths, ['/privacy', '/terms', '/resources'])
   })
 })
