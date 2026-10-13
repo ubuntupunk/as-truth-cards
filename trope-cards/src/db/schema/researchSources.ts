@@ -188,12 +188,17 @@ export const discoveryCandidates = tropeGraph.table(
  * survives later decisions. `REVIEWED` carries the decision and notes; `PROMOTED` carries the
  * source the candidate was linked to. Either way `actor_id` is recorded.
  *
- * Immutability is **enforced by the database**, not by convention: migration `0016` installs
+ * Immutability is **enforced by the database for all DML**: migrations `0015`/`0016` install
  * `BEFORE UPDATE`/`BEFORE DELETE` triggers that reject every mutation with `restrict_violation`
- * for every role, with no settable bypass. The two foreign keys are `ON DELETE RESTRICT`, so a
- * candidate or source that has history cannot be deleted either — the database refuses rather
- * than deleting or blanking the events. Removing an event requires a deliberate owner-level
- * DDL operation, which is the only privileged path by design.
+ * for every role, with no settable bypass, and the two foreign keys are `ON DELETE RESTRICT`, so
+ * a candidate or source that has history cannot be deleted either — the database refuses rather
+ * than deleting or blanking the events.
+ *
+ * This is an application-integrity guard, not a privilege boundary. Migration `0017` documents
+ * the scope: the migration runner and the runtime share one connection/role in the current
+ * deployment, and a table owner can always disable the trigger or drop the constraint, so those
+ * credentials can still remove history through DDL. Splitting owner/migration credentials from a
+ * non-owner runtime role is tracked as follow-up work.
  *
  * The checks make the two actions well-formed at the database level: `action` is limited to
  * the vocabulary, a `REVIEWED` row must name a decision, and a `PROMOTED` row must name a

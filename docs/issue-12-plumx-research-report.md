@@ -163,15 +163,24 @@ runtime behaviour:
   re-review is unaffected: it reads the new revision and acts on it. The same transaction
   writes an event to `discovery_candidate_events` (migration `0013`), naming the actor, action
   (`REVIEWED`/`PROMOTED`), decision, and source link. The candidate row remains current state;
-  the event table is the history. That history is immutable **by enforcement, not
-  convention**: migration `0015` installs `BEFORE UPDATE`/`BEFORE DELETE` triggers, and
-  migration `0016` makes them unconditional — they reject every mutation (SQLSTATE `23001`)
-  for every role, with **no settable bypass**. An earlier revision honoured a transaction-local
-  custom setting as a maintenance escape hatch; a database setting is not a privilege boundary
-  because the application's own role can set it, so it was removed. Removal is instead an
-  owner-level DDL operation (disable the trigger), which ordinary DML cannot reach. The two
-  foreign keys are `ON DELETE RESTRICT` (also `0016`), so a candidate or source with history is
-  refused rather than cascading or blanking the events — history survives every DML delete.
+  the event table is the history. That history is immutable **under DML for every role**:
+  migration `0015` installs `BEFORE UPDATE`/`BEFORE DELETE` triggers, and migration `0016`
+  makes them unconditional — they reject every mutation (SQLSTATE `23001`) with **no settable
+  bypass**. An earlier revision honoured a transaction-local custom setting as a maintenance
+  escape hatch; a database setting is not a privilege boundary because the application's own
+  role can set it, so it was removed. The two foreign keys are `ON DELETE RESTRICT` (also
+  `0016`), so a candidate or source with history is refused rather than cascading or blanking
+  the events — history survives every DML delete.
+
+  **Scope of the guarantee (migration `0017`).** This is an application-integrity guard, not a
+  privilege boundary against the runtime role. The migration runner and the runtime resolve the
+  *same* connection string, so one role owns `trope_graph` and serves requests; a table owner
+  can always `ALTER TABLE … DISABLE TRIGGER` or drop the constraint, so those credentials can
+  still remove history through DDL even though they cannot through DML. Removing an event is a
+  table-owner DDL operation, and in the current shared-role deployment that operation is not
+  separately privileged. Migrations `0016`/`0017` and the schema comments say so explicitly;
+  `0017` sets the catalog comments and the trigger message to the DML-scoped wording. Splitting
+  owner/migration credentials from a non-owner runtime role is tracked as follow-up work.
 - **Scope is single-page.** One Crossref search issues exactly one bounded `/works` request
   with no `offset`/cursor; provider pagination is tracked as outstanding on #12 (§7).
 
@@ -267,13 +276,15 @@ PlumX widget's cookie/consent behaviour is an explicit question in §4 and a har
 2. Schema/types/tests — **SHIPPED**: `0012_research_sources.sql`,
    `0013_discovery_review_events.sql`, `0014_discovery_candidate_revision.sql`,
    `0015_discovery_events_append_only.sql`, `0016_discovery_events_immutable.sql`,
+   `0017_discovery_events_dml_scope.sql`,
    `src/db/schema/researchSources.ts`, provenance
    columns on `sources` in `src/db/schema/tropeGraph.ts`, and
    `test/schema-research-sources.test.ts`.
 3. Crossref discovery vertical slice — **SHIPPED (implemented + tested; no review UI)**:
    identifier normalization, Crossref provider adapter (single-page, no raw-payload
    retention), discovery service, idempotent store with revision-token concurrency-safe
-   review/promote and a database-enforced immutable event log (no settable bypass), and an admin-gated
+   review/promote and a database-enforced event log that is immutable under all DML for every
+   role (no settable bypass; DDL-scoped caveat in §3), and an admin-gated
    `/api/discovery` router (list/search/review/promote/events). The Metrics provider and the
    component are **not** shipped; a second provider is not shipped; provider pagination is not
    implemented.

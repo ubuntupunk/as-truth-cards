@@ -200,8 +200,11 @@ append-only history of review decisions and promotions; `0014_discovery_candidat
 adds the `revision` optimistic-concurrency token the review queue needs to keep competing
 decisions mutually exclusive; `0015_discovery_events_append_only.sql` installs triggers and
 `0016_discovery_events_immutable.sql` makes them unconditional (no settable bypass) and sets
-the event foreign keys to `ON DELETE RESTRICT`, so the event log is immutable at the database,
-not merely by convention, and history cannot be cascaded or blanked away by a DML delete. No
+the event foreign keys to `ON DELETE RESTRICT`, so the event log is immutable under all DML for
+every role and history cannot be cascaded or blanked away by a DML delete.
+`0017_discovery_events_dml_scope.sql` records the honest scope: this is an application-integrity
+guard, not a privilege boundary — the migration runner and runtime share one role in the current
+deployment, and a table owner can still disable the trigger with DDL. No
 PlumX/Elsevier dependency was added; the layer is useful with open metadata on its own.
 Support semantics are unchanged: a discovered, cited, or popular source is not evidence, and
 the support chain still runs through `claim_sources`/`evidence_claims`.
@@ -211,7 +214,7 @@ Per-deliverable status:
 | Deliverable | Status | Evidence |
 | --- | --- | --- |
 | Storage: identifiers, candidates, metrics, provenance columns | Implemented, verified | migration `0012` applied locally; `trope-cards/test/schema-research-sources.test.ts` (DB-free) + migrate-check round-trip |
-| Immutable review/promotion event log | Implemented, verified | migrations `0013` + `0015` + `0016`; store integration test asserts one event per decision/promotion, none on refusal, direct UPDATE/DELETE rejected by the trigger (no settable bypass), and candidate/source deletes with history refused by `ON DELETE RESTRICT` |
+| DML-immutable review/promotion event log | Implemented, verified | migrations `0013` + `0015` + `0016` + `0017`; store integration test asserts one event per decision/promotion, none on refusal, direct UPDATE/DELETE rejected by the trigger (no settable bypass), and candidate/source deletes with history refused by `ON DELETE RESTRICT`; immutability is scoped to DML — the shared owner/runtime role can still disable the trigger via DDL (see §"Foundation" above) |
 | Identifier normalization (DOI/URL/Crossref fallback) | Implemented, verified | `trope-cards/test/discovery-identifiers.test.ts` |
 | Crossref provider adapter (bounded rows, timeout, throttle, tolerant mapping, single-page) | Implemented, verified | `trope-cards/test/discovery-crossref.test.ts` (mocked HTTP) |
 | Discovery service (allow-list provider, limit clamp, dedupe) | Implemented, verified | `trope-cards/test/discovery-service.test.ts` |
