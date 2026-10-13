@@ -79,7 +79,7 @@ const About = () => {
               materials for learning more on our{' '}
               <Link
                 to="/resources"
-                className="font-medium text-primary underline-offset-4 hover:underline"
+                className="font-medium text-graph-accent underline-offset-4 hover:underline"
               >
                 Resources page
               </Link>

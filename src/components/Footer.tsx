@@ -10,6 +10,7 @@ export const FOOTER_LINKS: readonly {
   readonly label: string
   readonly path: string
 }[] = [
+  { label: 'About', path: '/about' },
   { label: 'Privacy', path: '/privacy' },
   { label: 'Terms', path: '/terms' },
   { label: 'Resources', path: '/resources' },

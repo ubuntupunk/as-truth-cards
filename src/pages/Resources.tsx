@@ -116,6 +116,7 @@ const Resources = () => (
               href="https://www.adl.org/report-incident"
               target="_blank"
               rel="noopener noreferrer"
+              className="text-graph-accent underline-offset-2 hover:underline"
             >
               ADL incident report
             </a>
@@ -153,7 +154,7 @@ function ResourceSection({
               href={entry.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+              className="text-sm font-medium text-graph-accent underline-offset-4 hover:underline"
             >
               {entry.name}
             </a>
