@@ -35,7 +35,8 @@ const SignUp = () => {
       if (result.error) {
         setError(result.error.message || 'Failed to create account')
       } else {
-        const redirect = returnTo && returnTo.startsWith('/') ? returnTo : '/account'
+        const redirect =
+          returnTo && returnTo.startsWith('/') ? returnTo : '/account'
         navigate(redirect)
       }
     } catch (err) {

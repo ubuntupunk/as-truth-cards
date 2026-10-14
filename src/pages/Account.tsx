@@ -80,7 +80,9 @@ const Account = () => {
 
             <div className="space-y-4 rounded-lg border border-border bg-card p-6">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Profile</h2>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Profile
+                </h2>
               </div>
               <div className="space-y-3">
                 <div>
@@ -93,7 +95,9 @@ const Account = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-foreground">Role</p>
-                  <p className="text-sm text-muted-foreground">{role || 'ANONYMOUS'}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {role || 'ANONYMOUS'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-foreground">Status</p>

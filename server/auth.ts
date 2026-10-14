@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { prisma } from './lib/db.js'
 import { assertAuthSecretConfigured } from './lib/auth-secret.js'
+import { Resend } from 'resend'
 
 /**
  * Refuse to construct an auth instance that silently signs sessions with Better Auth's
@@ -31,9 +32,6 @@ export const auth = betterAuth({
     provider: 'postgresql',
   }),
 
-  emailAndPassword: {
-    enabled: true,
-  },
 
   user: {
     additionalFields: {
@@ -72,6 +70,38 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
   },
+
+  emailVerification: {
+    enabled: true,
+    autoSignInAfterVerification: true,
+  },
+
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: false,
+  },
+
+  plugins: [
+    process.env.RESEND_API_KEY && process.env.RESEND_FROM
+      ? (() => {
+          const resend = new Resend(process.env.RESEND_API_KEY)
+          return {
+            id: 'resend',
+            init: () => ({
+              sendEmail: async (data: any) => {
+                await resend.emails.send({
+                  from: process.env.RESEND_FROM!,
+                  to: data.to,
+                  subject: data.subject,
+                  text: data.text,
+                  html: data.html,
+                })
+              },
+            }),
+          }
+        })()
+      : undefined,
+  ].filter(Boolean) as any,
 })
 
 export type AuthSession = typeof auth.$Infer.Session

@@ -464,9 +464,7 @@ describe('FeaturedCard — independent actions', () => {
     const save = buttonByText(tree, 'Save card')
     assert.equal(save?.props?.disabled, true)
     assert.ok(html.includes('aria-describedby="save-card-note"'))
-    assert.ok(
-      html.includes('Sign in to save cards to your account.'),
-    )
+    assert.ok(html.includes('Sign in to save cards to your account.'))
     assert.equal(buttons(tree).filter((b) => b.props?.disabled).length, 1)
   })
 
