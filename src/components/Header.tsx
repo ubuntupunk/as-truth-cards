@@ -121,8 +121,14 @@ const Header = () => {
         <div className="flex min-w-0 flex-col">
           <Link
             to="/"
-            className="self-start text-2xl font-medium tracking-tight hover-lift"
+            className="self-start inline-flex items-center gap-2 text-2xl font-medium tracking-tight hover-lift"
           >
+            <img
+              src="/fig-2-1.jpg"
+              alt=""
+              aria-hidden="true"
+              className="h-8 w-8 rounded-full object-cover"
+            />
             Trope Deck
           </Link>
           <span className="mt-0.5 text-[9px] uppercase tracking-[0.14em] text-muted-foreground">
