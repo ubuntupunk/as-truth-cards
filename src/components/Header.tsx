@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
 import { ThemeToggle } from './ThemeToggle'
+import { authClient, useAdminCheck } from '@/hooks/useAdminCheck'
 
 /**
  * The global navigation, aligned to the approved product hierarchy:
@@ -85,7 +86,8 @@ const Header = () => {
   const isVisible = useDelayedVisibility(100)
   const [menuOpen, setMenuOpen] = useState(false)
   const lastPathname = useRef(location.pathname)
-  const isAdmin = location.pathname.startsWith('/admin')
+  const { isSignedIn, user, isAdmin: isAdminRole } = useAdminCheck()
+  const isAdmin = location.pathname.startsWith('/admin') || isAdminRole
 
   const entries: readonly NavEntry[] = isAdmin
     ? [...NAV_ENTRIES, { label: 'Admin', path: '/admin' }]
@@ -148,6 +150,21 @@ const Header = () => {
             })}
           </nav>
           <ThemeToggle />
+          {isSignedIn ? (
+            <Link
+              to="/account"
+              className="hidden rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:block"
+            >
+              Account
+            </Link>
+          ) : (
+            <Link
+              to="/sign-in"
+              className="hidden rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:block"
+            >
+              Sign in
+            </Link>
+          )}
           <button
             type="button"
             data-testid="nav-menu-toggle"

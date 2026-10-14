@@ -465,9 +465,7 @@ describe('FeaturedCard — independent actions', () => {
     assert.equal(save?.props?.disabled, true)
     assert.ok(html.includes('aria-describedby="save-card-note"'))
     assert.ok(
-      html.includes(
-        'Saving cards will be available when account participation is enabled.',
-      ),
+      html.includes('Sign in to save cards to your account.'),
     )
     assert.equal(buttons(tree).filter((b) => b.props?.disabled).length, 1)
   })

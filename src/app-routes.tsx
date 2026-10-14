@@ -14,7 +14,13 @@
 
 import type { VNode } from 'preact'
 import About from '@/pages/About'
+import Account from '@/pages/Account'
+import AccountActivity from '@/pages/AccountActivity'
+import AccountSettings from '@/pages/AccountSettings'
 import Admin from '@/pages/Admin'
+import Onboarding from '@/pages/Onboarding'
+import SignIn from '@/pages/SignIn'
+import SignUp from '@/pages/SignUp'
 import Compose from '@/pages/Compose'
 import Deck from '@/pages/Deck'
 import Explore from '@/pages/Explore'
@@ -53,5 +59,11 @@ export const APP_ROUTES: readonly AppRoute[] = [
   { path: '/terms', element: <Terms /> },
   { path: '/graph', element: <Graph /> },
   { path: '/admin', element: <Admin /> },
+  { path: '/sign-in', element: <SignIn /> },
+  { path: '/sign-up', element: <SignUp /> },
+  { path: '/account', element: <Account /> },
+  { path: '/account/activity', element: <AccountActivity /> },
+  { path: '/account/settings', element: <AccountSettings /> },
+  { path: '/onboarding', element: <Onboarding /> },
   { path: '*', element: <NotFound /> },
 ]
