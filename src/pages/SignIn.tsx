@@ -34,7 +34,8 @@ const SignIn = () => {
         setError(result.error.message || 'Failed to sign in')
       } else {
         // Navigate to returnTo if it's a valid same-origin relative path
-        const redirect = returnTo && returnTo.startsWith('/') ? returnTo : '/account'
+        const redirect =
+          returnTo && returnTo.startsWith('/') ? returnTo : '/account'
         navigate(redirect)
       }
     } catch (err) {
