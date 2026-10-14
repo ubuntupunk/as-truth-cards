@@ -12,7 +12,7 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { FOOTER_LINKS } from './Footer'
+import { FOOTER_LINKS, BUY_ME_A_COFFEE_URL, REPO_URL } from './Footer'
 
 describe('Footer links', () => {
   it('points every entry at a real route, never a placeholder', () => {
@@ -28,5 +28,21 @@ describe('Footer links', () => {
   it('covers the about, policy, and resource destinations', () => {
     const paths = FOOTER_LINKS.map((link) => link.path)
     assert.deepEqual(paths, ['/about', '/privacy', '/terms', '/resources'])
+  })
+
+  it('points the source link at the real GitHub repository', () => {
+    assert.equal(REPO_URL, 'https://github.com/ubuntupunk/as-truth-cards')
+    assert.ok(
+      REPO_URL.startsWith('https://github.com/'),
+      'the source link must be an https GitHub URL',
+    )
+  })
+
+  it('points the coffee link at a Buy Me a Coffee page', () => {
+    assert.equal(BUY_ME_A_COFFEE_URL, 'https://www.buymeacoffee.com/ubuntupunk')
+    assert.ok(
+      BUY_ME_A_COFFEE_URL.startsWith('https://www.buymeacoffee.com/'),
+      'the coffee link must be an https Buy Me a Coffee URL',
+    )
   })
 })
