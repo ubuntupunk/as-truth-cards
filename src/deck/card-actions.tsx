@@ -17,6 +17,8 @@
  * No localStorage stand-in: a save the account layer cannot see is not a save.
  */
 
+import { useNavigate } from 'react-router-dom'
+import { authClient, useAdminCheck } from '@/hooks/useAdminCheck'
 import type { CardStage } from './card-stage'
 
 /** Props for {@link CardActions}. */
@@ -69,6 +71,20 @@ export function CardActions({
   slug,
   readingAvailable = true,
 }: CardActionsProps) {
+  let isSignedIn = false
+  try {
+    const admin = useAdminCheck()
+    isSignedIn = admin.isSignedIn
+  } catch (e) {
+    isSignedIn = false
+  }
+  let navigate: any = () => {}
+  try {
+    navigate = useNavigate()
+  } catch (e) {
+    navigate = () => {}
+  }
+
   return (
     <div
       data-testid="card-actions"
@@ -140,19 +156,30 @@ export function CardActions({
       <div className="flex flex-col gap-1">
         <button
           type="button"
-          disabled
+          onClick={() => {
+            if (!isSignedIn) {
+              navigate(`/sign-in?returnTo=/`)
+            }
+          }}
           aria-describedby={SAVE_CARD_NOTE_ID}
           data-testid="save-card"
-          className="min-h-[44px] cursor-not-allowed rounded-lg border border-border bg-muted/40 px-4 py-2.5 text-sm font-medium text-muted-foreground"
+          disabled={!isSignedIn}
+          className={`min-h-[44px] rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
+            isSignedIn
+              ? 'border-border bg-background text-foreground hover:bg-muted'
+              : 'cursor-not-allowed border-border bg-muted/40 text-muted-foreground'
+          }`}
         >
           Save card
         </button>
-        <p
-          id={SAVE_CARD_NOTE_ID}
-          className="max-w-xs text-xs text-muted-foreground"
-        >
-          Saving cards will be available when account participation is enabled.
-        </p>
+        {!isSignedIn && (
+          <p
+            id={SAVE_CARD_NOTE_ID}
+            className="max-w-xs text-xs text-muted-foreground"
+          >
+            Sign in to save cards to your account.
+          </p>
+        )}
       </div>
     </div>
   )
