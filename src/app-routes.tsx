@@ -18,18 +18,20 @@ import Account from '@/pages/Account'
 import AccountActivity from '@/pages/AccountActivity'
 import AccountSettings from '@/pages/AccountSettings'
 import Admin from '@/pages/Admin'
-import Onboarding from '@/pages/Onboarding'
-import SignIn from '@/pages/SignIn'
-import SignUp from '@/pages/SignUp'
 import Compose from '@/pages/Compose'
 import Deck from '@/pages/Deck'
 import Explore from '@/pages/Explore'
+import ForgotPassword, { FORGOT_PASSWORD_PATH } from '@/pages/ForgotPassword'
 import Graph from '@/pages/Graph'
 import LegacyDeck from '@/pages/LegacyDeck'
 import NotFound from '@/pages/NotFound'
+import Onboarding from '@/pages/Onboarding'
 import Privacy from '@/pages/Privacy'
 import Research from '@/pages/Research'
+import ResetPassword, { RESET_PASSWORD_PATH } from '@/pages/ResetPassword'
 import Resources from '@/pages/Resources'
+import SignIn from '@/pages/SignIn'
+import SignUp from '@/pages/SignUp'
 import Sources from '@/pages/Sources'
 import Terms from '@/pages/Terms'
 
@@ -61,6 +63,8 @@ export const APP_ROUTES: readonly AppRoute[] = [
   { path: '/admin', element: <Admin /> },
   { path: '/sign-in', element: <SignIn /> },
   { path: '/sign-up', element: <SignUp /> },
+  { path: FORGOT_PASSWORD_PATH, element: <ForgotPassword /> },
+  { path: RESET_PASSWORD_PATH, element: <ResetPassword /> },
   { path: '/account', element: <Account /> },
   { path: '/account/activity', element: <AccountActivity /> },
   { path: '/account/settings', element: <AccountSettings /> },
