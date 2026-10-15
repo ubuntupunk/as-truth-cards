@@ -31,11 +31,16 @@ export async function sendEmail(options: SendEmailOptions): Promise<void> {
     }
     return
   }
+  // Resend's `CreateEmailOptions` is a discriminated union that requires at least one
+  // *defined* render field (`html`, `text`, or `react`). Build the body so exactly one
+  // branch is satisfied rather than passing possibly-undefined `text`/`html`.
+  const body =
+    html !== undefined ? { html, text } : { text: text ?? '' }
+
   await client.emails.send({
     from,
     to,
     subject,
-    text,
-    html,
+    ...body,
   })
 }
