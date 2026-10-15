@@ -58,7 +58,10 @@ const SignUp = () => {
               </h1>
               <p className="text-sm text-muted-foreground">
                 Already have an account?{' '}
-                <Link to="/sign-in" className="text-primary hover:underline">
+                <Link
+                  to="/sign-in"
+                  className="font-medium text-graph-accent underline-offset-4 hover:underline"
+                >
                   Sign in
                 </Link>
               </p>
