@@ -95,7 +95,7 @@ export const RouteErrorFallback = ({
       </button>
       <a
         href="/"
-        className="text-sm font-medium text-primary underline underline-offset-4 hover:text-primary/80"
+        className="text-sm font-medium text-graph-accent underline underline-offset-4 hover:underline"
       >
         Go to the deck
       </a>
