@@ -39,7 +39,7 @@
     "trope-graph:test": "node --import tsx --test \"trope-cards/test/*.test.ts\"",
     "trope-graph:validate": "node trope-cards/scripts/validate-draft.mjs && node trope-cards/scripts/validate-claim-decomposition.mjs && node trope-cards/scripts/validate-argument-chains.mjs && node trope-cards/scripts/validate-evidence.mjs",
     "trope-graph:verify": "tsx trope-cards/src/db/verify-seed.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -b",
     "typecheck:all": "tsc -b",
     "typecheck:graph": "tsc -p trope-cards/tsconfig.json"
   },
