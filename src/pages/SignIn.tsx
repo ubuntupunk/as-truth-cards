@@ -1,5 +1,10 @@
 import { useState } from 'preact/hooks'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  DEFAULT_RETURN_TO,
+  type EmailSignInClient,
+  submitSignIn,
+} from '@/auth/journey'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { Button } from '@/components/ui/button'
@@ -25,24 +30,17 @@ const SignIn = () => {
     setError(null)
     setLoading(true)
 
-    try {
-      const result = await authClient.signIn.email({
-        email,
-        password,
-      })
+    const outcome = await submitSignIn(
+      authClient as unknown as EmailSignInClient,
+      { email, password },
+      returnTo,
+    )
 
-      if (result.error) {
-        setError(result.error.message || 'Failed to sign in')
-      } else {
-        // Navigate to returnTo if it's a valid same-origin relative path
-        const redirect =
-          returnTo && returnTo.startsWith('/') ? returnTo : '/account'
-        navigate(redirect)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sign in')
-    } finally {
-      setLoading(false)
+    setLoading(false)
+    if (outcome.ok) {
+      navigate(outcome.redirect ?? DEFAULT_RETURN_TO)
+    } else {
+      setError(outcome.error ?? 'Failed to sign in')
     }
   }
 
@@ -83,7 +81,7 @@ const SignIn = () => {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e: any) => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.currentTarget.value)}
                   placeholder="you@example.com"
                   required
                   disabled={loading}
@@ -104,7 +102,7 @@ const SignIn = () => {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e: any) => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.currentTarget.value)}
                   required
                   disabled={loading}
                 />

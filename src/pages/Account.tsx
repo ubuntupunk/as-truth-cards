@@ -9,7 +9,8 @@ import { authClient, useAdminCheck } from '@/hooks/useAdminCheck'
  * Account settings page.
  */
 const Account = () => {
-  const { isSignedIn, user, loading, role } = useAdminCheck()
+  const { isSignedIn, user, loading, role, onboardingComplete } =
+    useAdminCheck()
   const [signingOut, setSigningOut] = useState(false)
   const navigate = useNavigate()
 
@@ -105,10 +106,29 @@ const Account = () => {
                     {user.emailVerified ? 'Verified' : 'Unverified'}
                   </p>
                 </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Onboarding
+                  </p>
+                  <p
+                    className="text-sm text-muted-foreground"
+                    data-testid="account-onboarding-status"
+                  >
+                    {onboardingComplete ? 'Complete' : 'Not completed'}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-3">
+              {!onboardingComplete && (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/onboarding')}
+                >
+                  Finish onboarding
+                </Button>
+              )}
               <Button
                 variant="outline"
                 onClick={handleSignOut}

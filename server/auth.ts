@@ -53,6 +53,14 @@ export const auth = betterAuth({
       bio: { type: 'string', required: false },
       website: { type: 'string', required: false },
       location: { type: 'string', required: false },
+      /**
+       * Account-level onboarding completion, set once by
+       * `POST /api/account/onboarding/complete`. Server-owned (`input: false`)
+       * like `role`, so a client cannot mark itself onboarded — completion is a
+       * server decision, and the value survives reloads because it is read back
+       * from the user row on every session.
+       */
+      onboardedAt: { type: 'date', required: false, input: false },
     },
   },
 
