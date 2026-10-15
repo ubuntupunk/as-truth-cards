@@ -2,7 +2,7 @@ import { betterAuth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { prisma } from './lib/db.js'
 import { assertAuthSecretConfigured } from './lib/auth-secret.js'
-import { Resend } from 'resend'
+import { sendEmail } from './lib/email.js'
 
 /**
  * Refuse to construct an auth instance that silently signs sessions with Better Auth's
@@ -71,37 +71,31 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24,
   },
 
+
+
   emailVerification: {
-    enabled: true,
+    sendVerificationEmail: async ({ user, url }: any) => {
+      void sendEmail({
+        to: user.email,
+        subject: 'Verify your email address',
+        text: `Click the link to verify your email: ${url}`,
+      })
+    },
+    sendOnSignUp: true,
     autoSignInAfterVerification: true,
   },
 
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: false,
+    sendResetPassword: async ({ user, url }: any) => {
+      void sendEmail({
+        to: user.email,
+        subject: 'Reset your password',
+        text: `Click the link to reset your password: ${url}`,
+      })
+    },
   },
-
-  plugins: [
-    process.env.RESEND_API_KEY && process.env.RESEND_FROM
-      ? (() => {
-          const resend = new Resend(process.env.RESEND_API_KEY)
-          return {
-            id: 'resend',
-            init: () => ({
-              sendEmail: async (data: any) => {
-                await resend.emails.send({
-                  from: process.env.RESEND_FROM!,
-                  to: data.to,
-                  subject: data.subject,
-                  text: data.text,
-                  html: data.html,
-                })
-              },
-            }),
-          }
-        })()
-      : undefined,
-  ].filter(Boolean) as any,
 })
 
 export type AuthSession = typeof auth.$Infer.Session
