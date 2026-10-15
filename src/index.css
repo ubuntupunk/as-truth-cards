@@ -68,6 +68,10 @@
     --border: 215 27.9% 16.9%;
     --input: 215 27.9% 16.9%;
     --ring: 216 12.2% 83.9%;
+
+    /* Lighten graph accent for sufficient contrast on very dark background */
+    --graph-accent: 262 83.3% 64%;
+    --graph-accent-foreground: 0 0% 100%;
   }
 }
 
