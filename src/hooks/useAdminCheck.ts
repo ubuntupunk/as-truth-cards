@@ -3,18 +3,7 @@
 import type { UserRole } from '@prisma/client'
 import { createAuthClient } from 'better-auth/react'
 import { useEffect, useState } from 'react'
-
-/** Minimal shape of the session this hook actually reads. */
-type SessionShape = {
-  user: {
-    id: string
-    email: string
-    name: string
-    image?: string | null
-    [key: string]: unknown
-  } | null
-  session?: Record<string, unknown>
-} | null
+import { type SessionShape, unwrapSession } from './session-envelope'
 
 /**
  * Better Auth client.
@@ -60,8 +49,8 @@ export const useAdminCheck = () => {
       .getSession()
       .then((result) => {
         if (!active) return
-        // getSession() resolves to the session itself, or null when signed out.
-        setSession((result as SessionShape | null) ?? null)
+        // getSession() resolves to a `{ data, error }` envelope; unwrap the session.
+        setSession(unwrapSession(result))
       })
       .catch(() => {
         if (active) setSession(null)
