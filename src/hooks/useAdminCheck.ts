@@ -1,80 +1,24 @@
-'use client'
-
-import type { UserRole } from '@prisma/client'
-import { createAuthClient } from 'better-auth/react'
-import { useEffect, useState } from 'react'
-import { type SessionShape, unwrapSession } from './session-envelope'
-
 /**
- * Better Auth client.
+ * Account session hook — the single entry point account surfaces use.
  *
- * baseURL is deliberately left unset. In development the browser talks to Vite on
- * :8080, which proxies /api through to the Express server on :3001, so same-origin
- * relative requests already work and the session cookie stays first-party. Naming an
- * absolute origin here would make that cookie cross-site and require CORS credentials.
+ * `useAdminCheck` now reads the shared, reactive {@link SessionProvider} context
+ * instead of calling `getSession()` on mount, so sign-in/sign-out propagate to
+ * every mounted consumer (Header included) without a remount. The name is kept
+ * for the many existing call sites; it is no longer admin-specific.
+ *
+ * The role arrives on the session, set only by the server. `input: false` on the
+ * role field in `server/auth.ts` means Better Auth rejects a client-supplied
+ * role, so `isAdmin` cannot be forged from the browser. This replaced an earlier
+ * Stack Auth hook whose email-comparison fallback was a real escalation path.
+ *
+ * @returns The current {@link AccountView} (session, user, role, onboarding state).
  */
-export const authClient = createAuthClient()
+export { authClient } from './auth-client'
+export { SessionContext, SessionProvider, useAccount } from './session-context'
 
-/**
- * The role ladder, typed from Prisma's generated `UserRole` enum so the client and
- * database cannot drift apart. This is a type-only import, so it is erased at build
- * time and pulls no Prisma runtime into the browser bundle.
- *
- * Better Auth's untyped client cannot know about `additionalFields`, hence the cast.
- */
-const asRole = (value: unknown): UserRole | undefined =>
-  typeof value === 'string' ? (value as UserRole) : undefined
+import { useAccount } from './session-context'
 
-/**
- * Resolves the signed-in session and whether it carries the ADMIN role.
- *
- * This replaces an orphaned Stack Auth hook that called `useUser()` with no provider
- * mounted anywhere, then fetched a `/api/auth/user-role` endpoint that never existed,
- * and finally fell back to comparing the signed-in email against a hardcoded list of
- * admin addresses shipped in the client bundle. That fallback was a real privilege
- * escalation path: knowing an admin's email was enough to be treated as an admin.
- *
- * The role now arrives on the session, set only by the server. `input: false` on the
- * field in server/auth.ts means Better Auth rejects a client-supplied role, so this
- * value cannot be forged from the browser.
- */
-export const useAdminCheck = () => {
-  const [session, setSession] = useState<SessionShape | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let active = true
-
-    authClient
-      .getSession()
-      .then((result) => {
-        if (!active) return
-        // getSession() resolves to a `{ data, error }` envelope; unwrap the session.
-        setSession(unwrapSession(result))
-      })
-      .catch(() => {
-        if (active) setSession(null)
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  const user = session?.user ?? null
-  const role = asRole(user ? (user as { role?: unknown }).role : undefined)
-
-  return {
-    isAdmin: role === 'ADMIN',
-    loading,
-    isSignedIn: Boolean(user),
-    role,
-    user,
-    session,
-  }
-}
+/** @see useAccount */
+export const useAdminCheck = useAccount
 
 export default useAdminCheck

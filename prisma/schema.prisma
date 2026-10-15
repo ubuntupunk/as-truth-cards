@@ -51,6 +51,11 @@ model User {
   bio           String?
   website       String?
   location      String?
+  // Set once, when the user completes the onboarding flow. Null means "not yet
+  // completed". This is real account state read back on every session, so
+  // completion survives reloads, devices and sign-out — it is never inferred from
+  // the user having merely visited the onboarding route.
+  onboardedAt   DateTime? @map("onboarded_at")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]

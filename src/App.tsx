@@ -8,6 +8,7 @@ import { RouteLoading } from '@/components/route-loading'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { SessionProvider } from '@/hooks/session-context'
 import { ThemeProvider } from './components/ThemeProvider'
 
 const queryClient = new QueryClient()
@@ -30,21 +31,23 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <BrowserRouter>
-          <ErrorBoundary label="application">
-            <Suspense fallback={<RouteLoading />}>
-              <Routes>
-                {APP_ROUTES.map((route) => (
-                  <Route
-                    key={route.path}
-                    path={route.path}
-                    element={withRouteBoundary(route)}
-                  />
-                ))}
-              </Routes>
-            </Suspense>
-          </ErrorBoundary>
-        </BrowserRouter>
+        <SessionProvider>
+          <BrowserRouter>
+            <ErrorBoundary label="application">
+              <Suspense fallback={<RouteLoading />}>
+                <Routes>
+                  {APP_ROUTES.map((route) => (
+                    <Route
+                      key={route.path}
+                      path={route.path}
+                      element={withRouteBoundary(route)}
+                    />
+                  ))}
+                </Routes>
+              </Suspense>
+            </ErrorBoundary>
+          </BrowserRouter>
+        </SessionProvider>
       </TooltipProvider>
     </QueryClientProvider>
   </ThemeProvider>

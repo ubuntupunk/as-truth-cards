@@ -1,5 +1,11 @@
 import { useState } from 'preact/hooks'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  DEFAULT_RETURN_TO,
+  type EmailSignUpClient,
+  MIN_PASSWORD_LENGTH,
+  submitSignUp,
+} from '@/auth/journey'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { Button } from '@/components/ui/button'
@@ -25,24 +31,17 @@ const SignUp = () => {
     setError(null)
     setLoading(true)
 
-    try {
-      const result = await authClient.signUp.email({
-        name,
-        email,
-        password,
-      })
+    const outcome = await submitSignUp(
+      authClient as unknown as EmailSignUpClient,
+      { name, email, password },
+      returnTo,
+    )
 
-      if (result.error) {
-        setError(result.error.message || 'Failed to create account')
-      } else {
-        const redirect =
-          returnTo && returnTo.startsWith('/') ? returnTo : '/account'
-        navigate(redirect)
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create account')
-    } finally {
-      setLoading(false)
+    setLoading(false)
+    if (outcome.ok) {
+      navigate(outcome.redirect ?? DEFAULT_RETURN_TO)
+    } else {
+      setError(outcome.error ?? 'Failed to create account')
     }
   }
 
@@ -83,7 +82,7 @@ const SignUp = () => {
                   id="name"
                   type="text"
                   value={name}
-                  onChange={(e: any) => setName(e.target.value)}
+                  onChange={(e) => setName(e.currentTarget.value)}
                   placeholder="Your name"
                   required
                   disabled={loading}
@@ -96,7 +95,7 @@ const SignUp = () => {
                   id="email"
                   type="email"
                   value={email}
-                  onChange={(e: any) => setEmail(e.target.value)}
+                  onChange={(e) => setEmail(e.currentTarget.value)}
                   placeholder="you@example.com"
                   required
                   disabled={loading}
@@ -109,10 +108,10 @@ const SignUp = () => {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e: any) => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.currentTarget.value)}
                   required
                   disabled={loading}
-                  minLength={8}
+                  minLength={MIN_PASSWORD_LENGTH}
                 />
               </div>
 
