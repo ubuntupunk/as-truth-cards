@@ -21,8 +21,10 @@ import { matchRoutes, type RouteObject } from 'react-router-dom'
 import { APP_ROUTES } from './app-routes'
 import { NAV_ENTRIES } from './components/Header'
 import Deck from './pages/Deck'
+import ForgotPassword, { FORGOT_PASSWORD_PATH } from './pages/ForgotPassword'
 import LegacyDeck from './pages/LegacyDeck'
 import NotFound from './pages/NotFound'
+import ResetPassword, { RESET_PASSWORD_PATH } from './pages/ResetPassword'
 
 const routeObjects: RouteObject[] = APP_ROUTES.map(({ path, element }) => ({
   path,
@@ -67,6 +69,11 @@ describe('application route table', () => {
         `${entry.path} fell through to the catch-all`,
       )
     }
+  })
+
+  it('serves the password-reset surfaces at their shared path constants', () => {
+    assert.equal(resolved(FORGOT_PASSWORD_PATH).type, ForgotPassword)
+    assert.equal(resolved(RESET_PASSWORD_PATH).type, ResetPassword)
   })
 })
 
