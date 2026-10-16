@@ -129,10 +129,6 @@ export function crossrefSourceTypeHint(type: unknown): SourceTypeValue | null {
     case 'report-component':
     case 'standard':
       return 'INSTITUTIONAL'
-    case 'journal':
-    case 'reference-entry':
-    case 'component':
-    case 'dataset':
     default:
       return null
   }

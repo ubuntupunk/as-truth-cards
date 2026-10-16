@@ -9,6 +9,7 @@
  */
 
 import type { Ref } from 'preact'
+import { useAdminCheck } from '@/hooks/useAdminCheck'
 import type { CardListingRow } from '../../trope-cards/src/graph/reader.ts'
 import { CardNavigation } from './card-navigation'
 import type { CardStage } from './card-stage'
@@ -61,9 +62,15 @@ export function CardDiscovery({
   projectionError = null,
   articleRef,
 }: CardDiscoveryProps) {
+  // This is the owning page-level composition (rendered only by `Deck.tsx`), so
+  // it holds the session hook and threads the result down: the card tree below
+  // is presentational and must stay hook-free for the SSR/vnode test harness.
+  const { isSignedIn } = useAdminCheck()
+
   return (
     <div data-testid="card-discovery" className="space-y-4">
       <FeaturedCard
+        isSignedIn={isSignedIn}
         card={card}
         idLabel={idLabel}
         preview={preview}

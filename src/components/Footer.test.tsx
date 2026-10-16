@@ -12,7 +12,7 @@
 
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { FOOTER_LINKS, BUY_ME_A_COFFEE_URL, REPO_URL } from './Footer'
+import { BUY_ME_A_COFFEE_URL, FOOTER_LINKS, REPO_URL } from './Footer'
 
 describe('Footer links', () => {
   it('points every entry at a real route, never a placeholder', () => {

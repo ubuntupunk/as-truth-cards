@@ -17,8 +17,6 @@
  * No localStorage stand-in: a save the account layer cannot see is not a save.
  */
 
-import { useNavigate } from 'react-router-dom'
-import { authClient, useAdminCheck } from '@/hooks/useAdminCheck'
 import type { CardStage } from './card-stage'
 
 /** Props for {@link CardActions}. */
@@ -45,6 +43,13 @@ export type CardActionsProps = {
    * rather than left to open into nothing.
    */
   readonly readingAvailable?: boolean
+  /**
+   * Whether the viewer is signed in. Injected rather than read from a hook:
+   * this presentational tree is also invoked as plain functions by the SSR/vnode
+   * walk in the deck tests, which have no Preact hook context, so the session
+   * is threaded in from the page that owns the hook (`card-discovery.tsx`).
+   */
+  readonly isSignedIn?: boolean
 }
 
 /** The save note id, referenced by the disabled button via `aria-describedby`. */
@@ -70,21 +75,8 @@ export function CardActions({
   onClose,
   slug,
   readingAvailable = true,
+  isSignedIn = false,
 }: CardActionsProps) {
-  let isSignedIn = false
-  try {
-    const admin = useAdminCheck()
-    isSignedIn = admin.isSignedIn
-  } catch (e) {
-    isSignedIn = false
-  }
-  let navigate: any = () => {}
-  try {
-    navigate = useNavigate()
-  } catch (e) {
-    navigate = () => {}
-  }
-
   return (
     <div
       data-testid="card-actions"
@@ -156,11 +148,6 @@ export function CardActions({
       <div className="flex flex-col gap-1">
         <button
           type="button"
-          onClick={() => {
-            if (!isSignedIn) {
-              navigate(`/sign-in?returnTo=/`)
-            }
-          }}
           aria-describedby={SAVE_CARD_NOTE_ID}
           data-testid="save-card"
           disabled={!isSignedIn}
