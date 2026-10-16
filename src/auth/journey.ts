@@ -23,17 +23,31 @@ export const DEFAULT_RETURN_TO = '/account'
 /** Minimum password length, shared with the form's `minLength` attribute. */
 export const MIN_PASSWORD_LENGTH = 8
 
-/** True when the string contains a C0/C1 control character or DEL. */
+/**
+ * True when the string contains a control character: C0 (U+0000–U+001F),
+ * DEL (U+007F) or C1 (U+0080–U+009F).
+ *
+ * C1 matters as much as C0 here: some parsers/normalisers treat C1 bytes as
+ * control separators, so a value that *looks* like a path can be re-interpreted
+ * downstream. Rejecting both ranges keeps the implementation honest with the
+ * documented policy.
+ */
 function hasControlCharacter(value: string): boolean {
   for (const char of value) {
     const code = char.codePointAt(0) ?? 0
     if (code < 0x20 || code === 0x7f) return true
+    if (code >= 0x80 && code <= 0x9f) return true
   }
   return false
 }
 
 /**
  * Sanitise a `returnTo` query value to a same-origin, path-only destination.
+ *
+ * Policy: the value is used **verbatim** — it is not trimmed. Any leading or
+ * trailing whitespace, or whitespace anywhere in the value, is a malformed
+ * destination and falls back. This is deliberate: silently trimming would mask a
+ * tampered value, and the caller already sends a clean path.
  *
  * @param value The raw `returnTo` value (untrusted).
  * @param fallback Destination to use when `value` is missing or unsafe.
@@ -43,6 +57,7 @@ function hasControlCharacter(value: string): boolean {
  * safeReturnTo('/research?card=x') // => '/research?card=x'
  * safeReturnTo('//evil.example')   // => '/account'
  * safeReturnTo('https://evil.example') // => '/account'
+ * safeReturnTo(' /account')        // => '/account' (whitespace rejected)
  * ```
  */
 export function safeReturnTo(
@@ -50,14 +65,15 @@ export function safeReturnTo(
   fallback: string = DEFAULT_RETURN_TO,
 ): string {
   if (typeof value !== 'string') return fallback
-  const candidate = value.trim()
-  if (candidate === '' || !candidate.startsWith('/')) return fallback
+  if (value === '' || !value.startsWith('/')) return fallback
   // '//host' and '/\host' are resolved by browsers as scheme-relative to another origin.
-  if (candidate.startsWith('//') || candidate.startsWith('/\\')) return fallback
-  // Backslashes, whitespace and control characters all make the target ambiguous.
-  if (candidate.includes('\\') || /\s/.test(candidate)) return fallback
-  if (hasControlCharacter(candidate)) return fallback
-  return candidate
+  if (value.startsWith('//') || value.startsWith('/\\')) return fallback
+  // Whitespace (incl. leading/trailing), backslashes and control characters all
+  // make the target ambiguous or tampered-looking, so they fall back.
+  if (/\s/.test(value)) return fallback
+  if (value.includes('\\')) return fallback
+  if (hasControlCharacter(value)) return fallback
+  return value
 }
 
 /** Per-field validation messages; a field is valid when its key is absent. */

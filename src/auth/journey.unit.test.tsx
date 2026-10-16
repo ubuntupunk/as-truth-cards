@@ -13,7 +13,10 @@ import {
 describe('safeReturnTo', () => {
   it('returns internal absolute path', () => {
     assert.equal(safeReturnTo('/account'), '/account')
-    assert.equal(safeReturnTo('/research?card=x#section'), '/research?card=x#section')
+    assert.equal(
+      safeReturnTo('/research?card=x#section'),
+      '/research?card=x#section',
+    )
   })
 
   it('falls back on protocol-relative //evil.example', () => {
@@ -38,15 +41,23 @@ describe('safeReturnTo', () => {
     assert.equal(safeReturnTo(null), DEFAULT_RETURN_TO)
     assert.equal(safeReturnTo(undefined), DEFAULT_RETURN_TO)
     assert.equal(safeReturnTo(123 as unknown as string), DEFAULT_RETURN_TO)
-    assert.equal(safeReturnTo(' /account'), '/account') // trimmed
   })
 
-  it('rejects whitespace and control characters', () => {
+  it('rejects whitespace anywhere, including leading/trailing (no trimming)', () => {
+    assert.equal(safeReturnTo(' /account'), DEFAULT_RETURN_TO)
     assert.equal(safeReturnTo('/account '), DEFAULT_RETURN_TO)
     assert.equal(safeReturnTo('/account\t'), DEFAULT_RETURN_TO)
     assert.equal(safeReturnTo('/account\n'), DEFAULT_RETURN_TO)
-    assert.equal(safeReturnTo('/acc\u0000ount'), DEFAULT_RETURN_TO)
-    assert.equal(safeReturnTo('/acc\u007fount'), DEFAULT_RETURN_TO)
+    assert.equal(safeReturnTo('/account '), DEFAULT_RETURN_TO)
+    assert.equal(safeReturnTo('   '), DEFAULT_RETURN_TO)
+  })
+
+  it('rejects C0, DEL and C1 control characters', () => {
+    assert.equal(safeReturnTo('/acc\u0000ount'), DEFAULT_RETURN_TO) // C0
+    assert.equal(safeReturnTo('/acc\u001fount'), DEFAULT_RETURN_TO) // C0
+    assert.equal(safeReturnTo('/acc\u007fount'), DEFAULT_RETURN_TO) // DEL
+    assert.equal(safeReturnTo('/acc\u0080ount'), DEFAULT_RETURN_TO) // C1
+    assert.equal(safeReturnTo('/acc\u009fount'), DEFAULT_RETURN_TO) // C1
   })
 
   it('rejects backslash anywhere', () => {
@@ -59,12 +70,20 @@ describe('validateSignUp', () => {
     const v1 = validateSignUp({ name: '', email: '', password: '' })
     assert.equal(v1.ok, false)
     assert.ok(v1.message)
-    const v2 = validateSignUp({ name: 'Alice', email: 'alice@example.com', password: 'x'.repeat(MIN_PASSWORD_LENGTH) })
+    const v2 = validateSignUp({
+      name: 'Alice',
+      email: 'alice@example.com',
+      password: 'x'.repeat(MIN_PASSWORD_LENGTH),
+    })
     assert.equal(v2.ok, true)
   })
 
   it('rejects invalid email', () => {
-    const v = validateSignUp({ name: 'A', email: 'not-an-email', password: 'x'.repeat(MIN_PASSWORD_LENGTH) })
+    const v = validateSignUp({
+      name: 'A',
+      email: 'not-an-email',
+      password: 'x'.repeat(MIN_PASSWORD_LENGTH),
+    })
     assert.equal(v.ok, false)
   })
 
@@ -90,15 +109,24 @@ describe('submitSignIn', () => {
   })
 
   it('returns error from auth client', async () => {
-    const fake = { signIn: { email: async () => ({ error: { message: 'Bad creds' } }) } }
-    const res = await submitSignIn(fake as any, { email: 'a@b.com', password: 'pw' })
+    const fake = {
+      signIn: { email: async () => ({ error: { message: 'Bad creds' } }) },
+    }
+    const res = await submitSignIn(fake as any, {
+      email: 'a@b.com',
+      password: 'pw',
+    })
     assert.equal(res.ok, false)
     assert.equal(res.error, 'Bad creds')
   })
 
   it('returns redirect on success with safe returnTo', async () => {
     const fake = { signIn: { email: async () => ({ error: null }) } }
-    const res = await submitSignIn(fake as any, { email: 'a@b.com', password: 'pw' }, '//evil.example')
+    const res = await submitSignIn(
+      fake as any,
+      { email: 'a@b.com', password: 'pw' },
+      '//evil.example',
+    )
     assert.equal(res.ok, true)
     assert.equal(res.redirect, DEFAULT_RETURN_TO)
   })
@@ -107,20 +135,38 @@ describe('submitSignIn', () => {
 describe('submitSignUp', () => {
   it('returns validation error when invalid', async () => {
     const fake = { signUp: { email: async () => ({ error: null }) } }
-    const res = await submitSignUp(fake as any, { name: '', email: '', password: '' })
+    const res = await submitSignUp(fake as any, {
+      name: '',
+      email: '',
+      password: '',
+    })
     assert.equal(res.ok, false)
   })
 
   it('returns error from client', async () => {
-    const fake = { signUp: { email: async () => ({ error: { message: 'exists' } }) } }
-    const res = await submitSignUp(fake as any, { name: 'A', email: 'a@b.com', password: 'x'.repeat(MIN_PASSWORD_LENGTH) })
+    const fake = {
+      signUp: { email: async () => ({ error: { message: 'exists' } }) },
+    }
+    const res = await submitSignUp(fake as any, {
+      name: 'A',
+      email: 'a@b.com',
+      password: 'x'.repeat(MIN_PASSWORD_LENGTH),
+    })
     assert.equal(res.ok, false)
     assert.equal(res.error, 'exists')
   })
 
   it('returns redirect on success', async () => {
     const fake = { signUp: { email: async () => ({ error: null }) } }
-    const res = await submitSignUp(fake as any, { name: 'A', email: 'a@b.com', password: 'x'.repeat(MIN_PASSWORD_LENGTH) }, '/onboarding')
+    const res = await submitSignUp(
+      fake as any,
+      {
+        name: 'A',
+        email: 'a@b.com',
+        password: 'x'.repeat(MIN_PASSWORD_LENGTH),
+      },
+      '/onboarding',
+    )
     assert.equal(res.ok, true)
     assert.equal(res.redirect, '/onboarding')
   })

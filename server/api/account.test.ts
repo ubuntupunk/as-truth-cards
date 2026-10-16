@@ -39,6 +39,7 @@ interface Harness {
     method: string,
     path: string,
     body?: unknown,
+    headers?: Record<string, string>,
   ): Promise<{ status: number; text: string; body: unknown }>
 }
 
@@ -54,6 +55,7 @@ async function withServer(
     userId?: string | null
     store?: OnboardingStore
     now?: () => Date
+    trustedOrigins?: readonly string[]
   },
   fn: (harness: Harness) => Promise<void>,
 ): Promise<void> {
@@ -64,6 +66,7 @@ async function withServer(
     createAccountRouter({
       store: options.store ?? new MemoryOnboardingStore(),
       now: options.now,
+      trustedOrigins: options.trustedOrigins ?? ['https://app.example.com'],
       getSession: async () =>
         options.userId == null ? null : { userId: options.userId },
     }),
@@ -77,11 +80,12 @@ async function withServer(
   try {
     await fn({
       base,
-      async request(method, path, body) {
+      async request(method, path, body, headers) {
+        const requestHeaders: Record<string, string> = { ...headers }
+        if (body !== undefined) requestHeaders['content-type'] = 'application/json'
         const response = await fetch(`${base}${path}`, {
           method,
-          headers:
-            body === undefined ? undefined : { 'content-type': 'application/json' },
+          headers: Object.keys(requestHeaders).length > 0 ? requestHeaders : undefined,
           body: body === undefined ? undefined : JSON.stringify(body),
         })
         const text = await response.text()
@@ -178,5 +182,75 @@ describe('POST /api/account/onboarding/complete', () => {
         assert.equal(response.status, 500)
       },
     )
+  })
+})
+
+describe('CSRF origin guard', () => {
+  it('rejects a state change from an untrusted Origin', async () => {
+    await withServer({ userId: 'user-1' }, async ({ request }) => {
+      const response = await request(
+        'POST',
+        '/api/account/onboarding/complete',
+        undefined,
+        { origin: 'https://evil.example' },
+      )
+      assert.equal(response.status, 403)
+      assert.deepEqual(response.body, { error: 'Cross-origin request rejected' })
+    })
+  })
+
+  it('accepts a state change from a trusted Origin', async () => {
+    await withServer({ userId: 'user-1' }, async ({ request }) => {
+      const response = await request(
+        'POST',
+        '/api/account/onboarding/complete',
+        undefined,
+        { origin: 'https://app.example.com' },
+      )
+      assert.equal(response.status, 200)
+    })
+  })
+
+  it('accepts a state change with no Origin (non-browser client)', async () => {
+    await withServer({ userId: 'user-1' }, async ({ request }) => {
+      const response = await request('POST', '/api/account/onboarding/complete')
+      assert.equal(response.status, 200)
+    })
+  })
+
+  it('does not guard a safe method even from an untrusted Origin', async () => {
+    await withServer({ userId: 'user-1' }, async ({ request }) => {
+      const response = await request(
+        'GET',
+        '/api/account/onboarding',
+        undefined,
+        { origin: 'https://evil.example' },
+      )
+      assert.equal(response.status, 200)
+    })
+  })
+
+  it('rejects before session or store work runs', async () => {
+    let storeTouched = false
+    const store: OnboardingStore = {
+      async read() {
+        storeTouched = true
+        return { onboardedAt: null }
+      },
+      async markComplete() {
+        storeTouched = true
+        return { onboardedAt: new Date().toISOString() }
+      },
+    }
+    await withServer({ userId: 'user-1', store }, async ({ request }) => {
+      const response = await request(
+        'POST',
+        '/api/account/onboarding/complete',
+        undefined,
+        { origin: 'https://evil.example' },
+      )
+      assert.equal(response.status, 403)
+      assert.equal(storeTouched, false)
+    })
   })
 })
