@@ -21,6 +21,10 @@ import graphRouter from './api/graph.js';
 import draftsRouter from './api/drafts.js';
 import discoveryRouter from './api/discovery.js';
 import accountRouter from './api/account.js';
+import {
+  DEFAULT_TRUSTED_ORIGINS,
+  resolveTrustedOrigins,
+} from './lib/origin.js';
 
 /**
  * The process-environment keys the app reads, narrowed so callers cannot inject an
@@ -34,25 +38,16 @@ export type AppEnv = {
 };
 
 /**
- * The development origins the API trusts by default, mirroring the Better Auth
- * `trustedOrigins` list in `server/auth.ts` so CORS and Origin validation stay in agreement.
- *
- * Browsers talk to Vite on `:8080`, which proxies `/api` to the Express server on `:3001`
- * (`vite.config.ts`). Neither is `*`, and both were already trusted for Better Auth.
+ * The development origins the API trusts by default. Re-exported from the shared
+ * origin module so CORS (here), Better Auth (`server/auth.ts`) and the CSRF origin
+ * guard (`server/lib/origin.ts`) all read from one list and cannot drift.
  */
-export const DEFAULT_CORS_ORIGINS: readonly string[] = [
-  'http://localhost:8080',
-  'http://localhost:3001',
-];
+export const DEFAULT_CORS_ORIGINS: readonly string[] = DEFAULT_TRUSTED_ORIGINS;
 
 /**
- * Resolve the browser origins the API will answer cross-origin.
- *
- * An explicit `CORS_ORIGINS` (comma-separated) wins. Otherwise the default known origins
- * are used, plus the production origin derived from `BETTER_AUTH_URL` when running in
- * production — production serves the SPA from the same origin, but listing it keeps the
- * policy self-consistent and lets the health/API surface be reachable if a future consumer
- * is ever sanctioned.
+ * Resolve the browser origins the API will answer cross-origin. Thin alias of the
+ * shared {@link resolveTrustedOrigins}, kept under its historical name for callers
+ * and tests.
  *
  * @param env Injectable environment, defaulting to the process environment.
  * @returns A trimmed, de-duplicated list of origins; never contains a wildcard.
@@ -63,18 +58,7 @@ export const DEFAULT_CORS_ORIGINS: readonly string[] = [
  * ```
  */
 export function resolveCorsOrigins(env: AppEnv = process.env): string[] {
-  const explicit = env.CORS_ORIGINS?.split(',')
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
-  if (explicit !== undefined && explicit.length > 0) {
-    return [...new Set(explicit)];
-  }
-
-  const origins = [...DEFAULT_CORS_ORIGINS];
-  if (env.NODE_ENV === 'production' && env.BETTER_AUTH_URL) {
-    origins.push(env.BETTER_AUTH_URL.replace(/\/+$/, ''));
-  }
-  return [...new Set(origins)];
+  return resolveTrustedOrigins(env);
 }
 
 /**

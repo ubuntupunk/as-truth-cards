@@ -21,6 +21,7 @@
 
 import { Router, type Request } from 'express'
 import { fromNodeHeaders } from 'better-auth/node'
+import { createOriginGuard } from '../lib/origin.js'
 
 /** The signed-in actor a route trusts. Onboarding needs only an id. */
 export type SessionActor = { readonly userId: string }
@@ -47,6 +48,11 @@ export interface AccountRouterDeps {
   readonly getSession?: GetSession
   /** Clock, injected so a test can assert the exact timestamp written. */
   readonly now?: () => Date
+  /**
+   * Trusted browser origins for the CSRF origin guard. Defaults to the shared
+   * list; injected in tests so the guard can be exercised deterministically.
+   */
+  readonly trustedOrigins?: readonly string[]
 }
 
 /**
@@ -108,6 +114,11 @@ export function createAccountRouter(deps: AccountRouterDeps = {}): Router {
   }
 
   const router = Router()
+
+  // CSRF: the session cookie is sent on this endpoint, so reject state-changing
+  // requests from an untrusted Origin *before* any session/DB work. CORS alone is
+  // a browser control and does not stop a cross-site request from arriving.
+  router.use(createOriginGuard({ trustedOrigins: deps.trustedOrigins }))
 
   router.get('/onboarding', async (req, res) => {
     try {
