@@ -2,7 +2,8 @@
  * `DeckWorkspace` — the responsive three-column deck layout (Figma `7:4434`).
  *
  * On wide viewports (`xl`, ≥1280px) the workspace is three columns — browse
- * rail (232px) · card discovery (fluid) · research tray (320px) — matching the
+ * rail (232px) · card discovery (fluid) · tray column (320px, the research tray
+ * and the draft suite) — matching the
  * approved Figma proportions while the fluid middle keeps the card's reading
  * measure. Below `xl` the rails collapse entirely: they are hidden from the
  * grid and reachable only through the two toolbar buttons, which open them as
@@ -24,7 +25,10 @@ export type DeckDrawerKind = 'browse' | 'tray'
 export type DeckWorkspaceProps = {
   /** The browse rail content (also mounted inside the browse drawer). */
   readonly browseRail: ComponentChildren
-  /** The research tray content (also mounted inside the tray drawer). */
+  /**
+   * The tray-column content — the research tray and the draft suite — also
+   * mounted inside the tray drawer.
+   */
   readonly tray: ComponentChildren
   /** The card-discovery content of the fluid middle column. */
   readonly children: ComponentChildren
@@ -39,7 +43,7 @@ export type DeckWorkspaceProps = {
 /** The labelled title of each drawer, for its dialog and close affordance. */
 const DRAWER_TITLES: Record<DeckDrawerKind, string> = {
   browse: 'Browse categories',
-  tray: 'Research tray',
+  tray: 'Research tray and draft suite',
 }
 
 /** The mobile toolbar + drawer toggle treatment. */
@@ -96,7 +100,7 @@ export function DeckWorkspace({
             onClick={() => onOpenDrawer('tray')}
             className={TOOLBAR_BUTTON}
           >
-            Research tray
+            Research &amp; suite
           </button>
         </fieldset>
       </div>

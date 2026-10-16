@@ -53,11 +53,14 @@ import { type DeckDrawerKind, DeckWorkspace } from '@/deck/deck-workspace'
 import { DiscoveryPrompt } from '@/deck/discovery-prompt'
 import { inertBackground, trapTab } from '@/deck/drawer-a11y'
 import { ResearchTray } from '@/deck/research-tray'
+import { suiteEntryFromCard, suiteHandoff } from '@/deck/suite-session'
+import { SuiteTray } from '@/deck/suite-tray'
 import {
   deckProjectionParams,
   useDeckCards,
   useDeckSession,
 } from '@/deck/use-deck'
+import { useSuiteSession } from '@/deck/use-suite-session'
 import {
   GRAPH_TREATMENT_STORAGE_KEY,
   type GraphTreatment,
@@ -302,6 +305,30 @@ const Deck = () => {
     navigate(`/research?${serializeGraphParams(entryToGraphParams(entry))}`)
   }
 
+  // The draft suite is the curator's hand-assembly surface (g2f): a browser-
+  // local roster of the cards a human picked, whose only hand-off is an export.
+  // It never writes — the durable home of a Suite is a `collections` row, and
+  // assigning one stays an explicit, human decision.
+  const suite = useSuiteSession()
+  const suiteFocus =
+    featured !== null ? { id: featured.id, label: featured.title } : null
+  const addToSuite = () => {
+    if (featured === null) return
+    suite.add(suiteEntryFromCard(featured))
+  }
+  const [suiteExportState, setSuiteExportState] = useState<
+    'idle' | 'copied' | 'failed'
+  >('idle')
+  const exportSuite = async () => {
+    if (suite.entries.length === 0) return
+    try {
+      await navigator.clipboard.writeText(suiteHandoff(suite.entries))
+      setSuiteExportState('copied')
+    } catch {
+      setSuiteExportState('failed')
+    }
+  }
+
   let content: preact.ComponentChildren
   if (cardsQuery.isLoading) {
     content = <LoadingState labelled="Loading the deck…" />
@@ -439,14 +466,25 @@ const Deck = () => {
               />
             }
             tray={
-              <ResearchTray
-                entries={tray.entries}
-                focus={trayFocus}
-                onAdd={addToTray}
-                onOpen={openTrayEntry}
-                onRemove={tray.remove}
-                onClear={tray.clear}
-              />
+              <div className="space-y-4">
+                <ResearchTray
+                  entries={tray.entries}
+                  focus={trayFocus}
+                  onAdd={addToTray}
+                  onOpen={openTrayEntry}
+                  onRemove={tray.remove}
+                  onClear={tray.clear}
+                />
+                <SuiteTray
+                  entries={suite.entries}
+                  focus={suiteFocus}
+                  onAdd={addToSuite}
+                  onRemove={suite.remove}
+                  onClear={suite.clear}
+                  onExport={() => void exportSuite()}
+                  exportStatus={suiteExportState}
+                />
+              </div>
             }
           >
             <div className="space-y-4">{content}</div>
