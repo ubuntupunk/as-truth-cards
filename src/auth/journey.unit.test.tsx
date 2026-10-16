@@ -103,7 +103,7 @@ describe('validateSignIn', () => {
 describe('submitSignIn', () => {
   it('returns validation error when fields missing', async () => {
     const fake = { signIn: { email: async () => ({ error: null }) } }
-    const res = await submitSignIn(fake as any, { email: '', password: '' })
+    const res = await submitSignIn(fake, { email: '', password: '' })
     assert.equal(res.ok, false)
     assert.ok(res.error)
   })
@@ -112,7 +112,7 @@ describe('submitSignIn', () => {
     const fake = {
       signIn: { email: async () => ({ error: { message: 'Bad creds' } }) },
     }
-    const res = await submitSignIn(fake as any, {
+    const res = await submitSignIn(fake, {
       email: 'a@b.com',
       password: 'pw',
     })
@@ -123,7 +123,7 @@ describe('submitSignIn', () => {
   it('returns redirect on success with safe returnTo', async () => {
     const fake = { signIn: { email: async () => ({ error: null }) } }
     const res = await submitSignIn(
-      fake as any,
+      fake,
       { email: 'a@b.com', password: 'pw' },
       '//evil.example',
     )
@@ -135,7 +135,7 @@ describe('submitSignIn', () => {
 describe('submitSignUp', () => {
   it('returns validation error when invalid', async () => {
     const fake = { signUp: { email: async () => ({ error: null }) } }
-    const res = await submitSignUp(fake as any, {
+    const res = await submitSignUp(fake, {
       name: '',
       email: '',
       password: '',
@@ -147,7 +147,7 @@ describe('submitSignUp', () => {
     const fake = {
       signUp: { email: async () => ({ error: { message: 'exists' } }) },
     }
-    const res = await submitSignUp(fake as any, {
+    const res = await submitSignUp(fake, {
       name: 'A',
       email: 'a@b.com',
       password: 'x'.repeat(MIN_PASSWORD_LENGTH),
@@ -159,7 +159,7 @@ describe('submitSignUp', () => {
   it('returns redirect on success', async () => {
     const fake = { signUp: { email: async () => ({ error: null }) } }
     const res = await submitSignUp(
-      fake as any,
+      fake,
       {
         name: 'A',
         email: 'a@b.com',
