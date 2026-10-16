@@ -87,7 +87,7 @@ describe('requestPasswordReset', () => {
       origin: 'https://trope.example',
     })
 
-    assert.equal(message, 'Failed to send the reset email')
+    assert.equal(message, 'Failed to request a password reset')
   })
 })
 

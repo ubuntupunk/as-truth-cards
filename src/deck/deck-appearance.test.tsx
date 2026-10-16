@@ -33,7 +33,7 @@ describe('parseDeckTreatment', () => {
     const stored = reader({
       [GRAPH_TREATMENT_STORAGE_KEY]: 'editorial',
     })
-    assert.equal(parseDeckTreatment('duotone', stored), 'duotone')
+    assert.equal(parseDeckTreatment('workspace', stored), 'workspace')
   })
 
   it('falls back to the stored choice when the URL has no treatment', () => {
@@ -46,9 +46,9 @@ describe('parseDeckTreatment', () => {
 
   it('ignores an invalid parameter and trusts the stored choice', () => {
     const stored = reader({
-      [GRAPH_TREATMENT_STORAGE_KEY]: 'duotone',
+      [GRAPH_TREATMENT_STORAGE_KEY]: 'editorial',
     })
-    assert.equal(parseDeckTreatment('no-such-treatment', stored), 'duotone')
+    assert.equal(parseDeckTreatment('no-such-treatment', stored), 'editorial')
   })
 
   it('reaches the default when neither the URL nor storage names one', () => {

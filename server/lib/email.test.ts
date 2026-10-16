@@ -28,7 +28,6 @@ describe('sendEmail — unconfigured', () => {
       },
       getFrom: () => 'noreply@example.com',
       log: () => undefined,
-      nodeEnv: 'test',
     })
 
     const result = await send(OPTIONS)
@@ -41,34 +40,27 @@ describe('sendEmail — unconfigured', () => {
     const send = createSendEmail({
       getClient: () => ({ emails: { send: async () => ({}) } }),
       getFrom: () => undefined,
-      log: () => undefined,
-      nodeEnv: 'test',
+      log: () => undefined
     })
     const result = await send(OPTIONS)
     assert.equal(result.delivered, false)
     assert.equal(result.skipped, 'unconfigured')
   })
 
-  it('logs the skip in non-production, quietly in production', async () => {
+  it('logs the skip in every environment (an unconfigured sender is an incident)', async () => {
     const logged: unknown[][] = []
     const log = (...args: unknown[]) => logged.push(args)
 
-    await createSendEmail({
+    // The skip is logged unconditionally — production observability is required
+    // because mail silently never sending is a production incident.
+    const result = await createSendEmail({
       getClient: () => null,
       getFrom: () => undefined,
       log,
-      nodeEnv: 'development',
     })(OPTIONS)
-    assert.equal(logged.length, 1)
 
-    logged.length = 0
-    await createSendEmail({
-      getClient: () => null,
-      getFrom: () => undefined,
-      log,
-      nodeEnv: 'production',
-    })(OPTIONS)
-    assert.equal(logged.length, 0)
+    assert.equal(result.skipped, 'unconfigured')
+    assert.equal(logged.length, 1)
   })
 })
 
@@ -82,8 +74,7 @@ describe('sendEmail — provider failure', () => {
         },
       }),
       getFrom: () => 'noreply@example.com',
-      log: (...args: unknown[]) => logged.push(args),
-      nodeEnv: 'production',
+      log: (...args: unknown[]) => logged.push(args)
     })
 
     const result = await send(OPTIONS)
@@ -102,8 +93,7 @@ describe('sendEmail — provider failure', () => {
         },
       }),
       getFrom: () => 'noreply@example.com',
-      log: () => undefined,
-      nodeEnv: 'production',
+      log: () => undefined
     })
 
     const result = await send(OPTIONS)
@@ -125,8 +115,7 @@ describe('sendEmail — success', () => {
         },
       }),
       getFrom: () => 'noreply@example.com',
-      log: () => undefined,
-      nodeEnv: 'production',
+      log: () => undefined
     })
 
     const result = await send(OPTIONS)
@@ -151,8 +140,7 @@ describe('sendEmail — success', () => {
         },
       }),
       getFrom: () => 'noreply@example.com',
-      log: () => undefined,
-      nodeEnv: 'production',
+      log: () => undefined
     })
 
     await send({ ...OPTIONS, html: '<p>hi</p>' })
