@@ -95,13 +95,28 @@ describe('resolveCorsOrigins', () => {
     assert.ok(origins.includes('https://as-truth-cards.onrender.com'))
   })
 
-  it('lets CORS_ORIGINS fully override the default list', () => {
+  it('replaces the development defaults when CORS_ORIGINS is set', () => {
     assert.deepEqual(
       resolveCorsOrigins({
         CORS_ORIGINS: ' https://app.example.com, , https://app.example.com ',
       }),
       ['https://app.example.com'],
     )
+  })
+
+  it('keeps the production origin even when CORS_ORIGINS is explicit', () => {
+    const origins = resolveCorsOrigins({
+      NODE_ENV: 'production',
+      BETTER_AUTH_URL: 'https://as-truth-cards.onrender.com',
+      CORS_ORIGINS: 'https://app.example.com',
+    })
+    // The deployed origin is the app's own frontend, so it must not be excludable
+    // by an explicit allow-list: a misconfigured CORS_ORIGINS would otherwise 403
+    // the same-origin account API.
+    assert.ok(origins.includes('https://as-truth-cards.onrender.com'))
+    assert.ok(origins.includes('https://app.example.com'))
+    // The explicit list replaces the *development* defaults.
+    assert.ok(!origins.includes('http://localhost:8080'))
   })
 
   it('ignores a wildcard-minded blank CORS_ORIGINS', () => {

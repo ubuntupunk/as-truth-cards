@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { createSendEmail } from './email.js'
+import { createSendEmail, redactEmails } from './email.js'
 
 /**
  * Email delivery failure semantics.
@@ -99,6 +99,66 @@ describe('sendEmail — provider failure', () => {
     const result = await send(OPTIONS)
     assert.equal(result.delivered, false)
     assert.ok(result.error instanceof Error)
+  })
+})
+
+describe('email log privacy', () => {
+  it('redactEmails replaces email-shaped text', () => {
+    assert.equal(
+      redactEmails('cannot deliver to user@example.com today'),
+      'cannot deliver to [redacted] today',
+    )
+    assert.equal(redactEmails('no address here'), 'no address here')
+  })
+
+  it('does not log the recipient address when skipping unconfigured', async () => {
+    const logged: unknown[][] = []
+    await createSendEmail({
+      getClient: () => null,
+      getFrom: () => undefined,
+      log: (...args: unknown[]) => logged.push(args),
+    })(OPTIONS)
+
+    assert.ok(
+      !JSON.stringify(logged).includes(OPTIONS.to),
+      'the unconfigured-skip log must not contain the recipient address',
+    )
+  })
+
+  it('redacts a recipient address echoed in a provider error', async () => {
+    const logged: unknown[][] = []
+    await createSendEmail({
+      getClient: () => ({
+        emails: {
+          send: async () => ({
+            error: { message: `suppressed recipient ${OPTIONS.to}` },
+          }),
+        },
+      }),
+      getFrom: () => 'noreply@example.com',
+      log: (...args: unknown[]) => logged.push(args),
+    })(OPTIONS)
+
+    const text = JSON.stringify(logged)
+    assert.ok(!text.includes(OPTIONS.to), 'provider-error log must not leak the recipient')
+    assert.ok(text.includes('[redacted]'), 'provider-error log should show the redaction')
+  })
+
+  it('redacts a recipient address echoed in a thrown transport error', async () => {
+    const logged: unknown[][] = []
+    await createSendEmail({
+      getClient: () => ({
+        emails: {
+          send: async () => {
+            throw new Error(`socket closed while writing ${OPTIONS.to}`)
+          },
+        },
+      }),
+      getFrom: () => 'noreply@example.com',
+      log: (...args: unknown[]) => logged.push(args),
+    })(OPTIONS)
+
+    assert.ok(!JSON.stringify(logged).includes(OPTIONS.to))
   })
 })
 
