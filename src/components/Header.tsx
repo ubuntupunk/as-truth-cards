@@ -1,10 +1,10 @@
 import { Menu, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { Link, useLocation } from 'react-router-dom'
+import { useAdminCheck } from '@/hooks/useAdminCheck'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
 import { ThemeToggle } from './ThemeToggle'
-import { authClient, useAdminCheck } from '@/hooks/useAdminCheck'
 
 /**
  * The global navigation, aligned to the approved product hierarchy:
@@ -86,7 +86,7 @@ const Header = () => {
   const isVisible = useDelayedVisibility(100)
   const [menuOpen, setMenuOpen] = useState(false)
   const lastPathname = useRef(location.pathname)
-  const { isSignedIn, user, isAdmin: isAdminRole } = useAdminCheck()
+  const { isSignedIn, isAdmin: isAdminRole } = useAdminCheck()
   const isAdmin = location.pathname.startsWith('/admin') || isAdminRole
 
   const entries: readonly NavEntry[] = isAdmin

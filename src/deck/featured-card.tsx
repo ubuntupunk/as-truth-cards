@@ -89,6 +89,12 @@ export type FeaturedCardProps = {
   readonly projectionError?: unknown | null
   /** The card element, so the page can move focus on a stage transition. */
   readonly articleRef?: Ref<HTMLElement>
+  /**
+   * Whether the viewer is signed in, threaded through to the action row. Read
+   * by the owning page (which can hold hooks) rather than here, because the
+   * deck tests invoke these presentational components as plain functions.
+   */
+  readonly isSignedIn?: boolean
 }
 
 /**
@@ -283,6 +289,7 @@ export function FeaturedCard({
   coverImage = null,
   projectionError = null,
   articleRef,
+  isSignedIn = false,
 }: FeaturedCardProps) {
   const failed = projectionError !== null
   // The flip is presentation-only: any face other than the Cover is the card's
@@ -354,6 +361,7 @@ export function FeaturedCard({
         onReadAnalysis={onReadAnalysis}
         onBackToClaim={onBackToClaim}
         onClose={onClose}
+        isSignedIn={isSignedIn}
       />
     </article>
   )
