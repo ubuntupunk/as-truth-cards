@@ -17,9 +17,15 @@ export const FORGOT_PASSWORD_PATH = '/forgot-password'
  * Better Auth answers the same way for unknown emails, so this must not differ
  * either — a distinct "no such account" message would leak which addresses are
  * registered.
+ *
+ * The wording is deliberately *"has been requested"*, not *"we sent"*: the
+ * endpoint's 200 means the request was accepted, not that the mail provider
+ * delivered it (`sendEmail` is best-effort and can be unconfigured). Promising
+ * delivery the server cannot guarantee would be a lie the user cannot act on;
+ * telling them to retry if nothing arrives is honest and recoverable.
  */
 export const FORGOT_PASSWORD_SENT_MESSAGE =
-  'If an account exists for that email address, we sent a reset link. Check your inbox.'
+  'If an account exists for that email address, a reset link has been requested. Check your inbox shortly — if it does not arrive, request another.'
 
 /**
  * The slice of the Better Auth client the reset helpers depend on.
@@ -62,7 +68,7 @@ export async function requestPasswordReset(
   } catch (error) {
     return error instanceof Error
       ? error.message
-      : 'Failed to send the reset email'
+      : 'Failed to request a password reset'
   }
 }
 

@@ -104,9 +104,35 @@ describe('evaluateAuthSecret', () => {
   })
 })
 
+/**
+ * Run `fn` with `BETTER_AUTH_SECRET` guaranteed absent, restoring the ambient
+ * value afterwards.
+ *
+ * `assertAuthSecretConfigured` defaults its `secret` parameter to
+ * `process.env.BETTER_AUTH_SECRET`, so passing `undefined` explicitly triggers
+ * that default. Without this, the "unset secret" cases silently read whatever
+ * the developer's shell (or a sourced `.env`) exported and fail to throw — an
+ * environment-order-dependent false pass/fail.
+ */
+function withSecretAbsent(fn: () => void): void {
+  const saved = process.env.BETTER_AUTH_SECRET
+  delete process.env.BETTER_AUTH_SECRET
+  try {
+    fn()
+  } finally {
+    if (saved === undefined) delete process.env.BETTER_AUTH_SECRET
+    else process.env.BETTER_AUTH_SECRET = saved
+  }
+}
+
 describe('assertAuthSecretConfigured in production', () => {
   it('throws for an unset secret', () => {
-    assert.throws(() => assertAuthSecretConfigured(undefined, true), /BETTER_AUTH_SECRET/)
+    withSecretAbsent(() => {
+      assert.throws(
+        () => assertAuthSecretConfigured(undefined, true),
+        /BETTER_AUTH_SECRET/,
+      )
+    })
   })
 
   it('throws for the fallback secret', () => {
@@ -121,11 +147,13 @@ describe('assertAuthSecretConfigured in production', () => {
   })
 
   it('throws a message that tells the operator how to fix it', () => {
-    assert.throws(
-      () => assertAuthSecretConfigured(undefined, true),
-      /openssl rand -base64 32/,
-      'the error must be actionable, not just a rejection',
-    )
+    withSecretAbsent(() => {
+      assert.throws(
+        () => assertAuthSecretConfigured(undefined, true),
+        /openssl rand -base64 32/,
+        'the error must be actionable, not just a rejection',
+      )
+    })
   })
 
   it('does not throw for a good secret', () => {

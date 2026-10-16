@@ -14,6 +14,11 @@ import { Resend } from 'resend'
  * failure loudly, so the outcome is observable and the user can recover by
  * retrying (e.g. "resend verification" / "forgot password") once delivery is
  * configured. Nothing here should ever be reported to the user as "sent".
+ *
+ * Observability is deliberate: an unconfigured sender is a *production incident*
+ * (mail silently never sends), so it is logged in **every** environment rather
+ * than only during development. Provider rejections and thrown transport errors
+ * are logged too. No failure path is silent.
  */
 
 export interface SendEmailOptions {
@@ -54,8 +59,6 @@ export interface EmailDeps {
   readonly getFrom?: () => string | undefined
   /** Logger; defaults to `console.error`. */
   readonly log?: (...args: unknown[]) => void
-  /** Environment name; defaults to `process.env.NODE_ENV`. */
-  readonly nodeEnv?: string
 }
 
 let resend: Resend | null = null
@@ -85,7 +88,6 @@ export function createSendEmail(
   const getClient = deps.getClient ?? defaultGetClient
   const getFrom = deps.getFrom ?? (() => process.env.RESEND_FROM)
   const log = deps.log ?? console.error
-  const nodeEnv = deps.nodeEnv ?? process.env.NODE_ENV
 
   return async function sendEmail(
     options: SendEmailOptions,
@@ -95,11 +97,10 @@ export function createSendEmail(
     const from = getFrom()
 
     if (!client || !from) {
-      // In development/test without Resend configured, do not throw; log to make
-      // the missing configuration obvious without crashing optional-email flows.
-      if (nodeEnv !== 'production') {
-        log('[email] Resend not configured; skipping send:', { to, subject })
-      }
+      // Do not throw (email flows are best-effort), but never skip silently: an
+      // unconfigured sender in production means mail is silently never sent, so
+      // this is logged in every environment as an operational signal.
+      log('[email] Resend not configured; skipping send:', { to, subject })
       return { delivered: false, skipped: 'unconfigured' }
     }
 
