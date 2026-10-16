@@ -215,7 +215,9 @@ which is a destructive local-development tool, not a deploy step.
 ### Environment variables
 
 Set the `sync: false` variables in the Render dashboard. They are deliberately not in
-`render.yaml`.
+`render.yaml`. If you change them through the API, read
+[Editing environment variables without wiping the rest](#editing-environment-variables-without-wiping-the-rest)
+first — the collection endpoint replaces the whole list.
 
 | Variable | Required | Notes |
 |---|---|---|
@@ -227,6 +229,61 @@ Set the `sync: false` variables in the Render dashboard. They are deliberately n
 | `TROPE_GRAPH_DATABASE_URL` | no | Only if the graph lives in a *different* database from the host app. Takes precedence over `DATABASE_URL`; an empty or whitespace-only value is treated as unset and falls back to `DATABASE_URL` |
 | `TROPE_GRAPH_ALLOW_REMOTE` | set by blueprint | `1`. Required for the manual seed step above; the seeder and verifier read this and have no CLI flag |
 | `PORT` | set by Render | Injected automatically; `server/index.ts` falls back to `3001` |
+
+### Editing environment variables without wiping the rest
+
+Render's **collection** endpoint replaces the entire set:
+
+```
+PUT /v1/services/{serviceId}/env-vars
+```
+
+It returns `200 OK` with no warning and **deletes every variable not present in the request
+body**, so a partial payload looks like a successful update while silently clearing the rest.
+Never use it to set a single variable.
+
+To change one variable, use the per-key endpoint, which leaves every other variable untouched:
+
+```sh
+curl -s -X PUT \
+  -H "Authorization: Bearer $RENDER_API_KEY" \
+  -H "Content-Type: application/json" \
+  "https://api.render.com/v1/services/$SERVICE_ID/env-vars/BETTER_AUTH_URL" \
+  --data '{"value":"https://as-truth-cards.onrender.com"}'
+```
+
+If the collection endpoint is unavoidable, back up first and treat the backup as the source of
+truth. Note the shapes differ: `GET .../env-vars` returns `[{ "envVar": { "key", "value" },
+"cursor": "..." }]`, while the `PUT` body is `[{ "key", "value" }]` — so the raw backup cannot
+be posted straight back; unwrap `.envVar` first:
+
+```sh
+# 1. Back up every variable the service holds (record shape, not PUT shape).
+curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+  "https://api.render.com/v1/services/$SERVICE_ID/env-vars" > render-env.backup.json
+
+# 2. Unwrap to the PUT shape, apply your change, and send the complete list.
+jq '[.[].envVar] + [{"key":"MY_NEW_VAR","value":"..."}]' \
+  render-env.backup.json > render-env.full.json
+curl -s -X PUT -H "Authorization: Bearer $RENDER_API_KEY" \
+  -H "Content-Type: application/json" \
+  --data @render-env.full.json \
+  "https://api.render.com/v1/services/$SERVICE_ID/env-vars"
+```
+
+Four further traps:
+
+- The service list (`GET .../env-vars`) **excludes variables from linked environment groups**,
+  so it is not a complete backup whenever a group is linked. Restoring from the backup alone
+  drops the group-provided values; re-link the group instead.
+- The list is paginated (`limit` tops out at 100) — a single `GET` may not return every
+  variable on a service with many of them.
+- Env-var changes are **not deployed automatically** — call the deploy API (or trigger a
+  deploy) afterwards, regardless of the service's `autoDeploy` setting.
+- `render.yaml` defines the blueprint-managed variables; the `sync: false` ones (the secret and
+  DB URL) exist only on the service. A redeploy does not recreate a deleted variable; a
+  Blueprint sync reconstructs the ones `render.yaml` declares, and **never** the `sync: false`
+  ones — those come back only from your backup.
 
 ### Why `BETTER_AUTH_SECRET` is required and enforced at startup
 
