@@ -222,7 +222,7 @@ Set the `sync: false` variables in the Render dashboard. They are deliberately n
 | `DATABASE_URL` | yes | Neon Postgres connection string. Serves the Prisma `public` schema and the Drizzle `trope_graph` schema |
 | `BETTER_AUTH_SECRET` | yes | Session signing. Render generates it once from the blueprint. **Without it the deploy looks healthy but is not secure** — see below. Rotating it logs out every session |
 | `BETTER_AUTH_URL` | yes | Public origin, e.g. `https://as-truth-cards.onrender.com`. Better Auth validates the `Origin` header against it |
-| `CORS_ORIGINS` | no | Comma-separated browser origins that may call `/api/*` cross-origin. Overrides the default allow-list (`http://localhost:8080`, `http://localhost:3001`, plus `BETTER_AUTH_URL` in production). Never `*`. See [Reverse proxy and origins](#reverse-proxy-and-origins) |
+| `CORS_ORIGINS` | no | Comma-separated browser origins that may call `/api/*` cross-origin. Replaces the default *development* allow-list (`http://localhost:8080`, `http://localhost:3001`). In production the app's own origin (`BETTER_AUTH_URL`) is **always** trusted, even alongside an explicit value, so the same-origin account API cannot be excluded by config. Never `*`. See [Reverse proxy and origins](#reverse-proxy-and-origins) |
 | `NODE_ENV` | set by blueprint | `production`, which is what enables serving `dist/` |
 | `TROPE_GRAPH_DATABASE_URL` | no | Only if the graph lives in a *different* database from the host app. Takes precedence over `DATABASE_URL`; an empty or whitespace-only value is treated as unset and falls back to `DATABASE_URL` |
 | `TROPE_GRAPH_ALLOW_REMOTE` | set by blueprint | `1`. Required for the manual seed step above; the seeder and verifier read this and have no CLI flag |
@@ -250,7 +250,9 @@ CORS is an **explicit allow-list**, never the package default and never `*`: the
 same-origin in production, and the only cross-origin consumers are the known development
 origins (`:8080`, `:3001`) — the same list Better Auth already trusts. A disallowed browser
 origin receives no `Access-Control-Allow-Origin` and is blocked by the browser; non-browser
-callers (curl, health checks) are unaffected. Add any sanctioned consumer to `CORS_ORIGINS`.
+callers (curl, health checks) are unaffected. Add any sanctioned consumer to `CORS_ORIGINS`
+(which replaces the development defaults only — the deployed `BETTER_AUTH_URL` origin is always
+kept in production, so an explicit list can never lock out the app's own account API).
 Session cookies are `Secure` (https base URL) + `SameSite=Lax` + `httpOnly` by Better Auth
 default; no override is set. The policy is reviewed and tested in
 [`docs/issue-10-security-review.md`](docs/issue-10-security-review.md) (`server/security-policy.test.ts`).

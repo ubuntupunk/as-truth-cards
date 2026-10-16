@@ -33,26 +33,30 @@ export const DEFAULT_TRUSTED_ORIGINS: readonly string[] = [
 /**
  * Resolve the browser origins the API trusts.
  *
- * An explicit `CORS_ORIGINS` (comma-separated) wins. Otherwise the known
- * development origins are used, plus the production origin derived from
- * `BETTER_AUTH_URL` when running in production.
+ * An explicit `CORS_ORIGINS` (comma-separated) replaces the *development*
+ * defaults. The app's own production origin (derived from `BETTER_AUTH_URL`) is
+ * **always kept** when running in production, even alongside an explicit
+ * `CORS_ORIGINS`, so the same-origin account API can never be silently excluded
+ * by a configuration change. In development without `CORS_ORIGINS` the known
+ * localhost origins are used.
  *
  * @param env Injectable environment, defaulting to the process environment.
  * @returns A trimmed, de-duplicated list of origins; never contains a wildcard.
  */
 export function resolveTrustedOrigins(env: OriginEnv = process.env): string[] {
+  const selfOrigin =
+    env.NODE_ENV === 'production' && env.BETTER_AUTH_URL
+      ? [env.BETTER_AUTH_URL.replace(/\/+$/, '')]
+      : []
+
   const explicit = env.CORS_ORIGINS?.split(',')
     .map((origin) => origin.trim())
     .filter((origin) => origin.length > 0)
   if (explicit !== undefined && explicit.length > 0) {
-    return [...new Set(explicit)]
+    return [...new Set([...explicit, ...selfOrigin])]
   }
 
-  const origins = [...DEFAULT_TRUSTED_ORIGINS]
-  if (env.NODE_ENV === 'production' && env.BETTER_AUTH_URL) {
-    origins.push(env.BETTER_AUTH_URL.replace(/\/+$/, ''))
-  }
-  return [...new Set(origins)]
+  return [...new Set([...DEFAULT_TRUSTED_ORIGINS, ...selfOrigin])]
 }
 
 /**
