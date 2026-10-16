@@ -3,6 +3,7 @@ import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { prisma } from './lib/db.js'
 import { assertAuthSecretConfigured } from './lib/auth-secret.js'
 import { sendEmail } from './lib/email.js'
+import { resolveTrustedOrigins } from './lib/origin.js'
 
 /**
  * Refuse to construct an auth instance that silently signs sessions with Better Auth's
@@ -65,14 +66,14 @@ export const auth = betterAuth({
   },
 
   /**
-   * In development the browser talks to Vite on :8080, which proxies /api to the
-   * Express server on :3001. Better Auth validates the Origin header against these,
-   * so both need to be listed. Production is same-origin, so nothing extra is needed.
+   * The trusted browser origins are derived from the same resolver as CORS and
+   * the account-router origin guard (`server/lib/origin.ts`), so all three are
+   * one policy rather than three lists that can drift: the development localhost
+   * origins, the production `BETTER_AUTH_URL` origin, and any explicitly
+   * configured `CORS_ORIGINS` are trusted for `/api/auth/*` too. Better Auth
+   * additionally always trusts its own `baseURL` on top of this list.
    */
-  trustedOrigins: [
-    'http://localhost:8080',
-    'http://localhost:3001',
-  ],
+  trustedOrigins: resolveTrustedOrigins(),
 
   session: {
     expiresIn: 60 * 60 * 24 * 7,
