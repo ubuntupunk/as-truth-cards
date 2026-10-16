@@ -40,6 +40,7 @@ import { DeckAppearanceControl } from '@/deck/deck-appearance-control'
 import {
   applyScope,
   availableAxes,
+  availableLocales,
   availableStatuses,
   type DeckScope,
   deriveCardPreview,
@@ -127,8 +128,11 @@ const Deck = () => {
   )
 
   const cards = cardsQuery.data?.items ?? NO_CARDS
-  const { axis, status } = scope
-  const filters = useMemo(() => ({ ...NO_SCOPE, axis, status }), [axis, status])
+  const { axis, status, locale } = scope
+  const filters = useMemo(
+    () => ({ ...NO_SCOPE, axis, status, locale }),
+    [axis, status, locale],
+  )
   const scoped = useMemo(() => applyScope(cards, filters), [cards, filters])
   const { session, goPrevious, shuffle, jumpTo } = useDeckSession(scoped, scope)
 
@@ -340,6 +344,7 @@ const Deck = () => {
           scope={scope}
           axes={availableAxes(cards)}
           statuses={availableStatuses(cards)}
+          locales={availableLocales(cards)}
           onChange={setScope}
         />
         <CardDiscovery
@@ -427,6 +432,9 @@ const Deck = () => {
                 axes={availableAxes(cards)}
                 activeAxis={scope.axis}
                 onChange={(axis) => setScope({ ...scope, axis })}
+                locales={availableLocales(cards)}
+                activeLocale={scope.locale}
+                onLocaleChange={(locale) => setScope({ ...scope, locale })}
                 graphHref="/graph"
               />
             }

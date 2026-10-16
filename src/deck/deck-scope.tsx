@@ -2,17 +2,20 @@
  * The Deck's scope/filter badges — SPEC §6.1, item 1 of the discovery
  * composition.
  *
- * Four controls, exactly the four the spec names: card count, axis filter,
- * research-status filter, repeat policy. They are *badges* — compact, muted,
- * and interactive only where a corresponding filter exists — so the count is
- * a plain badge and the three filters are toggle badges with `aria-pressed`.
+ * Five controls: card count, axis filter, research-status filter, locale
+ * filter, repeat policy. The count is a plain badge and the four filters are
+ * toggle badges with `aria-pressed`.
  *
- * What this strip must never do: invent a filter. The axis and status lists
- * are the ones actually present in the loaded cards ({@link availableAxes} /
- * {@link availableStatuses} in `deck-model.ts`), so an axis no card carries is
- * not offered as a control that can only ever return nothing. Selecting is
- * single-select per dimension and re-clicking the active value clears it, the
- * same behaviour as the graph facet popover.
+ * What this strip must never do: invent a filter. The axis, status and locale
+ * lists are the ones actually present in the loaded cards ({@link availableAxes}
+ * / {@link availableStatuses} / {@link availableLocales} in `deck-model.ts`), so
+ * an axis no card carries is not offered as a control that can only ever return
+ * nothing. Selecting is single-select per dimension and re-clicking the active
+ * value clears it, the same behaviour as the graph facet popover.
+ *
+ * Locale is its own dimension on purpose: a `card_locales` row is what makes a
+ * card a locale's card, so it is filtered on `card_locales` and never inferred
+ * from a suit or collection of the same name.
  */
 
 import { CHIP_BADGE, FilterGroup, ToggleBadge } from '@/components/filter-chips'
@@ -21,7 +24,7 @@ import type {
   CardAxisValue,
   EpistemicStatusValue,
 } from '../../trope-cards/src/graph/types.ts'
-import { AXIS_LABELS } from '../graph/deck-facets'
+import { AXIS_LABELS, humanize } from '../graph/deck-facets'
 import type { DeckScope } from './deck-model'
 import { researchStatusLabel } from './deck-status'
 
@@ -38,6 +41,8 @@ export type DeckScopeBadgesProps = {
   readonly axes: readonly CardAxisValue[]
   /** Research statuses present in the loaded cards, in vocabulary order. */
   readonly statuses: readonly EpistemicStatusValue[]
+  /** Locale slugs present in the loaded cards, in slug order. */
+  readonly locales: readonly string[]
   /** Reports the next scope; the page owns the state. */
   readonly onChange: (scope: DeckScope) => void
 }
@@ -72,6 +77,7 @@ export function DeckScopeBadges({
   scope,
   axes,
   statuses,
+  locales,
   onChange,
 }: DeckScopeBadgesProps) {
   return (
@@ -147,6 +153,29 @@ export function DeckScopeBadges({
             }
           >
             {researchStatusLabel(status)}
+          </ToggleBadge>
+        ))}
+      </FilterGroup>
+
+      <FilterGroup label="Locale">
+        <ToggleBadge
+          active={scope.locale === null}
+          onSelect={() => onChange({ ...scope, locale: null })}
+        >
+          All locales
+        </ToggleBadge>
+        {locales.map((slug) => (
+          <ToggleBadge
+            key={slug}
+            active={scope.locale === slug}
+            onSelect={() =>
+              onChange({
+                ...scope,
+                locale: scope.locale === slug ? null : slug,
+              })
+            }
+          >
+            {humanize(slug)}
           </ToggleBadge>
         ))}
       </FilterGroup>

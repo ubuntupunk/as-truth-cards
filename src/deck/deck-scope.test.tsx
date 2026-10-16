@@ -30,6 +30,7 @@ function fixture(
     scope: { ...NO_SCOPE, axis: 'TACTIC', status: 'OPEN' },
     axes: ['TACTIC', 'HISTORICAL'],
     statuses: ['ESTABLISHED', 'OPEN'],
+    locales: ['south-africa'],
     onChange: (next) => changes.push(next),
     ...overrides,
   }
@@ -71,13 +72,41 @@ describe('DeckScopeBadges', () => {
     assert.ok(html.includes('6 of 512 cards (first 200 loaded)'))
   })
 
-  it('offers one badge per available axis and status, plus All exits', () => {
+  it('offers one badge per available axis, status and locale, plus All exits', () => {
     const vnode = DeckScopeBadges(fixture())
     assert.equal(buttonsLabelled(vnode, 'Tactic').length, 1)
     assert.equal(buttonsLabelled(vnode, 'Historical').length, 1)
     assert.equal(buttonsLabelled(vnode, 'Open questions').length, 1)
     assert.equal(buttonsLabelled(vnode, 'All axes').length, 1)
     assert.equal(buttonsLabelled(vnode, 'All statuses').length, 1)
+    assert.equal(buttonsLabelled(vnode, 'All locales').length, 1)
+    assert.equal(buttonsLabelled(vnode, 'South Africa').length, 1)
+  })
+
+  it('marks the active locale with aria-pressed, never with colour', () => {
+    const html = render(
+      <DeckScopeBadges
+        {...fixture({ scope: { ...NO_SCOPE, locale: 'south-africa' } })}
+      />,
+    )
+    assert.match(html, /aria-pressed="true"[^>]*>South Africa</)
+    assert.ok(!/aria-pressed="true"[^>]*>All locales</.test(html))
+  })
+
+  it('clears the locale when its own badge is clicked again', () => {
+    const props = fixture({ scope: { ...NO_SCOPE, locale: 'south-africa' } })
+    click(props, 'South Africa')
+    assert.equal(props.changes.at(-1)?.locale, null)
+    assert.equal(props.changes.at(-1)?.axis, NO_SCOPE.axis)
+  })
+
+  it('applies a locale through the same onChange payload', () => {
+    const props = fixture({ scope: NO_SCOPE })
+    click(props, 'South Africa')
+    assert.deepEqual(props.changes.at(-1), {
+      ...NO_SCOPE,
+      locale: 'south-africa',
+    })
   })
 
   it('marks the active axis with aria-pressed, not with colour', () => {
@@ -139,6 +168,8 @@ describe('DeckScopeBadges', () => {
       ),
     ).map((node) => node.props?.['data-testid'])
     assert.deepEqual(testids, ['deck-scope-count', 'deck-scope-repeat'])
-    assert.equal(buttons(vnode).length, 7)
+    // All axes + 2 axes + All statuses + 2 statuses + All locales + 1 locale
+    // + the repeat toggle = 9.
+    assert.equal(buttons(vnode).length, 9)
   })
 })

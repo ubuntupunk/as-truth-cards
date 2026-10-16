@@ -3,18 +3,23 @@
  *
  * Per §4.8 this rail is deliberately small: user-created deck CRUD
  * ("Your decks", "New deck") is out of scope until a persistence contract and
- * schema exist, so **no placeholder buttons render**. The one category that
- * the cards listing can actually filter by is **Axis**, so the rail offers the
- * axes present in the loaded cards (the same "never invent a filter" rule the
- * scope strip obeys). The other graph categories (mechanism, concept, locale,
- * collection) are facets of the Graph Explorer, not the deck listing API, so
- * they are surfaced as a single pointer to the existing graph surface rather
- * than dead links.
+ * schema exist, so **no placeholder buttons render**. The two categories the
+ * cards listing can actually filter by are **Axis** and **Locale**, so the rail
+ * offers the axes and the locale slugs present in the loaded cards (the same
+ * "never invent a filter" rule the scope strip obeys). The remaining graph
+ * categories (mechanism, concept, collection) are facets of the Graph Explorer,
+ * not fields on the deck listing row, so they are surfaced as a single pointer
+ * to the existing graph surface rather than dead links.
+ *
+ * Locale filtering reads `card_locales` (surfaced on the row as
+ * `classification.localeSlugs`) and is never inferred from suit or collection —
+ * a card curated into the `south-africa` collection is not thereby a South
+ * Africa card. The filter is kept dimension-qualified alongside `axis`.
  */
 
 import { cn } from '@/lib/utils'
 import type { CardAxisValue } from '../../trope-cards/src/graph/types.ts'
-import { AXIS_LABELS } from '../graph/deck-facets'
+import { AXIS_LABELS, humanize } from '../graph/deck-facets'
 
 /** Props for {@link BrowseRail}. */
 export type BrowseRailProps = {
@@ -24,6 +29,12 @@ export type BrowseRailProps = {
   readonly activeAxis: CardAxisValue | null
   /** Report the next axis filter; `null` clears back to all axes. */
   readonly onChange: (axis: CardAxisValue | null) => void
+  /** Locale slugs present in the loaded cards, in slug order. */
+  readonly locales: readonly string[]
+  /** The locale the deck is currently scoped to, or `null` for all locales. */
+  readonly activeLocale: string | null
+  /** Report the next locale filter; `null` clears back to all locales. */
+  readonly onLocaleChange: (locale: string | null) => void
   /** The existing surface the remaining categories live on. */
   readonly graphHref: string
 }
@@ -48,6 +59,9 @@ export function BrowseRail({
   axes,
   activeAxis,
   onChange,
+  locales,
+  activeLocale,
+  onLocaleChange,
   graphHref,
 }: BrowseRailProps) {
   return (
@@ -63,7 +77,7 @@ export function BrowseRail({
         data-testid="browse-rail-scope"
         className="mt-1 text-xs leading-relaxed text-graph-muted-foreground"
       >
-        Filter the deck by axis. Mechanism, concept, locale, and collection
+        Filter the deck by axis or locale. Mechanism, concept, and collection
         browsing live in the Graph Explorer.
       </p>
 
@@ -92,6 +106,45 @@ export function BrowseRail({
                 className={axisRowClasses(activeAxis === axis)}
               >
                 {AXIS_LABELS[axis]}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+
+      <nav aria-label="Locales" className="mt-4">
+        <h3
+          data-testid="browse-rail-locales-label"
+          className="text-xs font-semibold text-graph-muted-foreground"
+        >
+          Locale
+        </h3>
+        <ul data-testid="browse-rail-locales" className="mt-1 space-y-1">
+          <li>
+            <button
+              type="button"
+              data-testid="browse-rail-locale"
+              data-locale="__all__"
+              aria-pressed={activeLocale === null}
+              onClick={() => onLocaleChange(null)}
+              className={axisRowClasses(activeLocale === null)}
+            >
+              All locales
+            </button>
+          </li>
+          {locales.map((slug) => (
+            <li key={slug}>
+              <button
+                type="button"
+                data-testid="browse-rail-locale"
+                data-locale={slug}
+                aria-pressed={activeLocale === slug}
+                onClick={() =>
+                  onLocaleChange(activeLocale === slug ? null : slug)
+                }
+                className={axisRowClasses(activeLocale === slug)}
+              >
+                {humanize(slug)}
               </button>
             </li>
           ))}

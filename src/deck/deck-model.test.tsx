@@ -4,7 +4,9 @@
  * The contract under test is the three invariants the module documents: a
  * scope filters cards (never the ontology), navigation is a session over a
  * list (so `reconcileSession` decides restarts), and absent dimensions are
- * reported as absent (`count: null` is never rendered as `0`). The status
+ * reported as absent (`count: null` is never rendered as `0`). The locale
+ * tests pin the fourth reading rule: a scope filters on `card_locales` slugs
+ * and never on a suit or collection that happens to share the name. The status
  * tests pin the presentation mapping: `OPEN` reaches the screen as
  * `OPEN · UNVERIFIED`, never as raw enum copy.
  */
@@ -14,6 +16,7 @@ import { describe, it } from 'node:test'
 import {
   applyScope,
   availableAxes,
+  availableLocales,
   availableStatuses,
   DECK_PROJECTION_DEPTH,
   type DeckScope,
@@ -114,6 +117,57 @@ describe('availableAxes / availableStatuses', () => {
 
   it('offers no axis for a card list that carries none', () => {
     assert.deepEqual(availableAxes([]), [])
+  })
+})
+
+describe('applyScope locale dimension', () => {
+  it('keeps only the cards whose card_locales row carries the locale', () => {
+    const scoped = applyScope(ALL_CARDS, scope({ locale: 'south-africa' }))
+    assert.deepEqual(
+      scoped.map((card) => card.slug),
+      ['an-open-question', 'a-contested-reading'],
+    )
+  })
+
+  it('returns nothing when no card is set in that locale', () => {
+    assert.equal(applyScope(ALL_CARDS, scope({ locale: 'nowhere' })).length, 0)
+  })
+
+  it('never reads the locale out of a suit of the same name', () => {
+    // ESTABLISHED_CARD carries the `foundational` suit but no locale row, so a
+    // locale filter must skip it: locale comes from card_locales only, never
+    // from suit slugs.
+    const scoped = applyScope(ALL_CARDS, scope({ locale: 'foundational' }))
+    assert.equal(scoped.length, 0)
+  })
+
+  it('ANDs the locale with axis, status and the repeat policy', () => {
+    const scoped = applyScope(
+      ALL_CARDS,
+      scope({ locale: 'south-africa', status: 'CONTESTED' }),
+    )
+    assert.deepEqual(
+      scoped.map((card) => card.slug),
+      ['a-contested-reading'],
+    )
+    assert.equal(
+      applyScope(
+        ALL_CARDS,
+        scope({ locale: 'south-africa', status: 'ESTABLISHED' }),
+      ).length,
+      0,
+    )
+  })
+})
+
+describe('availableLocales', () => {
+  it('reports the locales present, deduplicated and sorted, never a suit', () => {
+    assert.deepEqual(availableLocales(ALL_CARDS), ['south-africa'])
+    assert.ok(!availableLocales(ALL_CARDS).includes('foundational'))
+  })
+
+  it('offers no locale for a card list that carries none', () => {
+    assert.deepEqual(availableLocales([]), [])
   })
 })
 
