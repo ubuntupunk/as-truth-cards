@@ -44,6 +44,13 @@ export type DeckScope = {
   readonly axis: CardAxisValue | null
   /** Research status to narrow to, or `null` for every status. */
   readonly status: EpistemicStatusValue | null
+  /**
+   * Locale slug to narrow to (`card_locales`, read only), or `null` for every
+   * locale. A `card_locales` row is what makes a card a locale's card — a suit
+   * or collection of the same name says nothing about where the card is set,
+   * so this is a separate dimension and never inferred.
+   */
+  readonly locale: string | null
   /** Whether "Shuffle next" avoids cards the reader has already seen. */
   readonly withoutRepeats: boolean
 }
@@ -52,6 +59,7 @@ export type DeckScope = {
 export const NO_SCOPE: DeckScope = {
   axis: null,
   status: null,
+  locale: null,
   withoutRepeats: false,
 }
 
@@ -75,7 +83,7 @@ export type DeckSession = {
  * Filter the card list by the active scope.
  *
  * @param cards Cards as the listing returned them, in title order.
- * @param scope The active axis/status/repeat filters.
+ * @param scope The active axis/status/locale/repeat filters.
  * @returns The cards matching every active dimension (AND across dimensions).
  */
 export function applyScope(
@@ -90,6 +98,12 @@ export function applyScope(
       return false
     }
     if (scope.status !== null && card.epistemicStatus !== scope.status) {
+      return false
+    }
+    if (
+      scope.locale !== null &&
+      !card.classification.localeSlugs.includes(scope.locale)
+    ) {
       return false
     }
     return true
@@ -275,6 +289,28 @@ export function availableStatuses(
   const present = new Set<EpistemicStatusValue>()
   for (const card of cards) present.add(card.epistemicStatus)
   return EPISTEMIC_STATUS_ORDER.filter((status) => present.has(status))
+}
+
+/**
+ * The locales actually present in a card list.
+ *
+ * Derived from the cards' own `localeSlugs` rather than from the `locales`
+ * table, so a locale no card is set in is not offered as a filter that can only
+ * ever return nothing. There is no canonical locale vocabulary to order by the
+ * way `card_axis` and the status vocabulary do, so the union is returned in
+ * slug order — stable, and never inferred from suit or collection.
+ *
+ * @param cards The card list on offer.
+ * @returns The present locale slugs, deduplicated, in slug order.
+ */
+export function availableLocales(
+  cards: readonly CardListingRow[],
+): readonly string[] {
+  const present = new Set<string>()
+  for (const card of cards) {
+    for (const slug of card.classification.localeSlugs) present.add(slug)
+  }
+  return [...present].sort()
 }
 
 /**
