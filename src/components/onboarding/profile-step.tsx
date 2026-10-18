@@ -65,7 +65,7 @@ export const ProfileStep = ({
       </p>
     </div>
 
-    <div className="rounded-xl border border-border bg-card p-6">
+    <div className="rounded-xl border border-graph-border bg-graph-surface p-6">
       <h3 className="text-xl font-semibold text-foreground">
         Start with the basics
       </h3>

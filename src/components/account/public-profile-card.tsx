@@ -56,7 +56,7 @@ export const PublicProfileCard = ({
 }: PublicProfileCardProps) => (
   <section
     aria-label="Public profile preview"
-    className="w-full rounded-xl border border-border bg-card p-6 xl:w-[610px]"
+    className="w-full rounded-xl border border-graph-border bg-graph-surface p-6 xl:w-[610px]"
     data-testid="public-profile-card"
   >
     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -66,7 +66,7 @@ export const PublicProfileCard = ({
     <div className="mt-4 flex items-center gap-5">
       <span
         aria-hidden="true"
-        className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-primary/10 text-2xl font-bold text-primary"
+        className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-graph-accent/10 text-2xl font-bold text-graph-accent"
       >
         {initialOf(name)}
       </span>
@@ -80,7 +80,7 @@ export const PublicProfileCard = ({
       </div>
     </div>
 
-    <dl className="mt-6 divide-y divide-border rounded-lg border border-border">
+    <dl className="mt-6 divide-y divide-graph-border rounded-lg border border-graph-border">
       <div className="flex items-center justify-between gap-4 px-4 py-3">
         <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Bio
@@ -102,7 +102,7 @@ export const PublicProfileCard = ({
               href={normalizeWebsite(website)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-primary hover:underline"
+              className="inline-flex items-center gap-1 text-graph-accent underline underline-offset-4 hover:underline"
             >
               {website} <span aria-hidden="true">↗</span>
               <span className="sr-only">(opens in a new tab)</span>

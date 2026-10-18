@@ -70,6 +70,17 @@ describe('PublicProfileCard', () => {
     assert.equal(html.includes('Verified researcher'), false)
     assert.ok(html.includes('Anonymous'))
   })
+
+  it('paints public-facing accents with the readable accent token, never the near-white primary background token', () => {
+    const html = renderCard({ website: 'example.org' })
+    // `--primary` is a near-white surface token (95.9% lightness in light
+    // mode, 98% in dark); `text-primary` on a card is invisible in both
+    // modes. Accents must ride `--graph-accent`, which the treatment system
+    // themes and which overrides per mode.
+    assert.ok(html.includes('text-graph-accent'))
+    assert.equal(html.includes('text-primary'), false)
+    assert.equal(html.includes('bg-primary'), false)
+  })
 })
 
 describe('PrivateAccountCard', () => {

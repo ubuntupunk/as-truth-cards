@@ -213,4 +213,20 @@ describe('CompletionPanel', () => {
     assert.ok(html.includes('Review Settings'))
     assert.equal(html.includes('Finish setup'), false)
   })
+
+  it('marks the step badge with the readable accent token, never the near-white primary background token', () => {
+    // The primary Button's solid `bg-primary` fill with its paired
+    // `text-primary-foreground` text is legitimate inverse usage on the
+    // panel's actions; what must never appear is a whole `text-primary`
+    // class token — `--primary` is a near-white surface token (95.9%
+    // lightness in light mode, 98% in dark), so text painted with it is
+    // invisible on a card in both modes.
+    assert.ok(html.includes('bg-graph-accent/10'))
+    assert.ok(html.includes('text-graph-accent'))
+    assert.equal(
+      /(?<![-\w])text-primary(?![\w-])/.test(html),
+      false,
+      'no whole text-primary class token — it is invisible on cards',
+    )
+  })
 })

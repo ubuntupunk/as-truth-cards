@@ -30,7 +30,7 @@ export const SetupStrip = ({ markers }: SetupStripProps) => (
         aria-current={marker.current ? 'step' : undefined}
         className={
           marker.current
-            ? 'flex items-center gap-2 text-sm font-semibold text-primary'
+            ? 'flex items-center gap-2 text-sm font-semibold text-graph-accent'
             : marker.done
               ? 'flex items-center gap-2 text-sm font-medium text-foreground'
               : 'flex items-center gap-2 text-sm font-medium text-muted-foreground'
@@ -40,7 +40,7 @@ export const SetupStrip = ({ markers }: SetupStripProps) => (
           aria-hidden="true"
           className={
             marker.done && !marker.current
-              ? 'text-primary'
+              ? 'text-graph-accent'
               : 'text-muted-foreground'
           }
         >
