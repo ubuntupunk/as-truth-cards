@@ -34,7 +34,7 @@ export const AppearanceSelector = ({
 }: AppearanceSelectorProps) => (
   <fieldset
     aria-label="Appearance"
-    className="m-0 inline-flex flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-1"
+    className="m-0 inline-flex flex-wrap gap-1 rounded-lg border border-graph-border bg-graph-muted/40 p-1"
     data-testid="appearance-selector"
   >
     {TREATMENTS.map((treatment) => {
@@ -48,7 +48,7 @@ export const AppearanceSelector = ({
           onClick={() => onSelect(treatment)}
           className={
             selected
-              ? 'rounded-md bg-card px-3 py-1.5 text-sm font-semibold text-foreground shadow-sm'
+              ? 'rounded-md bg-graph-surface px-3 py-1.5 text-sm font-semibold text-foreground shadow-sm'
               : 'rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground'
           }
         >

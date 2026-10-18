@@ -67,7 +67,7 @@ export const PreferencesStep = ({
 }: PreferencesStepProps) => (
   <div className="grid gap-8 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-10">
     <div className="flex flex-col gap-3">
-      <span className="w-fit rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+      <span className="w-fit rounded-md bg-graph-accent/10 px-2 py-1 text-xs font-semibold text-graph-accent">
         Step 3 of 3
       </span>
       <h2 className="text-2xl leading-tight text-foreground">
@@ -79,7 +79,7 @@ export const PreferencesStep = ({
       </p>
     </div>
 
-    <div className="rounded-xl border border-border bg-card p-6">
+    <div className="rounded-xl border border-graph-border bg-graph-surface p-6">
       <h3 className="text-xl font-semibold text-foreground">
         Research preferences
       </h3>
@@ -91,7 +91,7 @@ export const PreferencesStep = ({
         {QUESTIONS.map((question) => (
           <fieldset
             key={question.key}
-            className="space-y-2 rounded-lg border border-border p-4"
+            className="space-y-2 rounded-lg border border-graph-border p-4"
             data-testid={`preference-${question.key}`}
           >
             <legend className="text-sm font-semibold text-foreground">

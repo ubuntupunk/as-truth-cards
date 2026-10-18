@@ -12,6 +12,7 @@ import { ProfileStep } from '@/components/onboarding/profile-step'
 import { Button } from '@/components/ui/button'
 import {
   type GraphTreatment,
+  graphTreatmentVars,
   readGraphTreatment,
   writeGraphTreatment,
 } from '@/graph/appearance'
@@ -180,11 +181,25 @@ function deviceStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
     setWizard(next)
   }
 
+  const activeTreatment =
+    wizard?.treatment ?? readGraphTreatment(deviceStorage())
+
   const shell = (content: ComponentChildren) => (
-    <div className="flex min-h-screen flex-col">
+    <div
+      className="flex min-h-screen flex-col bg-graph-page"
+      data-treatment={activeTreatment}
+      style={graphTreatmentVars(activeTreatment)}
+    >
       <Header />
       <main className="flex-grow px-4 pb-16 pt-24">
-        <div className="mx-auto w-full max-w-6xl">{content}</div>
+        {/* The graph chrome tokens zone the setup panels; the header and
+            footer stay on the site stack because they sit outside it. */}
+        <div
+          className="mx-auto w-full max-w-6xl"
+          style={{ fontFamily: 'var(--graph-font-family)' }}
+        >
+          {content}
+        </div>
       </main>
       <Footer />
     </div>

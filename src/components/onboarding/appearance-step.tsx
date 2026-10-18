@@ -40,7 +40,7 @@ export const AppearanceStep = ({
 }: AppearanceStepProps) => (
   <div className="grid gap-8 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-10">
     <div className="flex flex-col gap-3">
-      <span className="w-fit rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+      <span className="w-fit rounded-md bg-graph-accent/10 px-2 py-1 text-xs font-semibold text-graph-accent">
         Step 2 of 3
       </span>
       <h2 className="text-2xl leading-tight text-foreground">
@@ -52,7 +52,7 @@ export const AppearanceStep = ({
       </p>
     </div>
 
-    <div className="rounded-xl border border-border bg-card p-6">
+    <div className="rounded-xl border border-graph-border bg-graph-surface p-6">
       <h3 className="text-xl font-semibold text-foreground">
         Choose an appearance
       </h3>

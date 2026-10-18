@@ -11,6 +11,7 @@ import Header from '@/components/Header'
 import { Button } from '@/components/ui/button'
 import {
   type GraphTreatment,
+  graphTreatmentVars,
   readGraphTreatment,
   writeGraphTreatment,
 } from '@/graph/appearance'
@@ -190,10 +191,19 @@ const Account = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div
+      className="flex min-h-screen flex-col bg-graph-page"
+      data-treatment={treatment}
+      style={graphTreatmentVars(treatment)}
+    >
       <Header />
       <main className="flex-grow px-4 pb-16 pt-24">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 md:flex-row md:gap-10">
+        {/* The graph chrome tokens zone the account panels; the header and
+            footer stay on the site stack because they sit outside it. */}
+        <div
+          className="mx-auto flex w-full max-w-7xl flex-col gap-8 md:flex-row md:gap-10"
+          style={{ fontFamily: 'var(--graph-font-family)' }}
+        >
           <AccountNav active="profile" />
 
           <div className="min-w-0 flex-1 space-y-8">

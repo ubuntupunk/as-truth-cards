@@ -42,7 +42,7 @@ export const EditProfileForm = ({
 }: EditProfileFormProps) => (
   <section
     aria-label="Edit profile"
-    className="rounded-xl border border-border bg-card p-6"
+    className="rounded-xl border border-graph-border bg-graph-surface p-6"
     data-testid="edit-profile-form"
   >
     <h2 className="text-xl font-semibold text-foreground">Edit profile</h2>

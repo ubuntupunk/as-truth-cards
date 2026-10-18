@@ -35,7 +35,7 @@ export const CompletionPanel = ({
 }: CompletionPanelProps) => (
   <div className="grid gap-8 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-10">
     <div className="flex flex-col gap-3">
-      <span className="w-fit rounded-md bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">
+      <span className="w-fit rounded-md bg-graph-accent/10 px-2 py-1 text-xs font-semibold text-graph-accent">
         Finished setup
       </span>
       <p className="text-sm leading-relaxed text-muted-foreground">
@@ -45,7 +45,7 @@ export const CompletionPanel = ({
     </div>
 
     <div
-      className="rounded-xl border border-border bg-card p-6"
+      className="rounded-xl border border-graph-border bg-graph-surface p-6"
       data-testid="completion-panel"
     >
       <h2 className="text-2xl leading-tight text-foreground">
@@ -56,7 +56,7 @@ export const CompletionPanel = ({
         in Settings.
       </p>
 
-      <dl className="mt-6 divide-y divide-border rounded-lg border border-border">
+      <dl className="mt-6 divide-y divide-graph-border rounded-lg border border-graph-border">
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Profile

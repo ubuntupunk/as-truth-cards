@@ -55,7 +55,7 @@ export const AccountNav = ({ active }: AccountNavProps) => (
               aria-current={current ? 'page' : undefined}
               className={
                 current
-                  ? 'block rounded-md border-l-2 border-primary bg-primary/10 px-3.5 py-3 text-sm font-semibold text-primary'
+                  ? 'block rounded-md border-l-2 border-graph-accent bg-graph-accent/10 px-3.5 py-3 text-sm font-semibold text-graph-accent'
                   : 'block rounded-md px-3.5 py-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground'
               }
             >
@@ -65,7 +65,7 @@ export const AccountNav = ({ active }: AccountNavProps) => (
         )
       })}
     </ul>
-    <div className="mt-6 border-t border-border pt-4">
+    <div className="mt-6 border-t border-graph-border pt-4">
       <p className="text-xs leading-relaxed text-muted-foreground">
         Personal account tools. Your research session stays separate.
       </p>

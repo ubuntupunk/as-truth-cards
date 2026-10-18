@@ -45,7 +45,7 @@ export const PrivateAccountCard = ({
 }: PrivateAccountCardProps) => (
   <section
     aria-label="Private account"
-    className="min-w-0 flex-1 rounded-xl border border-border bg-card p-6"
+    className="min-w-0 flex-1 rounded-xl border border-graph-border bg-graph-surface p-6"
     data-testid="private-account-card"
   >
     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -70,7 +70,7 @@ export const PrivateAccountCard = ({
         </p>
         {emailVerified ? (
           <span
-            className="rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary"
+            className="rounded-md bg-graph-accent/10 px-2 py-0.5 text-xs font-semibold text-graph-accent"
             data-testid="verification-status"
           >
             Email verified
@@ -128,7 +128,7 @@ export const PrivateAccountCard = ({
       </p>
     </div>
 
-    <div className="mt-6 space-y-3 border-t border-border pt-5">
+    <div className="mt-6 space-y-3 border-t border-graph-border pt-5">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Appearance
       </p>
