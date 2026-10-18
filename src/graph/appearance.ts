@@ -305,6 +305,25 @@ export function readGraphTreatment(
   return isGraphTreatment(raw) ? raw : 'atmospheric'
 }
 
+/**
+ * Persist an appearance choice to storage.
+ *
+ * Same storage key the Graph page writes, so the account surfaces' appearance
+ * selector and the graph shell read one shared preference. `storage` is the
+ * injectable counterpart to {@link readGraphTreatment}; `null` (no storage)
+ * degrades to a no-op rather than throwing.
+ *
+ * @param value The treatment to persist.
+ * @param storage A `Storage`-like writer, or `null`.
+ */
+export function writeGraphTreatment(
+  value: GraphTreatment,
+  storage: Pick<Storage, 'setItem'> | null,
+): void {
+  if (storage === null) return
+  storage.setItem(GRAPH_TREATMENT_STORAGE_KEY, value)
+}
+
 /** Every chrome token, as the `--graph-*` custom property it feeds. */
 const GRAPH_CHROME_VARIABLES: Record<keyof GraphChromeTokens, string> = {
   page: '--graph-page',

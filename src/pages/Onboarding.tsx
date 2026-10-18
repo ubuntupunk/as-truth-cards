@@ -1,114 +1,311 @@
-import { useState } from 'preact/hooks'
+import type { ComponentChildren } from 'preact'
+import { useEffect, useState } from 'preact/hooks'
 import { useNavigate } from 'react-router-dom'
 import { completeOnboarding } from '@/auth/onboarding'
+import { updateProfile } from '@/auth/profile'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
+import { AppearanceStep } from '@/components/onboarding/appearance-step'
+import { CompletionPanel } from '@/components/onboarding/completion-panel'
+import { PreferencesStep } from '@/components/onboarding/preferences-step'
+import { ProfileStep } from '@/components/onboarding/profile-step'
 import { Button } from '@/components/ui/button'
+import {
+  type GraphTreatment,
+  readGraphTreatment,
+  writeGraphTreatment,
+} from '@/graph/appearance'
 import { useAdminCheck } from '@/hooks/useAdminCheck'
+import {
+  type ParticipationAnswer,
+  readParticipationPreferences,
+  saveParticipationPreferences,
+} from '@/onboarding/preferences'
+import {
+  answerPreference,
+  applyProfileValidation,
+  buildSetupSummary,
+  editProfileField,
+  initialWizardState,
+  markCompleted,
+  markProfileSaved,
+  nextStep,
+  normalizeWebsite,
+  type ParticipationKey,
+  type ProfileField,
+  previousStep,
+  profileHasErrors,
+  profileIsDirty,
+  selectTreatment,
+  setupMarkers,
+  skipStep,
+  type WizardState,
+} from '@/onboarding/wizard'
 
 /**
- * Onboarding page for new users.
+ * The guided-setup route — a thin renderer over the pure journey in
+ * `src/onboarding/wizard.ts`.
  *
- * Completion is persisted server-side via {@link completeOnboarding}; the page
- * does not merely navigate. It also distinguishes the two account states
- * honestly: a user whose account already records `onboardedAt` sees a
- * "already set up" panel instead of a completion button, so re-visiting the route
- * never implies the account is not yet set up.
+ * Figma authority: "Account / Onboarding — Atmospheric · Improved"
+ * (`62:12550`): page introduction, three steps (profile → appearance →
+ * research preferences) and the server-confirmed completion panel. Every
+ * outcome shown after an action is confirmed by the server (profile save via
+ * Better Auth's update-user endpoint, completion via
+ * `POST /api/account/onboarding/complete`) or is explicitly device-local
+ * (appearance, participation answers). Revisiting the route while already
+ * complete shows the completion panel, never a fake "continue setup" button.
  */
-const Onboarding = () => {
+
+/** Best-effort error message extraction for the page-level error banner. */
+function messageOf(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message.trim() !== ''
+    ? error.message
+    : fallback
+}
+
+/** The browser's localStorage, or null outside a browser / privacy mode. */
+function deviceStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
+  try {
+    return typeof window === 'undefined' ? null : window.localStorage
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Onboarding page: the three-step setup journey and completion panel.
+ *
+ * @returns The onboarding route element.
+ */ const Onboarding = () => {
   const { isSignedIn, user, loading, onboardingComplete, refetch } =
     useAdminCheck()
-  const [completing, setCompleting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const navigate = useNavigate()
+  const [wizard, setWizard] = useState<WizardState | null>(null)
+  const [busy, setBusy] = useState<'profile' | 'finish' | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleComplete = async () => {
-    setCompleting(true)
+  // Seed the journey once from the three real sources: the session profile,
+  // the device's stored appearance, and the device's stored participation
+  // answers. Server-owned completion decides whether it opens on step 1 or the
+  // completion panel.
+  useEffect(() => {
+    if (loading || !user || wizard !== null) return
+    setWizard(
+      initialWizardState({
+        profile: {
+          name: user.name,
+          bio: user.bio ?? '',
+          website: user.website ?? '',
+          location: user.location ?? '',
+        },
+        treatment: readGraphTreatment(deviceStorage()),
+        preferences: readParticipationPreferences(deviceStorage()),
+        completed: onboardingComplete,
+      }),
+    )
+  }, [loading, user, wizard, onboardingComplete])
+
+  const handleFieldChange = (field: ProfileField, value: string) => {
+    if (wizard === null) return
+    setWizard(editProfileField(wizard, field, value))
+  }
+
+  const handleProfileNext = async () => {
+    if (wizard === null) return
+    const validated = applyProfileValidation(wizard)
+    if (profileHasErrors(validated.profileErrors)) {
+      setWizard(validated)
+      return
+    }
+    if (!profileIsDirty(validated)) {
+      setWizard(nextStep(validated))
+      return
+    }
+    setBusy('profile')
     setError(null)
     try {
-      await completeOnboarding()
+      await updateProfile({
+        name: validated.profile.name.trim(),
+        bio: validated.profile.bio.trim(),
+        website: normalizeWebsite(validated.profile.website),
+        location: validated.profile.location.trim(),
+      })
+      setWizard(nextStep(markProfileSaved(validated)))
       await refetch()
-      navigate('/account')
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Failed to save onboarding progress',
-      )
+      setError(messageOf(err, 'Failed to save profile details'))
     } finally {
-      setCompleting(false)
+      setBusy(null)
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <Header />
-        <main className="flex-grow px-4 pb-16 pt-24">
-          <div className="mx-auto w-full max-w-2xl">
-            <p className="text-sm text-muted-foreground">Loading...</p>
-          </div>
-        </main>
-        <Footer />
-      </div>
+  const handleFinish = async () => {
+    if (wizard === null) return
+    setBusy('finish')
+    setError(null)
+    try {
+      let state = wizard
+      if (profileIsDirty(state)) {
+        await updateProfile({
+          name: state.profile.name.trim(),
+          bio: state.profile.bio.trim(),
+          website: normalizeWebsite(state.profile.website),
+          location: state.profile.location.trim(),
+        })
+        state = markProfileSaved(state)
+      }
+      await completeOnboarding()
+      setWizard(markCompleted(state))
+      await refetch()
+    } catch (err) {
+      setError(messageOf(err, 'Failed to finish setup'))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const handleSelectTreatment = (treatment: GraphTreatment) => {
+    if (wizard === null) return
+    writeGraphTreatment(treatment, deviceStorage())
+    setWizard(selectTreatment(wizard, treatment))
+  }
+
+  const handleAnswer = (
+    question: ParticipationKey,
+    answer: ParticipationAnswer,
+  ) => {
+    if (wizard === null) return
+    const next = answerPreference(wizard, question, answer)
+    saveParticipationPreferences(next.preferences, deviceStorage())
+    setWizard(next)
+  }
+
+  const shell = (content: ComponentChildren) => (
+    <div className="flex min-h-screen flex-col">
+      <Header />
+      <main className="flex-grow px-4 pb-16 pt-24">
+        <div className="mx-auto w-full max-w-6xl">{content}</div>
+      </main>
+      <Footer />
+    </div>
+  )
+
+  if (loading || (isSignedIn && wizard === null)) {
+    return shell(
+      <p
+        className="text-sm text-muted-foreground"
+        data-testid="onboarding-loading"
+      >
+        Loading...
+      </p>,
     )
   }
 
   if (!isSignedIn || !user) {
-    navigate('/sign-in')
-    return null
+    return shell(
+      <div className="space-y-4">
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+          Guided setup
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Sign in to finish setting up your account. Your progress is preserved
+          on the account, not this page.
+        </p>
+        <Button onClick={() => navigate('/sign-in?returnTo=/onboarding')}>
+          Sign in
+        </Button>
+      </div>,
+    )
   }
 
-  return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-grow px-4 pb-16 pt-24">
-        <div className="mx-auto w-full max-w-2xl">
-          <div className="space-y-6">
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                Welcome to Trope Deck
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {onboardingComplete
-                  ? 'Your account is already set up'
-                  : "Let's get you set up"}
-              </p>
-            </div>
+  if (wizard === null) {
+    return shell(<p className="text-sm text-muted-foreground">Loading...</p>)
+  }
 
-            {error && (
-              <div
-                className="rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
-                data-testid="onboarding-error"
-              >
-                {error}
-              </div>
-            )}
+  const intro = (
+    <header className="mb-10">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        First use / Guided setup
+      </p>
+      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+        Make the deck yours.
+      </h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Start with a name. Everything else is optional and can be changed later
+        in Settings.
+      </p>
+    </header>
+  )
 
-            <div className="space-y-4 rounded-lg border border-border bg-card p-6">
-              <p className="text-sm text-foreground">
-                {onboardingComplete
-                  ? `Welcome back, ${user.name}. Onboarding was completed on your account.`
-                  : `Welcome, ${user.name}! You're all set to start exploring and participating in Trope Deck.`}
-              </p>
-            </div>
-
-            <div className="flex justify-end">
-              {onboardingComplete ? (
-                <Button onClick={() => navigate('/account')}>
-                  Go to account
-                </Button>
-              ) : (
-                <Button onClick={handleComplete} disabled={completing}>
-                  {completing ? 'Completing...' : 'Complete onboarding'}
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-      </main>
-      <Footer />
+  const errorBanner = error ? (
+    <div
+      role="alert"
+      className="mb-6 rounded-md border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive"
+      data-testid="onboarding-error"
+    >
+      {error}
     </div>
+  ) : null
+
+  let body: ComponentChildren
+  switch (wizard.step) {
+    case 'profile':
+      body = (
+        <ProfileStep
+          values={wizard.profile}
+          errors={wizard.profileErrors}
+          saving={busy === 'profile'}
+          markers={setupMarkers(wizard)}
+          onFieldChange={handleFieldChange}
+          onNext={handleProfileNext}
+          onSkip={() => setWizard(skipStep(wizard))}
+          onExit={() => navigate('/account')}
+        />
+      )
+      break
+    case 'appearance':
+      body = (
+        <AppearanceStep
+          treatment={wizard.treatment}
+          markers={setupMarkers(wizard)}
+          onSelect={handleSelectTreatment}
+          onBack={() => setWizard(previousStep(wizard))}
+          onNext={() => setWizard(nextStep(wizard))}
+          onSkip={() => setWizard(skipStep(wizard))}
+        />
+      )
+      break
+    case 'preferences':
+      body = (
+        <PreferencesStep
+          values={wizard.preferences}
+          markers={setupMarkers(wizard)}
+          finishing={busy === 'finish'}
+          onAnswer={handleAnswer}
+          onBack={() => setWizard(previousStep(wizard))}
+          onFinish={handleFinish}
+          onSkip={() => setWizard(nextStep(wizard))}
+        />
+      )
+      break
+    case 'review':
+      body = (
+        <CompletionPanel
+          name={user.name}
+          summary={buildSetupSummary(wizard)}
+          onReturn={() => navigate('/')}
+          onReviewSettings={() => navigate('/account/settings')}
+        />
+      )
+      break
+  }
+
+  return shell(
+    <>
+      {intro}
+      {errorBanner}
+      {body}
+    </>,
   )
 }
 
