@@ -215,7 +215,7 @@ Per-deliverable status:
 | --- | --- | --- |
 | Storage: identifiers, candidates, metrics, provenance columns | Implemented, verified | migration `0012` applied locally; `trope-cards/test/schema-research-sources.test.ts` (DB-free) + migrate-check round-trip |
 | DML-immutable review/promotion event log | Implemented, verified | migrations `0013` + `0015` + `0016` + `0017`; store integration test asserts one event per decision/promotion, none on refusal, direct UPDATE/DELETE rejected by the trigger (no settable bypass), and candidate/source deletes with history refused by `ON DELETE RESTRICT`; immutability is scoped to DML — the shared owner/runtime role can still disable the trigger via DDL (see §"Foundation" above) |
-| Identifier normalization (DOI/URL/Crossref fallback) | Implemented, verified | `trope-cards/test/discovery-identifiers.test.ts` |
+| Identifier normalization (DOI/URL; per-provider extraction for Crossref and DataCite) | Implemented, verified | `trope-cards/test/discovery-identifiers.test.ts` |
 | Crossref provider adapter (bounded rows, timeout, throttle, tolerant mapping, single-page) | Implemented, verified | `trope-cards/test/discovery-crossref.test.ts` (mocked HTTP) |
 | Discovery service (allow-list provider, limit clamp, dedupe) | Implemented, verified | `trope-cards/test/discovery-service.test.ts` |
 | Idempotent candidate ingest preserving review state | Implemented, verified | `trope-cards/test/discovery-store.integration.test.ts` (live Postgres) |
@@ -224,13 +224,18 @@ Per-deliverable status:
 | Review API: list / search / review / promote / events, admin-gated | Implemented, verified | `server/api/discovery.test.ts` (401/403, 400, 404, 409, 502) |
 | Raw-payload retention | **Unavailable** while retention terms are unresolved | report §3.3/§5; no adapter option exists and `discovery_candidates.raw_payload` is a reserved, unpopulated column |
 | Provider pagination | Outstanding (single-page only) | report §7 |
-| Second provider (OpenCitations/DataCite/OpenAlex) | Outstanding | — |
+| Second provider — **DataCite** (search port) | Implemented, verified | `trope-cards/test/discovery-datacite.test.ts` (mocked HTTP); routed through the service allow-list alongside Crossref (`server/api/discovery.ts`, `DATACITE_MAILTO`) |
+| OpenCitations (citation links / `citation_count`) | Outstanding, **fit-checked** | PID-addressed only (Index v2 / Meta v1 have no keyword search), so it cannot implement the search port; belongs to the metrics work (report §3.3/§3.4) |
+| OpenAlex (search) | Outstanding | pending ToS / rate-limit review (report §3.3, §7) |
 | Discovery-review UI | Outstanding (API-only today) | report §3.3 "Acceptance" |
 | Research Metrics UI | Outstanding | provider-neutral port; empty state renders honestly |
 
-Discovery adapters beyond Crossref, provider pagination, the Research Metrics component,
-and the discovery-review UI remain outstanding. Unresolved data-licence/privacy decisions
-are tracked in `docs/issue-12-plumx-research-report.md`.
+Crossref and DataCite adapters ship; the shared polite transport lives in
+`trope-cards/src/discovery/providers/http.ts` so timeout, throttle, abort, and status handling
+cannot drift apart between them. Still outstanding: OpenCitations (which has no keyword-search
+endpoint — it is a citation-links/metrics provider, report §3.3), OpenAlex (pending terms review),
+provider pagination, the Research Metrics component, and the discovery-review UI. Unresolved
+data-licence/privacy decisions are tracked in `docs/issue-12-plumx-research-report.md`.
 
 ---
 
@@ -299,7 +304,17 @@ Cover anonymous, authenticated, verified, and unverified states; verification ex
 
 A complete account lifecycle and one account-gated action work end-to-end; role and persistence boundaries are tested; errors are recoverable; the design/state matrix and privacy/security assumptions are documented.
 
-**Status:** planning/inventory required before broad implementation.
+**Status:** in progress — first account surfaces implemented (issue #13).
+
+| Deliverable | Status | Evidence |
+| --- | --- | --- |
+| Multi-step onboarding journey (profile → appearance → research preferences → completion) with validation, skip/back, loading/error states, and server-confirmed persistence only | Implemented, verified | `src/onboarding/wizard.test.tsx` (journey state machine), `src/onboarding/preferences.test.tsx`, `src/auth/profile.test.tsx`; route `src/pages/Onboarding.tsx` |
+| Improved My profile panel: sidebar nav, public/private cards, edit form | Implemented, verified | `src/components/account/*`, `src/components/account/account-panels.test.tsx`; Figma `62:13257` (Atmospheric·Improved) |
+| Unverified-email resolution: amber state + working resend via Better Auth `send-verification-email` | Implemented, verified | `src/auth/verification.test.tsx`, unverified/verified/error render tests |
+| Appearance + participation preferences | Device-local (localStorage), labelled as such in UI | No account columns exist by design; revisit when Settings ships email settings |
+| Anonymous account-required action, Save card gating, My activity/Settings panel parity, email change, account-side preference persistence, sign-in/dropdown/settings improved panels | Outstanding | tracked in issues |
+
+Journey and panel copy follows the improved Figma onboarding/profile frames; unresolved design decisions (Lora typography without a font dependency, omitted "Choose visibility"/"Change email" affordances that have no product capability, "Saved cards" sidebar entry with no route) are labelled in the issue #13 implementation report.
 
 ---
 

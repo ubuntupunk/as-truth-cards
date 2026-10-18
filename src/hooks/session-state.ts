@@ -33,6 +33,10 @@ export interface AccountUser {
   name: string
   emailVerified: boolean
   image: string | null
+  /** Public-facing profile fields, or null when never set. */
+  bio: string | null
+  website: string | null
+  location: string | null
   /** ISO timestamp set when onboarding was completed, or null if not. */
   onboardedAt: string | null
   role: AccountRole | undefined
@@ -139,6 +143,9 @@ export function deriveAccountView(
       name: String(raw.name ?? ''),
       emailVerified: Boolean(raw.emailVerified),
       image: typeof raw.image === 'string' ? raw.image : null,
+      bio: typeof raw.bio === 'string' ? raw.bio : null,
+      website: typeof raw.website === 'string' ? raw.website : null,
+      location: typeof raw.location === 'string' ? raw.location : null,
       onboardedAt,
       role,
     },
