@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact'
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { useNavigate } from 'react-router-dom'
 import { completeOnboarding } from '@/auth/onboarding'
 import { updateProfile } from '@/auth/profile'
@@ -9,6 +9,7 @@ import { AppearanceStep } from '@/components/onboarding/appearance-step'
 import { CompletionPanel } from '@/components/onboarding/completion-panel'
 import { PreferencesStep } from '@/components/onboarding/preferences-step'
 import { ProfileStep } from '@/components/onboarding/profile-step'
+import { ResearchPreferencesPanel } from '@/components/research-preferences-panel'
 import { Button } from '@/components/ui/button'
 import {
   type GraphTreatment,
@@ -19,6 +20,7 @@ import {
 import { useAdminCheck } from '@/hooks/useAdminCheck'
 import {
   type ParticipationAnswer,
+  type ParticipationPreferences,
   readParticipationPreferences,
   saveParticipationPreferences,
 } from '@/onboarding/preferences'
@@ -84,6 +86,17 @@ function deviceStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
   const [wizard, setWizard] = useState<WizardState | null>(null)
   const [busy, setBusy] = useState<'profile' | 'finish' | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // The completion panel's "Review Settings" opens the same editable
+  // preferences panel the account Settings page uses, in place, rather than
+  // navigating away from a just-finished journey.
+  const [reviewingSettings, setReviewingSettings] = useState(false)
+  const settingsPanel = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!reviewingSettings) return
+    settingsPanel.current?.scrollIntoView?.({ behavior: 'smooth' })
+  }, [reviewingSettings])
 
   // Seed the journey once from the three real sources: the session profile,
   // the device's stored appearance, and the device's stored participation
@@ -179,6 +192,31 @@ function deviceStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
     const next = answerPreference(wizard, question, answer)
     saveParticipationPreferences(next.preferences, deviceStorage())
     setWizard(next)
+  }
+
+  /**
+   * Persist a settings-panel save onto the still-mounted wizard, so the
+   * completion summary and the panel agree on what was actually stored.
+   */
+  const handleSaveSettings = async (
+    next: ParticipationPreferences,
+    treatment: GraphTreatment,
+  ) => {
+    saveParticipationPreferences(next, deviceStorage())
+    writeGraphTreatment(treatment, deviceStorage())
+    setWizard((previous) =>
+      previous === null
+        ? previous
+        : {
+            ...previous,
+            preferences: next,
+            treatment,
+          },
+    )
+  }
+
+  const handleReturnToDeck = () => {
+    navigate('/')
   }
 
   const activeTreatment =
@@ -305,12 +343,26 @@ function deviceStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
       break
     case 'review':
       body = (
-        <CompletionPanel
-          name={user.name}
-          summary={buildSetupSummary(wizard)}
-          onReturn={() => navigate('/')}
-          onReviewSettings={() => navigate('/account/settings')}
-        />
+        <>
+          <CompletionPanel
+            name={user.name}
+            summary={buildSetupSummary(wizard)}
+            onReturn={handleReturnToDeck}
+            onReviewSettings={() => setReviewingSettings(true)}
+          />
+          {reviewingSettings ? (
+            <div className="mt-8" ref={settingsPanel}>
+              <ResearchPreferencesPanel
+                values={wizard.preferences}
+                treatment={wizard.treatment}
+                name={user.name}
+                summary={null}
+                onSave={handleSaveSettings}
+                onEditProfile={() => navigate('/account')}
+              />
+            </div>
+          ) : null}
+        </>
       )
       break
   }
