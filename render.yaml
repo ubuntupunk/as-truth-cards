@@ -147,3 +147,21 @@ services:
       # this must be the deployed URL and not a localhost value.
       - key: BETTER_AUTH_URL
         sync: false
+
+      # Transactional email (verification resend, password reset) via Resend.
+      #
+      # Both are required for ANY email to leave the server: sendEmail in
+      # server/lib/email.ts treats an unconfigured Resend as "skip the send"
+      # (email flows are best-effort and must never gate auth), so with these
+      # unset the verification resend and forgot-password endpoints still
+      # answer success while silently dispatching nothing. The only signal is
+      # an `email.skipped_unconfigured` entry in the service logs.
+      #
+      # RESEND_FROM is the sender identity, e.g. "Trope Deck <noreply@tropecards.com>".
+      # The sending domain must be verified in the Resend dashboard (DNS).
+      # Note that Resend test-mode API keys only deliver to the account
+      # owner's own address; real users need a live key + verified domain.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
+        sync: false
