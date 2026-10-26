@@ -23,8 +23,17 @@ const ROLE_LABELS: Readonly<Record<string, string>> = {
   ADMIN: 'Admin',
 }
 
-/** The first character of the display name, for the initial avatar. */
-function initialOf(name: string): string {
+/**
+ * The first character of the display name, for the initial-avatar fallback.
+ *
+ * Shared with the settings avatar panel so the fallback avatar a reader sees
+ * in Settings and the one on the public profile preview are the same letter,
+ * drawn the same way.
+ *
+ * @param name The display name.
+ * @returns The uppercase initial, or `?` when the name is blank.
+ */
+export function initialOf(name: string): string {
   const trimmed = name.trim()
   return trimmed === '' ? '?' : trimmed.charAt(0).toUpperCase()
 }
@@ -35,6 +44,8 @@ export interface PublicProfileCardProps {
   bio: string | null
   website: string | null
   location: string | null
+  /** The avatar URL from `user.image`, or `null` when none is stored. */
+  imageUrl?: string | null
   /** The server-owned account role (named to avoid ARIA `role` semantics). */
   accountRole: string | undefined
   onEdit: () => void
@@ -51,6 +62,7 @@ export const PublicProfileCard = ({
   bio,
   website,
   location,
+  imageUrl,
   accountRole,
   onEdit,
 }: PublicProfileCardProps) => (
@@ -64,12 +76,23 @@ export const PublicProfileCard = ({
     </p>
 
     <div className="mt-4 flex items-center gap-5">
-      <span
-        aria-hidden="true"
-        className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-graph-accent/10 text-2xl font-bold text-graph-accent"
-      >
-        {initialOf(name)}
-      </span>
+      {imageUrl && imageUrl !== '' ? (
+        // Decorative like the initials disc it replaces: the name sits right
+        // beside it, so an empty alt keeps screen readers from reading it twice.
+        <img
+          src={imageUrl}
+          alt=""
+          className="h-[72px] w-[72px] shrink-0 rounded-full object-cover"
+          data-testid="public-profile-avatar"
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          className="flex h-[72px] w-[72px] shrink-0 items-center justify-center rounded-full bg-graph-accent/10 text-2xl font-bold text-graph-accent"
+        >
+          {initialOf(name)}
+        </span>
+      )}
       <div className="min-w-0">
         <h2 className="truncate text-2xl font-semibold text-foreground">
           {name || 'Not added'}

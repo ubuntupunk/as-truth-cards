@@ -22,11 +22,14 @@ export interface ProfileFields {
 /**
  * Best-effort extraction of a server-provided error message.
  *
+ * Shared by the profile and avatar seams so both surface the server's own
+ * words (`{ message }`) with the same fallback behaviour.
+ *
  * @param response The failed response.
  * @param fallback Message to use when the body carries none.
  * @returns The server message, or `fallback`.
  */
-async function readErrorMessage(
+export async function readErrorMessage(
   response: Response,
   fallback: string,
 ): Promise<string> {

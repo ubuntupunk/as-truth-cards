@@ -21,6 +21,7 @@ import graphRouter from './api/graph.js';
 import draftsRouter from './api/drafts.js';
 import discoveryRouter from './api/discovery.js';
 import accountRouter from './api/account.js';
+import avatarsRouter from './api/avatars.js';
 import {
   DEFAULT_TRUSTED_ORIGINS,
   resolveTrustedOrigins,
@@ -124,6 +125,13 @@ export function createApp(env: AppEnv = process.env): express.Express {
   app.use('/api/drafts', draftsRouter);
   app.use('/api/discovery', discoveryRouter);
   app.use('/api/account', accountRouter);
+  // Profile photos: the session's own write verbs under `/api/me`, the public
+  // byte-serving read under `/api/users`. One router, two narrow mounts —
+  // never a catch-all `/api` mount that would change how unknown paths
+  // answer. `express.raw` is route-local inside the router, so it consumes
+  // the stream only for the upload verb it is attached to.
+  app.use('/api/me', avatarsRouter);
+  app.use('/api/users', avatarsRouter);
 
   /**
    * Liveness probe, declared before the static handler and the SPA catch-all below.
