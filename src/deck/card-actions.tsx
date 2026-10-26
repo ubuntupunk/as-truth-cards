@@ -56,9 +56,9 @@ export type CardActionsProps = {
 const SAVE_CARD_NOTE_ID = 'save-card-note'
 
 const PRIMARY =
-  'min-h-[44px] rounded-lg border border-transparent bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90'
+  'min-h-[44px] rounded-lg border border-transparent bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
 const SECONDARY =
-  'min-h-[44px] rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted'
+  'min-h-[44px] rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
 
 /**
  * The action row under the card's current face.
@@ -83,14 +83,32 @@ export function CardActions({
       className="mt-4 flex flex-wrap items-start gap-4"
     >
       {stage === 'cover' ? (
-        <button
-          type="button"
-          data-testid="flip-card"
-          onClick={onExamine}
-          className={PRIMARY}
-        >
-          Read front &amp; back
-        </button>
+        <>
+          <button
+            type="button"
+            data-testid="flip-card"
+            onClick={onExamine}
+            className={PRIMARY}
+          >
+            Read front &amp; back
+          </button>
+          {/*
+            The Cover's direct route to the third face (issue #14): without it,
+            a reader who never flips has no way to learn the Analysis face
+            exists. Same destination and wording as the Claim face's control,
+            gated the same way: a failed projection has nothing to open.
+          */}
+          {readingAvailable ? (
+            <button
+              type="button"
+              data-testid="read-analysis"
+              onClick={onReadAnalysis}
+              className={SECONDARY}
+            >
+              Read analysis
+            </button>
+          ) : null}
+        </>
       ) : null}
 
       {stage === 'claim' ? (

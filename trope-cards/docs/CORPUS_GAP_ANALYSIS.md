@@ -246,3 +246,34 @@ check stays strict without inventing a link.
 **Concept is still excluded from both views**, but no longer on corpus grounds. `card_concepts` is
 populated; the blocker is that no reader path loads it, so the projection cannot emit a Concept
 node. That is projection work, not corpus work, and B1 now says so.
+
+## 9. Narrative analysis — the gap issue #14 traced (v0.11, post-graph)
+
+Written when issue #14 asked for a "primary narrative/article/essay area" on the card's
+Analysis face, and required the corpus be traced before any field was added.
+
+**The corpus has no article-length narrative field.** `cards` carries four prose columns —
+`summary`, `core_question`, `mechanism_summary`, `editorial_notes` — and none of them is an
+essay. `summary` and `core_question` are short framing (already projected); `mechanism_summary`
+and `counter_test` are per-mechanism fields outside this scope. `editorial_notes` is the only
+authored *editorial analysis* prose the corpus has, and it is populated on **8 of 47 cards**
+(six draft cards plus the two identity-retrospection cards): methodological reading guidance
+such as "Separate Qur'anic theological usage from modern confessional, national, and political
+identity categories." Until this change it was written by the seeder and read by nothing — the
+projection and the listing never selected it.
+
+**The smallest backward-compatible contract, and the one implemented:** expose the existing
+`editorial_notes` read-only through the canonical read paths — `GET /api/graph/cards`
+(`CardRow.editorialNotes`) and the focused projection (`CardNodeMetadata.editorialNotes`) —
+and render it on the Analysis face as the prioritised "Narrative analysis" region. No new
+column, no migration, no seed change, and no content invented: a card without authored notes
+reports an explicit empty state that distinguishes "no narrative supplied" from the structured
+record that follows it. Narrative prose stays metadata — it is never counted into any
+provenance, claim, source, or evidence readout.
+
+**What was deliberately not built:** a dedicated `analysis_narrative` column. Adding one now
+would create a second prose column with zero rows and an unresolved relationship to
+`editorial_notes` — two carriers for one concept, the duplication this schema exists to
+prevent. The right moment to split them is when editorial actually writes article-length
+analysis that would crowd the notes column; until then `editorial_notes` is the narrative of
+record, and the deck says in words what it is and is not.

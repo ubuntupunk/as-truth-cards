@@ -523,6 +523,17 @@ function CardSections({
           {metadata.coreQuestion ? (
             <DataRow label="Core question">{metadata.coreQuestion}</DataRow>
           ) : null}
+          {/*
+            Issue #14: the same authored editorial analysis the deck's Analysis
+            face renders as its narrative region, reported here with its
+            ontological status spelled out — the inspector's reader must not
+            mistake prose for an evidence row any more than the deck may.
+          */}
+          {metadata.editorialNotes ? (
+            <DataRow label="Editorial analysis (narrative, not evidence)">
+              {metadata.editorialNotes}
+            </DataRow>
+          ) : null}
         </dl>
       </section>
 

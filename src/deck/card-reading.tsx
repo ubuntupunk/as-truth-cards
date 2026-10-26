@@ -25,6 +25,8 @@ export type CardAnalysisProps = {
   readonly reading: CardReading | null
   /** The derived provenance/evidence preview, or `null` while it loads. */
   readonly preview: CardPreview | null
+  /** Authored narrative/analysis text for the card, if present. */
+  readonly narrative?: string | null
 }
 
 /** Props for {@link CardReadingPanel}. */
@@ -127,18 +129,107 @@ export function CardReadingPanel({ reading }: CardReadingPanelProps) {
 }
 
 /**
+ * Renders the authored narrative with the repo's plain-text conventions.
+ *
+ * The corpus stores card prose as plain text (no markdown pipeline exists and
+ * issue #14 forbids introducing a parallel format), so the convention here is
+ * minimal and documented rather than a second content system:
+ *
+ * - blocks are separated by one blank line;
+ * - a single-line block whose first token is `#` renders as a section
+ *   heading, with the hashes stripped — everything else is a paragraph.
+ *
+ * @param narrative Trimmed, non-empty narrative text.
+ * @returns Headings and paragraphs for the narrative region.
+ * @example
+ * ```tsx
+ * <NarrativeContent narrative={'# The category problem\n\nAnachronism maps the present onto the past.'} />
+ * ```
+ */
+function NarrativeContent({ narrative }: { narrative: string }) {
+  const blocks = narrative
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter((block) => block.length > 0)
+
+  return (
+    <div className="mt-3 space-y-3">
+      {blocks.map((block, index) =>
+        /^#{1,4}\s+/.test(block) && !block.includes('\n') ? (
+          <h4
+            // biome-ignore lint/suspicious/noArrayIndexKey: narrative blocks are positional prose — the list is rebuilt from immutable authored text and never reorders, so the index is the stable identity; content-derived keys would collide on repeated paragraphs.
+            key={index}
+            className="text-sm font-semibold tracking-tight text-foreground"
+          >
+            {block.replace(/^#{1,4}\s+/, '')}
+          </h4>
+        ) : (
+          <p
+            // biome-ignore lint/suspicious/noArrayIndexKey: as above — positional prose, stable because the text is authored and immutable.
+            key={index}
+            className="max-w-prose break-words text-sm leading-relaxed text-foreground"
+          >
+            {block}
+          </p>
+        ),
+      )}
+    </div>
+  )
+}
+
+/**
  * The Analysis face — how the claim is examined (SPEC §7.3).
  *
+ * The authored narrative leads the face (issue #14): it is the readable
+ * explanation of the issue, reported as authored editorial prose and never as
+ * evidence. The structural readouts — provenance, evidence state, the three
+ * reading lists, counterevidence — follow it unchanged.
+ *
  * @param props See {@link CardAnalysisProps}.
- * @returns A `<div>` with the provenance/evidence readouts, the reading
- * lists, and an honest note about counterevidence.
+ * @returns A `<div>` with the narrative region, the provenance/evidence
+ * readouts, the reading lists, and an honest note about counterevidence.
  */
-export function CardAnalysis({ reading, preview }: CardAnalysisProps) {
+export function CardAnalysis({
+  reading,
+  preview,
+  narrative,
+}: CardAnalysisProps) {
+  const narrativeContent =
+    typeof narrative === 'string' && narrative.trim().length > 0
+      ? narrative.trim()
+      : null
+
   return (
     <div data-testid="card-analysis">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Analysis
       </h3>
+
+      <section
+        aria-label="Narrative analysis"
+        className="mt-3 rounded-lg border border-graph-border/70 bg-background p-4"
+        data-testid="analysis-narrative"
+      >
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Narrative analysis
+        </h4>
+        {narrativeContent === null ? (
+          <p className="mt-2 max-w-prose text-sm text-muted-foreground">
+            No narrative analysis has been supplied for this card. What follows
+            — claims, reasoning, sources, and evidence readouts — is the
+            structured record, not a narrative; the absence reported here is
+            about prose, not about the record.
+          </p>
+        ) : (
+          <>
+            <NarrativeContent narrative={narrativeContent} />
+            <p className="mt-3 text-xs text-muted-foreground">
+              Authored editorial analysis. It is narrative prose — not evidence,
+              not a claim, not a source, and not a reasoning step.
+            </p>
+          </>
+        )}
+      </section>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <ProvenancePreview preview={preview} />

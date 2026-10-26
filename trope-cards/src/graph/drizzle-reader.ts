@@ -101,6 +101,8 @@ const cardColumns = {
   title: cards.title,
   summary: cards.summary,
   coreQuestion: cards.coreQuestion,
+  /** Authored editorial analysis (narrative prose), distinct from evidence rows. */
+  editorialNotes: cards.editorialNotes,
   /**
    * Legacy, write-only content-shape classification. Read only to report it verbatim as
    * `CardNodeMetadata.legacyPrimaryType`; never used for axis (Issue #2, Q3).
@@ -1083,7 +1085,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
     const offset = params.offset ?? 0
     if (params.localeSlug) {
       const rows = await this.client.execute<CardRow>(sql`
-        SELECT c.id, c.slug, c.title, c.summary, c.core_question AS "coreQuestion", c.primary_type AS "primaryType", c.epistemic_status AS "epistemicStatus"
+        SELECT c.id, c.slug, c.title, c.summary, c.core_question AS "coreQuestion", c.editorial_notes AS "editorialNotes", c.primary_type AS "primaryType", c.epistemic_status AS "epistemicStatus"
         FROM trope_graph.cards c
         INNER JOIN trope_graph.card_locales cl ON cl.card_id = c.id
         INNER JOIN trope_graph.locales l ON l.id = cl.locale_id
@@ -1104,7 +1106,7 @@ export class DrizzleGraphReader implements TropeGraphReader {
       }
     }
     const rows = await this.client.execute<CardRow>(sql`
-      SELECT c.id, c.slug, c.title, c.summary, c.core_question AS "coreQuestion", c.primary_type AS "primaryType", c.epistemic_status AS "epistemicStatus"
+      SELECT c.id, c.slug, c.title, c.summary, c.core_question AS "coreQuestion", c.editorial_notes AS "editorialNotes", c.primary_type AS "primaryType", c.epistemic_status AS "epistemicStatus"
       FROM trope_graph.cards c
       ORDER BY c.title
       LIMIT ${limit} OFFSET ${offset}

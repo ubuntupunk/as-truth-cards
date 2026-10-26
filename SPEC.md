@@ -296,6 +296,7 @@ The card is one canonical research object with two faces. The **front** is the C
 - The title is the primary textual identity and remains visible with the image.
 - An optional compact identifier or classification marker may aid orientation but must not overwhelm the title.
 - The Cover carries a visible flip affordance — `Read front & back` — so the reverse side is discoverable without hovering or guessing.
+- The Cover also carries a direct `Read analysis` entry point (secondary to the flip), so the third face is discoverable without flipping first. It is gated exactly like the Claim face's control: a failed projection has nothing to open.
 - If no suitable image exists, fails to load, or has not been reviewed, render a deliberate **designed** fallback (a styled card band with folio/graphic motif), never an empty placeholder. Missing imagery must not change the card's canonical identity, classification, or epistemic status.
 
 ### 7.2 Claim face — what is being asserted
@@ -314,24 +315,26 @@ This face states what is being examined; it does not endorse the claim or imply 
 
 The Analysis face presents the analytical reading experience, including where available:
 
+- an authored narrative/editorial analysis region, prioritised above the structural readouts — the readable explanation of the issue, sourced from the card's authored editorial notes and never presented as, or counted as, evidence. When no narrative has been supplied, the region reports that explicitly rather than letting provenance counts stand in for an explanation;
 - analysis and relevant concepts/mechanisms;
 - sources and evidence as distinct entity types, with provenance/context;
 - reasoning/inference and argument-chain links where supported;
 - counterevidence, uncertainty, limitations, and unresolved questions where known;
 - clear return-to-Claim and close/back-to-discovery actions.
 
-Do not fabricate missing analysis, evidence, sources, or counterevidence. Represent unavailable or unpopulated sections honestly. Source and evidence links must remain distinct and preserve research context when followed.
+Do not fabricate missing analysis, evidence, sources, counterevidence, or narrative. Represent unavailable or unpopulated sections honestly. Narrative prose is authored editorial material, distinct in the data model from claims, reasoning steps, sources, and evidence; Source and evidence links must remain distinct and preserve research context when followed.
 
 ### 7.4 Transitions and state
 
 1. Deck browsing displays the card's front (the Cover).
 2. Selecting `Read front & back` flips the card to its back at the Claim face.
-3. Selecting `Read analysis` moves within the back to the Analysis face.
+3. Selecting `Read analysis` — from the Cover or from the Claim face — opens the Analysis face directly.
 4. The reader can return to the Claim face or flip back to the front with `Back to front`.
 5. Closing returns to the same deck position and preserves the active filters/repeat policy and card identity.
 6. On constrained mobile layouts, opening directly to the Claim face is acceptable if the Cover remains available as the discovery representation.
 7. The image may persist as a small visual anchor on the Claim/Analysis faces, but must not compete with long-form reading.
 8. Saving is an independent action and must not be coupled to facing/flip transitions.
+9. The active face is announced to assistive technology (the faces are Cover, Claim, Analysis), and every transition is an explicit, keyboard-operable control.
 
 Use explicit, discoverable controls and scroll-safe editorial content. The flip reads as front↔back and is presentation-only. A subtle transition or animation is optional; no interaction may depend on animation, a 3D transform, hover, or a physical-card metaphor. If 3D motion is used it must respect `prefers-reduced-motion`, and when motion is reduced or 3D transform support is unavailable the faces must still swap statefully with no transform and no loss of content.
 
@@ -606,6 +609,8 @@ Administrative tooling may continue to exist, but it is not the Figma-defined pr
 - [ ] `Read front & back` flips the card to its back at the Claim face for the same canonical card.
 - [ ] Claim face presents the claim/formulation, canonical classification, human-readable status, and research framing.
 - [ ] `Read analysis` opens the Analysis face; analysis, source, evidence, reasoning, and limitations remain semantically distinct.
+- [ ] The Analysis face leads with an authored narrative region when one exists, reports its absence explicitly when none does, and never counts narrative prose as evidence.
+- [ ] The Cover offers a direct `Read analysis` entry point alongside the flip.
 - [ ] Claim ↔ Analysis navigation, the `Back to front` reverse flip, and close/back-to-discovery work and preserve card identity, active filters, and deck position.
 - [ ] Card status visibly distinguishes open/unverified material.
 - [ ] Title, summary, classification, provenance, and evidence are separate regions.

@@ -40,6 +40,16 @@ export type CardRow = {
   readonly title: string
   readonly summary: string | null
   readonly coreQuestion: string | null
+  /**
+   * `cards.editorial_notes`: authored editorial analysis for the Analysis face.
+   *
+   * Optional because the read port is shared with in-memory fakes whose rows
+   * predate the field; absent means "not read by this path", `null` means "read
+   * and unpopulated". It is narrative prose, never evidence: it is carried
+   * separately from claims, reasoning steps, sources, and evidence, and nothing
+   * downstream may count it as any of those.
+   */
+  readonly editorialNotes?: string | null
   readonly primaryType: CardTypeValue
   readonly epistemicStatus: EpistemicStatusValue
 }

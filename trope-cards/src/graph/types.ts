@@ -248,6 +248,13 @@ export type CardNodeMetadata = {
   readonly summary: string | null
   readonly coreQuestion: string | null
   /**
+   * `cards.editorial_notes`: authored editorial analysis (narrative prose),
+   * surfaced for the Analysis face. Distinct from claims, sources, evidence,
+   * and reasoning; optional for backward compatibility with pre-existing
+   * in-memory reader fakes whose rows do not carry it.
+   */
+  readonly editorialNotes?: string | null
+  /**
    * `cards.primary_type`, reported verbatim and explicitly marked as non-classificatory.
    *
    * Exposed because the column is authored data and dropping it would be silent loss, and
