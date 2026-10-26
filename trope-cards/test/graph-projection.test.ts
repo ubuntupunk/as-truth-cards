@@ -421,6 +421,37 @@ describe('invariant 5: classification is multi-axis, ordered, and has no primary
       'primary_type must not become a Suit',
     )
   })
+
+  it('carries authored editorial notes as narrative, and invents none when absent', async () => {
+    // Issue #14: `cards.editorial_notes` is the authored narrative analysis. The
+    // projection reports it verbatim on the card node — it is prose, so it is
+    // metadata, never an evidence row and never a claim.
+    const authored = richCorpus()
+    authored.cards[0] = card({
+      id: 'card-1',
+      editorialNotes: 'Separate the periods before comparing their actors.',
+    })
+    const bare = richCorpus()
+    const [{ result: authoredResult }, { result: bareResult }] =
+      await Promise.all([
+        project(authored, { depth: 1 }),
+        project(bare, { depth: 1 }),
+      ])
+    const authoredNode = nodesOfType(authoredResult.nodes, 'card')[0] as CardNode
+    const bareNode = nodesOfType(bareResult.nodes, 'card')[0] as CardNode
+    assert.equal(
+      authoredNode.metadata.editorialNotes,
+      'Separate the periods before comparing their actors.',
+    )
+    // Absent is reported as null, not as prose and not as a zero that could be
+    // counted into any provenance or evidence readout.
+    assert.equal(bareNode.metadata.editorialNotes, null)
+    assert.equal(
+      nodesOfType(authoredResult.nodes, 'evidence_item').length,
+      0,
+      'narrative prose is never an evidence item',
+    )
+  })
 })
 
 // ---------------------------------------------------------------------------

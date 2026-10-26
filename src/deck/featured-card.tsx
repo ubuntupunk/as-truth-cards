@@ -34,7 +34,7 @@ import { ProjectionShapeError } from '../graph/projection-guards'
 import { CardActions } from './card-actions'
 import { CardMetadata } from './card-metadata'
 import { CardAnalysis } from './card-reading'
-import type { CardStage } from './card-stage'
+import { type CardStage, cardStageLabel } from './card-stage'
 import { ClassificationTags } from './classification-tags'
 import type { CardPreview, CardReading } from './deck-model'
 
@@ -262,7 +262,8 @@ function CardClaim({
         </div>
       ) : (
         <p className="mt-4 text-sm text-muted-foreground">
-          Open the analysis for provenance, reasoning, and evidence.
+          Open the analysis for the narrative, provenance, reasoning, and
+          evidence.
         </p>
       )}
     </div>
@@ -304,6 +305,16 @@ export function FeaturedCard({
       data-stage={stage}
       className="scroll-mt-24 rounded-2xl border border-graph-border bg-card p-5 shadow-sm focus:outline-none sm:p-6"
     >
+      {/*
+        Issue #14: the three faces are reachable by controls, so their names
+        must reach assistive technology too — `data-stage` is a test hook, and
+        an unexplained flip leaves a screen reader between faces. Announced as
+        text (not a live region): every transition is a button activation the
+        reader initiates, and the buttons themselves say what they open.
+      */}
+      <p className="sr-only" data-testid="card-face-announcement">
+        Current face: {cardStageLabel(stage)}. Faces: Cover, Claim, Analysis.
+      </p>
       <div className="deck-card-scene">
         <div
           data-testid="card-flip-stage"
@@ -346,7 +357,11 @@ export function FeaturedCard({
               failed ? (
                 <ProjectionFailure error={projectionError} />
               ) : (
-                <CardAnalysis reading={reading} preview={preview} />
+                <CardAnalysis
+                  reading={reading}
+                  preview={preview}
+                  narrative={card.editorialNotes ?? null}
+                />
               )
             ) : null}
           </div>

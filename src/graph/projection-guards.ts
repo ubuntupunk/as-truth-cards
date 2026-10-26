@@ -305,6 +305,12 @@ export function assertCardListResponse(
     asString(item.title, `${path}.title`)
     asNullableString(item.summary, `${path}.summary`)
     asNullableString(item.coreQuestion, `${path}.coreQuestion`)
+    // Optional since the field postdates the listing: absent means the server
+    // did not send it, which is legal for older payloads; present-but-wrong-
+    // type is not. Never coerced into any other readout.
+    if ('editorialNotes' in item) {
+      asNullableString(item.editorialNotes ?? null, `${path}.editorialNotes`)
+    }
     asString(item.primaryType, `${path}.primaryType`)
     asString(item.epistemicStatus, `${path}.epistemicStatus`)
 

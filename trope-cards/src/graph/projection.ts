@@ -1354,6 +1354,7 @@ function buildNodes(
       slug: row.slug,
       summary: row.summary,
       coreQuestion: row.coreQuestion,
+      editorialNotes: row.editorialNotes ?? null,
       legacyPrimaryType: row.primaryType,
       legacyPrimaryTypeIsAxis: false,
     }

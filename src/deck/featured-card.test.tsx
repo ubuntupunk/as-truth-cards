@@ -139,6 +139,34 @@ describe('FeaturedCard — Cover', () => {
     assert.equal(state.examine, 1)
     assert.equal(state.read, 0)
   })
+
+  it('offers Read analysis from the Cover, so the third face is discoverable without flipping', () => {
+    // Issue #14: a reader who never flips had no way to learn the Analysis
+    // face exists. The Cover now carries the same destination the Claim face
+    // offers, as a secondary action beside the flip.
+    const { props, state } = fixture()
+    const tree = FeaturedCard(props)
+    const read = buttonByText(tree, 'Read analysis')
+    assert.ok(read)
+    assert.equal(read?.props?.['data-testid'], 'read-analysis')
+    ;(read?.props?.onClick as () => void)()
+    assert.equal(state.read, 1)
+    assert.equal(
+      state.examine,
+      0,
+      'the direct route must not flip through the Claim face',
+    )
+  })
+
+  it('omits the Cover\u2019s Read analysis when the projection has failed', () => {
+    const tree = FeaturedCard(
+      fixture({ projectionError: new Error('down') }).props,
+    )
+    assert.equal(buttonByText(tree, 'Read analysis'), undefined)
+    // The flip stays: a failed projection has nothing to open, but the card
+    // itself is still readable on its other faces.
+    assert.ok(buttonByText(tree, 'Read front & back'))
+  })
 })
 
 describe('FeaturedCard — faces', () => {
@@ -453,6 +481,77 @@ describe('FeaturedCard — Analysis face', () => {
     assert.ok(!html.includes('data-testid="card-analysis"'))
     assert.ok(!html.includes('data-testid="card-reading"'))
     assert.ok(html.includes('projection rejected'))
+  })
+
+  it('leads with the authored narrative and names it as prose, never evidence', () => {
+    const html = render(
+      <FeaturedCard
+        {...fixture({
+          stage: 'analysis',
+          card: {
+            ...OPEN_CARD,
+            editorialNotes:
+              'Separate the periods before comparing their actors.',
+          },
+        }).props}
+      />,
+    )
+    assert.ok(html.includes('data-testid="analysis-narrative"'))
+    assert.ok(html.includes('Narrative analysis'))
+    assert.ok(
+      html.includes('Separate the periods before comparing their actors.'),
+    )
+    assert.ok(
+      html.includes(
+        'It is narrative prose — not evidence, not a claim, not a source, and not a reasoning step.',
+      ),
+    )
+    // Prioritised (issue #14): the narrative region precedes the structural
+    // readouts in the document, not merely in visual weight.
+    assert.ok(
+      html.indexOf('analysis-narrative') <
+        html.indexOf('data-testid="provenance-preview"'),
+    )
+  })
+
+  it('renders narrative headings and paragraphs from the plain-text convention', () => {
+    const html = render(
+      <FeaturedCard
+        {...fixture({
+          stage: 'analysis',
+          card: {
+            ...OPEN_CARD,
+            editorialNotes:
+              '# How to read this card\n\nSeparate the periods before comparing their actors.',
+          },
+        }).props}
+      />,
+    )
+    // A single-line block opening with `#` is a heading; blank-line-separated
+    // blocks are paragraphs. No markdown pipeline, no parallel format.
+    assert.ok(html.includes('How to read this card'))
+    assert.ok(
+      html.includes('Separate the periods before comparing their actors.'),
+    )
+    assert.ok(!html.includes('# How to read this card'))
+  })
+
+  it('reports the absence of a narrative as an explicit empty state', () => {
+    const html = render(
+      <FeaturedCard {...fixture({ stage: 'analysis' }).props} />,
+    )
+    assert.ok(html.includes('data-testid="analysis-narrative"'))
+    assert.ok(
+      html.includes('No narrative analysis has been supplied for this card.'),
+    )
+  })
+
+  it('announces the active face for assistive technology', () => {
+    const html = render(
+      <FeaturedCard {...fixture({ stage: 'analysis' }).props} />,
+    )
+    assert.ok(html.includes('data-testid="card-face-announcement"'))
+    assert.ok(html.includes('Current face: Analysis.'))
   })
 })
 
