@@ -5,7 +5,7 @@
     "servers": {
       "better-auth": {
         "type": "remote",
-        "url": "https://mcp.inkeep.com/better-auth/mcp"
+        "url": "https://mcp.better-auth.com/mcp"
       },
       "cloudflare-api": {
         "type": "remote",
