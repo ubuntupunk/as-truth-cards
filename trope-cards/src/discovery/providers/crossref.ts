@@ -36,6 +36,13 @@ import {
   type DiscoverySearchInput,
   type SourceTypeValue,
 } from '../types'
+import { createJsonClient, type FetchLike } from './http'
+
+/**
+ * The transport types live in `./http` so both adapters share one polite client; they are
+ * re-exported here so existing importers of this module keep working unchanged.
+ */
+export type { FetchLike, FetchResponseLike } from './http'
 
 /** The provider key stored on every Crossref candidate. */
 export const CROSSREF_PROVIDER = 'crossref'
@@ -45,27 +52,6 @@ export const CROSSREF_MAX_ROWS = 1000
 
 /** A conservative default page size for an interactive discovery query. */
 export const CROSSREF_DEFAULT_ROWS = 10
-
-/**
- * The minimal `fetch` shape this adapter uses, declared structurally so tests can inject a
- * mocked fetch without importing the DOM lib and so the adapter does not depend on the
- * global `fetch` type being present in every compilation unit.
- */
-export type FetchResponseLike = {
-  readonly ok: boolean
-  readonly status: number
-  readonly statusText?: string
-  json(): Promise<unknown>
-}
-
-/** A `fetch`-compatible function. Matches the global `fetch` and accepts a mock. */
-export type FetchLike = (
-  url: string,
-  init: {
-    readonly headers: Record<string, string>
-    readonly signal: AbortSignal
-  },
-) => Promise<FetchResponseLike>
 
 /** Crossref provider configuration. */
 export type CrossrefProviderOptions = {
@@ -162,7 +148,13 @@ function formatIssuedDate(issued: unknown): string | null {
     return null
   }
   const pad = (n: number): string => String(n).padStart(2, '0')
-  return `${year}-${pad(month as number)}-${pad(day as number)}`
+  const rendered = `${year}-${pad(month as number)}-${pad(day as number)}`
+  // `publication_date` is a SQL `date`, so a month or day outside the calendar (a mis-registered
+  // publisher record can carry `[[2018, 13, 40]]`) would be rejected by Postgres and fail the
+  // whole ingest batch. Only a real calendar date is returned; anything else is left null.
+  const parsed = new Date(`${rendered}T00:00:00Z`)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed.toISOString().slice(0, 10) === rendered ? rendered : null
 }
 
 /** Render Crossref authors as a display string, or `null` when none are listed. */
@@ -253,31 +245,18 @@ function readTotalResults(payload: unknown): number | undefined {
 export function createCrossrefProvider(
   options: CrossrefProviderOptions = {},
 ): DiscoveryProvider {
-  const doFetch = options.fetch ?? (globalThis.fetch as unknown as FetchLike)
   const baseUrl = (options.baseUrl ?? 'https://api.crossref.org').replace(
     /\/+$/,
     '',
   )
-  const timeoutMs = options.timeoutMs ?? 8000
-  const minIntervalMs = options.minIntervalMs ?? 1000
-  const userAgent = options.userAgent ?? 'as-truth-cards/0.0'
   const mailto = options.mailto?.trim() || null
-
-  let nextAllowedAt = 0
-  let gate: Promise<void> = Promise.resolve()
-
-  const waitForSlot = async (): Promise<void> => {
-    if (minIntervalMs <= 0) return
-    const run = gate.then(async () => {
-      const wait = nextAllowedAt - Date.now()
-      if (wait > 0) {
-        await new Promise((resolve) => setTimeout(resolve, wait))
-      }
-      nextAllowedAt = Date.now() + minIntervalMs
-    })
-    gate = run.catch(() => undefined)
-    await run
-  }
+  const client = createJsonClient({
+    fetch: options.fetch,
+    timeoutMs: options.timeoutMs,
+    minIntervalMs: options.minIntervalMs,
+    userAgent: options.userAgent,
+    mailto,
+  })
 
   return {
     name: CROSSREF_PROVIDER,
@@ -297,62 +276,11 @@ export function createCrossrefProvider(
       if (mailto) params.set('mailto', mailto)
       const url = `${baseUrl}/works?${params.toString()}`
 
-      await waitForSlot()
-
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), timeoutMs)
-      const onExternalAbort = (): void => controller.abort()
-      input.signal?.addEventListener('abort', onExternalAbort, { once: true })
-
-      const headers: Record<string, string> = { Accept: 'application/json' }
-      headers['User-Agent'] = mailto
-        ? `${userAgent} (mailto:${mailto})`
-        : userAgent
-
-      let response: FetchResponseLike
-      try {
-        response = await doFetch(url, { headers, signal: controller.signal })
-      } catch (error) {
-        if (controller.signal.aborted) {
-          const kind = input.signal?.aborted ? 'aborted' : 'timeout'
-          throw new DiscoveryProviderError(
-            CROSSREF_PROVIDER,
-            kind,
-            kind === 'timeout'
-              ? `Crossref request timed out after ${timeoutMs}ms`
-              : 'Crossref request was aborted',
-          )
-        }
-        const reason = error instanceof Error ? error.message : String(error)
-        throw new DiscoveryProviderError(
-          CROSSREF_PROVIDER,
-          'http',
-          `Crossref request failed: ${reason}`,
-        )
-      } finally {
-        clearTimeout(timer)
-        input.signal?.removeEventListener('abort', onExternalAbort)
-      }
-
-      if (!response.ok) {
-        throw new DiscoveryProviderError(
-          CROSSREF_PROVIDER,
-          'http',
-          `Crossref responded with HTTP ${response.status}`,
-          response.status,
-        )
-      }
-
-      let payload: unknown
-      try {
-        payload = await response.json()
-      } catch {
-        throw new DiscoveryProviderError(
-          CROSSREF_PROVIDER,
-          'malformed',
-          'Crossref returned a body that is not valid JSON',
-        )
-      }
+      const payload = await client.get(url, {
+        provider: CROSSREF_PROVIDER,
+        label: 'Crossref',
+        signal: input.signal,
+      })
 
       const items = readItems(payload)
       if (items === null) {

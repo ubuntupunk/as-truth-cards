@@ -3,6 +3,7 @@ import { describe, it } from 'node:test'
 
 import {
   extractCrossrefIdentifiers,
+  extractDataciteIdentifiers,
   normalizeDoi,
   normalizeIdentifier,
   normalizeUrl,
@@ -143,5 +144,64 @@ describe('extractCrossrefIdentifiers', () => {
 
   it('returns nothing when no identifier is present', () => {
     assert.deepEqual(extractCrossrefIdentifiers({}), [])
+  })
+})
+
+describe('extractDataciteIdentifiers', () => {
+  it('extracts the doi, url, recognized identifiers[], and container identifier', () => {
+    const identifiers = extractDataciteIdentifiers({
+      doi: '10.5281/zenodo.14548164',
+      url: 'https://zenodo.org/records/14548164',
+      identifiers: [
+        { identifier: 'oai:zenodo.org:14548164', identifierType: 'oai' },
+        { identifier: '12345678', identifierType: 'PMID' },
+        { identifier: '9999-9999', identifierType: 'EISSN' },
+      ],
+      container: {
+        identifier: '0378-5955',
+        identifierType: 'ISSN',
+      },
+    })
+    assert.deepEqual(
+      identifiers.map((i) => [i.scheme, i.normalizedValue]),
+      [
+        ['DOI', '10.5281/zenodo.14548164'],
+        ['URL', 'https://zenodo.org/records/14548164'],
+        ['PMID', '12345678'],
+        ['ISSN', '99999999'],
+        ['ISSN', '03785955'],
+      ],
+    )
+  })
+
+  it('skips an identifierType it does not normalize', () => {
+    const identifiers = extractDataciteIdentifiers({
+      identifiers: [
+        { identifier: 'opaque', identifierType: 'Handle' },
+        { identifier: 'urn:nbn:de:1', identifierType: 'URN' },
+      ],
+    })
+    assert.deepEqual(identifiers, [])
+  })
+
+  it('collapses a DOI that is repeated inside identifiers[]', () => {
+    const identifiers = extractDataciteIdentifiers({
+      doi: '10.1000/ABC',
+      identifiers: [{ identifier: '10.1000/abc', identifierType: 'DOI' }],
+    })
+    assert.equal(identifiers.length, 1)
+    assert.equal(identifiers[0]?.normalizedValue, '10.1000/abc')
+  })
+
+  it('ignores malformed entries instead of throwing', () => {
+    const identifiers = extractDataciteIdentifiers({
+      identifiers: [null, 'nope', { identifier: '123' }, { identifierType: 'PMID' }],
+      container: 'not an object',
+    })
+    assert.deepEqual(identifiers, [])
+  })
+
+  it('returns nothing when no identifier is present', () => {
+    assert.deepEqual(extractDataciteIdentifiers({}), [])
   })
 })

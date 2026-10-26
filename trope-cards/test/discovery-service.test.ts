@@ -157,12 +157,19 @@ class MemoryStore implements DiscoveryCandidateStore {
 
 /** A provider that returns a fixed list and records the limits it received. */
 class FakeProvider implements DiscoveryProvider {
-  readonly name = 'crossref'
+  readonly name: string
   readonly limits: number[] = []
-  constructor(private readonly records: DiscoveredRecord[]) {}
+  readonly queries: string[] = []
+  constructor(
+    private readonly records: DiscoveredRecord[],
+    name = 'crossref',
+  ) {
+    this.name = name
+  }
 
-  async search({ limit }: { query: string; limit: number }): Promise<DiscoveredRecord[]> {
+  async search({ query, limit }: { query: string; limit: number }): Promise<DiscoveredRecord[]> {
     this.limits.push(limit)
+    this.queries.push(query)
     return this.records.slice(0, limit)
   }
 }
@@ -244,6 +251,22 @@ describe('DiscoveryService.discover', () => {
       service.discover({ provider: 'nope', query: 'q' }),
       (error: unknown) => error instanceof DiscoveryQueryError && error.status === 400,
     )
+  })
+
+  it('routes to the named provider when more than one is registered', async () => {
+    const store = new MemoryStore()
+    const crossref = new FakeProvider([record('a')], 'crossref')
+    const datacite = new FakeProvider([record('b', 'datacite')], 'datacite')
+    const service = createDiscoveryService({
+      providers: [crossref, datacite],
+      store,
+    })
+
+    const result = await service.discover({ provider: 'datacite', query: 'q' })
+
+    assert.equal(result.provider, 'datacite')
+    assert.equal(crossref.queries.length, 0, 'the unaddressed provider must not be called')
+    assert.equal(datacite.queries.length, 1)
   })
 
   it('rejects an empty query before contacting a provider', async () => {

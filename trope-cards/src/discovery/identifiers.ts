@@ -180,6 +180,35 @@ function nonEmpty(value: string): string | null {
 }
 
 /**
+ * A de-duplicating identifier collector.
+ *
+ * A provider record routinely repeats an identifier (an ISSN printed twice, a DOI also spelled
+ * as a URL). The collector keeps the first occurrence per `(scheme, normalizedValue)` — the same
+ * pair `source_identifiers` uniques on — so a duplicate inside one record collapses instead of
+ * being carried as noise.
+ *
+ * @returns `add` to offer an identifier (a `null` from a failed normalization is ignored) and
+ *   `all` to read the collected list.
+ */
+function identifierCollector(): {
+  add: (identifier: NormalizedIdentifier | null) => void
+  all: () => NormalizedIdentifier[]
+} {
+  const found: NormalizedIdentifier[] = []
+  const seen = new Set<string>()
+  return {
+    add(identifier) {
+      if (identifier === null) return
+      const key = `${identifier.scheme}\u0000${identifier.normalizedValue}`
+      if (seen.has(key)) return
+      seen.add(key)
+      found.push(identifier)
+    },
+    all: () => found,
+  }
+}
+
+/**
  * Normalize a URL for identity: keep the scheme and host lower-cased, strip a trailing
  * slash, and drop the fragment. The query string is kept, because a query is often part
  * of what identifies the resource.
@@ -224,33 +253,123 @@ export type CrossrefIdentifierSource = {
 export function extractCrossrefIdentifiers(
   record: CrossrefIdentifierSource,
 ): NormalizedIdentifier[] {
-  const found: NormalizedIdentifier[] = []
-  const seen = new Set<string>()
-
-  const add = (identifier: NormalizedIdentifier | null): void => {
-    if (identifier === null) return
-    const key = `${identifier.scheme}\u0000${identifier.normalizedValue}`
-    if (seen.has(key)) return
-    seen.add(key)
-    found.push(identifier)
-  }
+  const collected = identifierCollector()
 
   if (typeof record.DOI === 'string') {
-    add(normalizeIdentifier('DOI', record.DOI))
+    collected.add(normalizeIdentifier('DOI', record.DOI))
   }
   if (typeof record.URL === 'string') {
-    add(normalizeIdentifier('URL', record.URL))
+    collected.add(normalizeIdentifier('URL', record.URL))
   }
   if (Array.isArray(record.ISSN)) {
     for (const issn of record.ISSN) {
-      if (typeof issn === 'string') add(normalizeIdentifier('ISSN', issn))
+      if (typeof issn === 'string') {
+        collected.add(normalizeIdentifier('ISSN', issn))
+      }
     }
   }
   if (Array.isArray(record.ISBN)) {
     for (const isbn of record.ISBN) {
-      if (typeof isbn === 'string') add(normalizeIdentifier('ISBN', isbn))
+      if (typeof isbn === 'string') {
+        collected.add(normalizeIdentifier('ISBN', isbn))
+      }
     }
   }
 
-  return found
+  return collected.all()
+}
+
+/**
+ * The subset of a DataCite `data[]` element's `attributes` this module reads.
+ *
+ * Declared structurally for the same reason as {@link CrossrefIdentifierSource}: the identifier
+ * layer stays provider-neutral and the adapter maps its own record onto these fields. DataCite
+ * differs in *shape* — identifiers sit under `attributes`, as a `doi`, a `url`, an open-ended
+ * `identifiers[]` of `{ identifier, identifierType }`, and an optional `container` identifier —
+ * while the responsibility (canonicalize, de-duplicate, return what is present) is identical.
+ */
+export type DataciteIdentifierSource = {
+  readonly doi?: unknown
+  readonly url?: unknown
+  readonly identifiers?: unknown
+  readonly container?: unknown
+}
+
+/**
+ * The DataCite `identifierType` vocabulary this module can normalize, mapped to our schemes.
+ *
+ * DataCite's `identifierType` is open text, so an entry absent from this table is **skipped**
+ * rather than guessed: an identifier we cannot canonicalize has no reconciliation value, because
+ * matching keys on `(scheme, normalizedValue)` — carrying it as `OTHER` would add a key nothing
+ * else will ever match. `eissn` collapses onto `ISSN` because both canonicalize ISSN-shaped
+ * values.
+ */
+const DATACITE_IDENTIFIER_SCHEMES: Record<string, IdentifierScheme> = {
+  doi: 'DOI',
+  url: 'URL',
+  isbn: 'ISBN',
+  issn: 'ISSN',
+  eissn: 'ISSN',
+  pmid: 'PMID',
+  pmcid: 'PMCID',
+  arxiv: 'ARXIV',
+}
+
+/** Resolve one `identifierType` string to a scheme we normalize, or `undefined`. */
+function dataciteIdentifierScheme(
+  identifierType: unknown,
+): IdentifierScheme | undefined {
+  if (typeof identifierType !== 'string') return undefined
+  return DATACITE_IDENTIFIER_SCHEMES[identifierType.trim().toLowerCase()]
+}
+
+/**
+ * Extract and normalize every identifier a DataCite record supplies.
+ *
+ * Reads the `doi` field, the `url`, each element of the open `identifiers[]` list whose
+ * `identifierType` this module recognizes, and a `container` identifier when it is an ISSN or
+ * ISBN. As with Crossref, a missing field yields no entry, and duplicates within a scheme
+ * collapse to the first occurrence.
+ *
+ * @param attributes The `attributes` object of one DataCite `data[]` element.
+ * @returns The normalized identifiers, in read order, de-duplicated.
+ */
+export function extractDataciteIdentifiers(
+  attributes: DataciteIdentifierSource,
+): NormalizedIdentifier[] {
+  const collected = identifierCollector()
+
+  if (typeof attributes.doi === 'string') {
+    collected.add(normalizeIdentifier('DOI', attributes.doi))
+  }
+  if (typeof attributes.url === 'string') {
+    collected.add(normalizeIdentifier('URL', attributes.url))
+  }
+  if (Array.isArray(attributes.identifiers)) {
+    for (const entry of attributes.identifiers) {
+      if (typeof entry !== 'object' || entry === null) continue
+      const value = (entry as { identifier?: unknown }).identifier
+      if (typeof value !== 'string') continue
+      const scheme = dataciteIdentifierScheme(
+        (entry as { identifierType?: unknown }).identifierType,
+      )
+      if (scheme === undefined) continue
+      collected.add(normalizeIdentifier(scheme, value))
+    }
+  }
+  if (
+    typeof attributes.container === 'object' &&
+    attributes.container !== null
+  ) {
+    const value = (attributes.container as { identifier?: unknown }).identifier
+    if (typeof value === 'string') {
+      const scheme = dataciteIdentifierScheme(
+        (attributes.container as { identifierType?: unknown }).identifierType,
+      )
+      if (scheme !== undefined)
+        collected.add(normalizeIdentifier(scheme, value))
+    }
+  }
+
+  return collected.all()
 }

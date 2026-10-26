@@ -137,8 +137,8 @@ function parseCandidateListQuery(
 /**
  * Build the discovery router.
  *
- * @param deps Optional collaborators; production omits them and resolves the Crossref
- * provider plus the Drizzle store on first use.
+ * @param deps Optional collaborators; production omits them and resolves the registered
+ * discovery providers plus the Drizzle store on first use.
  * @returns A configured `express` router.
  */
 export function createDiscoveryRouter(deps: DiscoveryRouterDeps = {}): Router {
@@ -153,12 +153,27 @@ export function createDiscoveryRouter(deps: DiscoveryRouterDeps = {}): Router {
       const { createCrossrefProvider } = await import(
         '../../trope-cards/src/discovery/providers/crossref.js'
       )
+      const { createDataciteProvider } = await import(
+        '../../trope-cards/src/discovery/providers/datacite.js'
+      )
       const { createDiscoveryService } = await import(
         '../../trope-cards/src/discovery/service.js'
       )
-      const mailto = process.env.CROSSREF_MAILTO?.trim()
+      // Each provider carries its own contact address, because each one asks to be identified
+      // separately (`CROSSREF_MAILTO` feeds Crossref's polite pool; `DATACITE_MAILTO` feeds the
+      // `User-Agent` DataCite asks integrators to supply). The provider list is the allow-list:
+      // a provider absent here cannot be addressed through the API.
+      const crossrefMailto = process.env.CROSSREF_MAILTO?.trim()
+      const dataciteMailto = process.env.DATACITE_MAILTO?.trim()
       service = createDiscoveryService({
-        providers: [createCrossrefProvider(mailto ? { mailto } : {})],
+        providers: [
+          createCrossrefProvider(
+            crossrefMailto ? { mailto: crossrefMailto } : {},
+          ),
+          createDataciteProvider(
+            dataciteMailto ? { mailto: dataciteMailto } : {},
+          ),
+        ],
         store: new DrizzleDiscoveryStore(),
       })
     }
@@ -363,6 +378,6 @@ function isDiscoveryQueryError(
   )
 }
 
-/** The production router, wired to the lazily-resolved Crossref provider and Drizzle store. */
+/** The production router, wired to the lazily-resolved discovery providers and Drizzle store. */
 const router = createDiscoveryRouter()
 export default router
