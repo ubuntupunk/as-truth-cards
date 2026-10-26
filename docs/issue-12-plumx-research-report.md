@@ -122,26 +122,60 @@ ontology members is a semantics decision that must first check the semantic cont
 explain why `claim_sources` / `evidence_claims` cannot represent the relation; inventing
 members now would change the ontology without that argument. Tracked as follow-up on #12.
 
-### 3.3 Open metadata discovery (PARTLY SHIPPED — Crossref vertical slice)
+### 3.3 Open metadata discovery (PARTLY SHIPPED — Crossref + DataCite vertical slices)
 
 Adapters for **Crossref** and **DataCite** first, **OpenAlex** where its terms and rate
-limits suit, and **OpenCitations** for citation relationships. **Crossref is now shipped**
-end to end; the others remain proposed. Every adapter:
+limits suit, and **OpenCitations** for citation relationships. **Crossref and DataCite are now
+shipped** end to end; OpenAlex and OpenCitations remain proposed — and OpenCitations's fit is
+settled below, not left open. Every adapter:
 
 - respects the provider's terms, rate limits, attribution, and licence;
-- sends a contact address in requests (`CROSSREF_MAILTO`, mapped to Crossref's polite pool);
+- identifies the client with a contact address (`CROSSREF_MAILTO`, mapped to Crossref's polite
+  pool; `DATACITE_MAILTO`, carried in the `User-Agent` DataCite asks integrators to supply);
 - records provider provenance, the query, and retrieval time on every candidate;
 - reconciles duplicates by persistent identifier (never by title alone);
 - performs **no paid dependency** and no scraping of third-party social metrics.
 
 Discovery yields **candidates only**. Nothing becomes a curated source or evidence without
-human review, and a discovery match is never treated as support. The shipped slice:
-`src/discovery/identifiers.ts` (normalization), `src/discovery/providers/crossref.ts`
-(bounded rows, timeout, throttle, tolerant mapping), `src/discovery/store.ts` (idempotent
+human review, and a discovery match is never treated as support. The shipped slices:
+`src/discovery/identifiers.ts` (normalization), `src/discovery/providers/crossref.ts` and
+`src/discovery/providers/datacite.ts` (bounded rows, timeout, throttle, tolerant mapping, on top
+of the shared transport `src/discovery/providers/http.ts`), `src/discovery/store.ts` (idempotent
 ingest preserving review state), `src/discovery/service.ts`, and an admin-gated
 `/api/discovery` router (`server/api/discovery.ts`). Promotion to a canonical source is an
 explicit call that links a human-created source row; it never writes attributions or
 evidence edges.
+
+**The DataCite slice.** DataCite is the DOI registration agency for research data, software, and
+other non-article outputs, so it reaches records a journal-centric index under-covers. Its
+Public API (`https://api.datacite.org`) needs no authentication and its metadata is CC0. The
+adapter normalizes the same fields as Crossref and differs only where DataCite's shape differs:
+identity is the JSON:API `id` (the DOI), creators are read from `creators[].name` with a
+`familyName, givenName` fallback, and identifiers come from the open `identifiers[]` list — so an
+`identifierType` this layer cannot canonicalize (`oai`, `Handle`, `URN`, …) is **skipped** rather
+than guessed into `OTHER`, because a key nothing else can ever match has no reconciliation value.
+A `resourceTypeGeneral` maps to a `source_type` **hint** as conservatively as Crossref's:
+`Dataset`, `Software`, and similar stay `null` rather than being forced into a member. A record's
+`state` (`findable`/`registered`/`draft`) and `isActive` are passed through, **not filtered**:
+which states may be proposed as candidates is an editorial call for the review workflow, not a
+mapping decision. A date is carried only when DataCite supplies a complete, real `Issued` date —
+`publication_date` is a SQL `date`, so a year-only date stays `null` rather than being padded
+into a precision the provider never asserted, and an out-of-calendar date is dropped rather than
+fail the whole ingest batch. Transport (timeout, throttle, abort, status/JSON failure
+classification) is shared with Crossref via `src/discovery/providers/http.ts`, so the two
+adapters cannot drift apart on it.
+
+**OpenCitations is a fit finding, not an omission.** #12 nominates it "for citation
+relationships", and checking its API for this slice confirms the distinction: both live REST
+services (`Index v2`, `Meta v1`) are **entirely PID-addressed** — `/citations/{id}`,
+`/references/{id}`, `/citation-count/{id}`, `/metadata/{ids}` — and none of OpenCitations's
+services offers a keyword or title search (the API host has no search endpoint, and the
+repository that defines every OpenCitations REST service, `opencitations/api`, is archived, last
+pushed July 2025, and contains no search service). The `DiscoveryProvider` port is a *search*
+port (`search({ query, limit }) → DiscoveredRecord[]`), so OpenCitations cannot implement it
+without pretending a free-text query is a DOI. It is therefore **not a discovery provider**: its
+correct home is §3.4's citation-links and metrics work, where `/citation-count/{id}` is the
+honest source for the first `citation_count` definition. That work remains proposed.
 
 The following corrected the first slice after review, and the wording here now matches
 runtime behaviour:
@@ -260,10 +294,10 @@ text below is retained as the record of what was asked.
 
 | Provider | Intended use | Licence posture (confirm before ingest) |
 |---|---|---|
-| Crossref | Works metadata (discovery) | Bibliographic metadata made openly available; check current terms/attribution. |
-| DataCite | Works metadata (discovery) | Metadata CC0 in practice; confirm current terms. |
+| Crossref | Works metadata (discovery) | Bibliographic metadata made openly available; check current terms/attribution. **In use — shipped slice.** |
+| DataCite | Works metadata (discovery) | Metadata CC0 (DataCite's stated position); Public API is unauthenticated and identifies the client via `User-Agent`. Confirm current terms in this review. **In use — shipped slice.** |
 | OpenAlex | Works metadata + links | Data CC0 with an acknowledgement/citation request and rate limits; confirm. |
-| OpenCitations | Citation links (metrics) | Indexes released under CC0; confirm current terms. |
+| OpenCitations | Citation links (metrics) | Indexes released under CC0; confirm current terms. **Fit-checked: no keyword search anywhere in its API, so citation links / metrics only (§3.3) — not used for discovery.** |
 | PlumX / Elsevier | Widget + optional API | Gated; nothing enabled until §4 is answered in writing. |
 
 Privacy: first-party `research_events` are user-scoped; any metric derived from them must be
@@ -280,14 +314,15 @@ PlumX widget's cookie/consent behaviour is an explicit question in §4 and a har
    `src/db/schema/researchSources.ts`, provenance
    columns on `sources` in `src/db/schema/tropeGraph.ts`, and
    `test/schema-research-sources.test.ts`.
-3. Crossref discovery vertical slice — **SHIPPED (implemented + tested; no review UI)**:
-   identifier normalization, Crossref provider adapter (single-page, no raw-payload
-   retention), discovery service, idempotent store with revision-token concurrency-safe
-   review/promote and a database-enforced event log that is immutable under all DML for every
-   role (no settable bypass; DDL-scoped caveat in §3), and an admin-gated
-   `/api/discovery` router (list/search/review/promote/events). The Metrics provider and the
-   component are **not** shipped; a second provider is not shipped; provider pagination is not
-   implemented.
+3. Discovery vertical slices — **SHIPPED (implemented + tested; no review UI)**:
+   identifier normalization (Crossref **and** DataCite extraction), the Crossref and DataCite
+   provider adapters (single-page, no raw-payload retention) built on a shared polite transport
+   `src/discovery/providers/http.ts`, discovery service (two-provider allow-list), idempotent
+   store with revision-token concurrency-safe review/promote and a database-enforced event log
+   that is immutable under all DML for every role (no settable bypass; DDL-scoped caveat in §3),
+   and an admin-gated `/api/discovery` router (list/search/review/promote/events). The Metrics
+   provider and component are **not** shipped; OpenCitations and OpenAlex are not shipped — their
+   fit is settled in §3.3 instead; provider pagination is not implemented.
 4. Eligibility inquiry — **SENT**, awaiting response (§4).
 5. Release gate — documented in §4, `SPEC.md` §8.4, and ROADMAP M6.
 6. ROADMAP/authoritative-doc updates — `ROADMAP.md` M6 updated with per-deliverable status;
@@ -311,6 +346,20 @@ What a machine verifies (automated, reproducible):
 - `TROPE_GRAPH_DATABASE_URL=… pnpm run trope-graph:migrate:check` — 15 applied, 0 pending.
 - `node trope-cards/scripts/check-drift.mjs` — `drift: false` over 484 compared facts.
 
+**DataCite slice (this update):**
+
+- `pnpm run lint` (`biome check`) — pass, 0 findings; 259 files checked (`http.ts` and
+  `datacite.ts` added).
+- `npx tsc -b --force` — pass (`trope-cards` is strict, with `noUncheckedIndexedAccess`,
+  `noUnusedLocals`, `verbatimModuleSyntax`).
+- `pnpm test` — **1223 pass, 0 fail**: `test:server` 139, `trope-graph:test` 494,
+  `test:ui` 590. The graph figure is the **DB-less** count; the 28 new tests are the DataCite
+  adapter suite (`trope-cards/test/discovery-datacite.test.ts`, mocked HTTP), DataCite identifier
+  extraction, and a two-provider allow-list routing test. Every new test is network- and
+  database-free, so the live-Postgres integration suites above were deliberately **not** re-run
+  against the shared Neon database — no store, migration, or ingest SQL changed.
+- `pnpm run build` — pass.
+
 What only a human can confirm (manual, not yet done):
 
 - Whether retained Crossref raw payloads are admissible, and under what retention/
@@ -326,9 +375,11 @@ What only a human can confirm (manual, not yet done):
 - `<plumx-widget>` custom-element script URL unconfirmed on CDN.
 - Elsevier eligibility and API access unknown until the inquiry returns.
 - Open: relationship vocabulary for "documents existence/circulation" and
-  "discusses/relevant to" (§3.2); which open metadata providers to implement first and in
-  what order; whether first-party `source_opened_count` is admissible under the privacy
-  policy; SPEC §8 release-gate wording.
+  "discusses/relevant to" (§3.2); whether first-party `source_opened_count` is admissible under
+  the privacy policy; SPEC §8 release-gate wording. Provider *order* is no longer open for the
+  two already built (Crossref, then DataCite) and is settled by fit for a third (OpenCitations
+  has no keyword search and belongs to citation links / metrics, §3.3); **OpenAlex remains a
+  real choice** pending a read of its terms and rate limits before it is implemented.
 - **Provider pagination** — the Crossref slice is single-page by design (§3.3); bounded
   pagination (with a strict total cap) is not implemented and is tracked here.
 - **Review UI** — only the admin API exists; the editorial review surface is not built
