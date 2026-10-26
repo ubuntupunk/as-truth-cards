@@ -62,9 +62,29 @@ model User {
   accounts      Account[]
   interactions  UserInteraction[]
   drafts        DecompositionDraft[]
+  avatar        UserAvatar?
 
   @@unique([email])
   @@map("user")
+}
+
+// Account profile photo, uploaded from Settings (`POST /api/me/avatar`).
+//
+// The image bytes live in a dedicated row — never on `user` — so a session read
+// (which selects the user row on every request) never carries them. `user.image`
+// stores only the short public URL of the route that serves these bytes
+// (`GET /api/users/:id/avatar`), which is what every avatar consumer renders.
+// One row per user: re-upload is an upsert, and the key cascades with the
+// account so an avatar can never outlive its owner.
+model UserAvatar {
+  userId    String   @id @map("user_id")
+  mimeType  String   @map("mime_type")
+  data      Bytes
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_avatars")
 }
 
 model Session {

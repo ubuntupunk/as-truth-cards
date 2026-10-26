@@ -1,6 +1,8 @@
 import { useState } from 'preact/hooks'
 import { useNavigate } from 'react-router-dom'
+import { removeAvatar, uploadAvatar, validateAvatarFile } from '@/auth/avatar'
 import { AccountNav } from '@/components/account/account-nav'
+import { AvatarPanel } from '@/components/account/avatar-panel'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { ResearchPreferencesPanel } from '@/components/research-preferences-panel'
@@ -45,7 +47,7 @@ function deviceStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
  * @returns The settings route element.
  */
 const AccountSettings = () => {
-  const { isSignedIn, user, loading } = useAdminCheck()
+  const { isSignedIn, user, loading, refetch } = useAdminCheck()
   const navigate = useNavigate()
   const [preferences, setPreferences] = useState<ParticipationPreferences>(() =>
     readParticipationPreferences(deviceStorage()),
@@ -57,6 +59,25 @@ const AccountSettings = () => {
     null,
   )
 
+  /**
+   * The avatar flow's state, one object because every write touches several
+   * fields and the setters must never disagree about which operation is in
+   * flight. The panel renders this verbatim; the transitions live here.
+   */
+  const [avatar, setAvatar] = useState<{
+    draft: File | null
+    draftError: string | null
+    busy: 'idle' | 'uploading' | 'removing'
+    error: string | null
+    status: string | null
+  }>({
+    draft: null,
+    draftError: null,
+    busy: 'idle',
+    error: null,
+    status: null,
+  })
+
   const handleSave = async (
     next: ParticipationPreferences,
     nextTreatment: GraphTreatment,
@@ -65,6 +86,79 @@ const AccountSettings = () => {
     writeGraphTreatment(nextTreatment, deviceStorage())
     setPreferences(next)
     setTreatment(nextTreatment)
+  }
+
+  /** A file was chosen (or the picker dismissed): hold it and validate it. */
+  const handleAvatarChoose = (file: File | null) => {
+    setAvatar((current) => ({
+      ...current,
+      draft: file,
+      draftError: file === null ? null : validateAvatarFile(file),
+      error: null,
+      status: null,
+    }))
+  }
+
+  /** Upload the held draft, then refresh the session so every surface shows it. */
+  const handleAvatarUpload = async () => {
+    if (avatar.draft === null || avatar.busy !== 'idle') return
+    setAvatar((current) => ({
+      ...current,
+      busy: 'uploading',
+      error: null,
+      status: null,
+    }))
+    try {
+      await uploadAvatar(avatar.draft)
+      setAvatar((current) => ({
+        ...current,
+        draft: null,
+        draftError: null,
+        status: 'Profile photo updated.',
+      }))
+      // The server pointed `user.image` at the new URL; re-read the session
+      // so this page, the Header and the public profile preview agree.
+      await refetch()
+    } catch (error) {
+      setAvatar((current) => ({
+        ...current,
+        error:
+          error instanceof Error && error.message.trim() !== ''
+            ? error.message
+            : 'Failed to upload image',
+      }))
+    } finally {
+      setAvatar((current) => ({ ...current, busy: 'idle' }))
+    }
+  }
+
+  /** Remove the stored photo, then refresh so consumers fall back to initials. */
+  const handleAvatarRemove = async () => {
+    if (avatar.busy !== 'idle') return
+    setAvatar((current) => ({
+      ...current,
+      busy: 'removing',
+      error: null,
+      status: null,
+    }))
+    try {
+      await removeAvatar()
+      setAvatar((current) => ({
+        ...current,
+        status: 'Profile photo removed.',
+      }))
+      await refetch()
+    } catch (error) {
+      setAvatar((current) => ({
+        ...current,
+        error:
+          error instanceof Error && error.message.trim() !== ''
+            ? error.message
+            : 'Failed to remove image',
+      }))
+    } finally {
+      setAvatar((current) => ({ ...current, busy: 'idle' }))
+    }
   }
 
   if (loading) {
@@ -136,6 +230,26 @@ const AccountSettings = () => {
                 Profile, email and sessions stay in your account.
               </p>
             </header>
+
+            <AvatarPanel
+              name={user.name}
+              imageUrl={user.image}
+              draftFile={avatar.draft}
+              draftError={avatar.draftError}
+              busy={avatar.busy}
+              error={avatar.error}
+              status={avatar.status}
+              onChoose={handleAvatarChoose}
+              onCancelDraft={() =>
+                setAvatar((current) => ({
+                  ...current,
+                  draft: null,
+                  draftError: null,
+                }))
+              }
+              onUpload={handleAvatarUpload}
+              onRemove={handleAvatarRemove}
+            />
 
             <ResearchPreferencesPanel
               values={preferences}

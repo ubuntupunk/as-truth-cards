@@ -226,6 +226,7 @@ const Account = () => {
                 bio={user.bio}
                 website={user.website}
                 location={user.location}
+                imageUrl={user.image}
                 accountRole={role}
                 onEdit={handleEdit}
               />
