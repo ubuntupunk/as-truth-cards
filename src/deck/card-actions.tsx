@@ -166,13 +166,19 @@ export function CardActions({
       <div className="flex flex-col gap-1">
         <button
           type="button"
-          aria-describedby={SAVE_CARD_NOTE_ID}
+          aria-describedby={!isSignedIn ? SAVE_CARD_NOTE_ID : undefined}
           data-testid="save-card"
           disabled={!isSignedIn}
+          onClick={() => {
+            if (!isSignedIn) {
+              const returnTo = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/'
+              window.location.assign(`/sign-in?returnTo=${encodeURIComponent(returnTo)}`)
+            }
+          }}
           className={`min-h-[44px] rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
             isSignedIn
               ? 'border-border bg-background text-foreground hover:bg-muted'
-              : 'cursor-not-allowed border-border bg-muted/40 text-muted-foreground'
+              : 'cursor-pointer border-border bg-background text-foreground hover:bg-muted'
           }`}
         >
           Save card
