@@ -62,6 +62,7 @@ model User {
   accounts      Account[]
   interactions  UserInteraction[]
   drafts        DecompositionDraft[]
+  savedCards    SavedCard[]
   avatar        UserAvatar?
 
   @@unique([email])
@@ -194,4 +195,18 @@ model DecompositionDraft {
   @@unique([userId, cardSlug])
   @@index([userId])
   @@map("decomposition_drafts")
+}
+
+// User-saved cards (account bookmarks). Keys to canonical trope_graph cards by
+// slug; separate from UserInteraction (participation/moderation log).
+model SavedCard {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cardSlug  String   @map("card_slug")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, cardSlug])
+  @@index([userId])
+  @@map("saved_cards")
 }

@@ -18,6 +18,7 @@ import Account from '@/pages/Account'
 import AccountActivity from '@/pages/AccountActivity'
 import AccountSettings from '@/pages/AccountSettings'
 import Admin from '@/pages/Admin'
+import AdminDiscovery from '@/pages/AdminDiscovery'
 import Compose from '@/pages/Compose'
 import Deck from '@/pages/Deck'
 import Explore from '@/pages/Explore'
@@ -61,6 +62,7 @@ export const APP_ROUTES: readonly AppRoute[] = [
   { path: '/terms', element: <Terms /> },
   { path: '/graph', element: <Graph /> },
   { path: '/admin', element: <Admin /> },
+  { path: '/admin/discovery', element: <AdminDiscovery /> },
   { path: '/sign-in', element: <SignIn /> },
   { path: '/sign-up', element: <SignUp /> },
   { path: FORGOT_PASSWORD_PATH, element: <ForgotPassword /> },

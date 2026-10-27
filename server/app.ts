@@ -17,6 +17,7 @@ import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth.js';
 import cardsRouter from './api/cards.js';
 import interactionsRouter from './api/interactions.js';
+import savedCardsRouter from './api/saved-cards.js';
 import graphRouter from './api/graph.js';
 import draftsRouter from './api/drafts.js';
 import discoveryRouter from './api/discovery.js';
@@ -121,6 +122,7 @@ export function createApp(env: AppEnv = process.env): express.Express {
 
   app.use('/api/cards', cardsRouter);
   app.use('/api/interactions', interactionsRouter);
+  app.use('/api/saved-cards', savedCardsRouter);
   app.use('/api/graph', graphRouter);
   app.use('/api/drafts', draftsRouter);
   app.use('/api/discovery', discoveryRouter);
