@@ -17,6 +17,7 @@
  * No localStorage stand-in: a save the account layer cannot see is not a save.
  */
 
+import { CardSaveButton } from './card-save-button'
 import type { CardStage } from './card-stage'
 
 /** Props for {@link CardActions}. */
@@ -53,8 +54,6 @@ export type CardActionsProps = {
 }
 
 /** The save note id, referenced by the disabled button via `aria-describedby`. */
-const SAVE_CARD_NOTE_ID = 'save-card-note'
-
 const PRIMARY =
   'min-h-[44px] rounded-lg border border-transparent bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
 const SECONDARY =
@@ -163,35 +162,7 @@ export function CardActions({
         Explore in graph
       </a>
 
-      <div className="flex flex-col gap-1">
-        <button
-          type="button"
-          aria-describedby={!isSignedIn ? SAVE_CARD_NOTE_ID : undefined}
-          data-testid="save-card"
-          disabled={!isSignedIn}
-          onClick={() => {
-            if (!isSignedIn) {
-              const returnTo = typeof window !== 'undefined' ? window.location.pathname + window.location.search : '/'
-              window.location.assign(`/sign-in?returnTo=${encodeURIComponent(returnTo)}`)
-            }
-          }}
-          className={`min-h-[44px] rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
-            isSignedIn
-              ? 'border-border bg-background text-foreground hover:bg-muted'
-              : 'cursor-pointer border-border bg-background text-foreground hover:bg-muted'
-          }`}
-        >
-          Save card
-        </button>
-        {!isSignedIn && (
-          <p
-            id={SAVE_CARD_NOTE_ID}
-            className="max-w-xs text-xs text-muted-foreground"
-          >
-            Sign in to save cards to your account.
-          </p>
-        )}
-      </div>
+      <CardSaveButton slug={slug} isSignedIn={isSignedIn} />
     </div>
   )
 }
