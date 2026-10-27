@@ -24,6 +24,7 @@
 import { useState } from 'preact/hooks'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
+import { ResearchTray } from '@/deck/research-tray'
 import { availableAxes, availableStatuses } from '@/deck/deck-model'
 import { useDeckCards } from '@/deck/use-deck'
 import { ExploreFilters } from '@/explore/explore-filters'
@@ -44,6 +45,11 @@ import {
 } from '@/graph/graph-states'
 import { ProjectionShapeError } from '@/graph/projection-guards'
 import { useCardSearch } from '@/graph/use-graph'
+import { useNavigate } from 'react-router-dom'
+import { EMPTY_GRAPH_PARAMS } from '@/graph/query-params'
+import { entryFromNode, entryToGraphParams } from '../research/research-session'
+import { useResearchSession } from '../research/use-research-session'
+import { serializeGraphParams } from '../graph/query-params'
 
 /**
  * The `/explore` page.
@@ -53,6 +59,8 @@ import { useCardSearch } from '@/graph/use-graph'
  */
 const Explore = () => {
   const cardsQuery = useDeckCards()
+  const session = useResearchSession()
+  const navigate = useNavigate()
   const [term, setTerm] = useState('')
   const [query, setQuery] = useState<ExploreQuery>(NO_EXPLORE_QUERY)
   const search = useCardSearch(term)
@@ -213,7 +221,7 @@ const Explore = () => {
             <ExploreSearchField value={term} onChange={setTerm} />
           </div>
 
-          <div className="mt-4 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <div className="mt-4 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)_280px]">
             <aside className="lg:sticky lg:top-24 lg:self-start">
               <ExploreFilters
                 query={query}
@@ -227,6 +235,16 @@ const Explore = () => {
             <section aria-label="Results" className="min-w-0">
               {renderResults()}
             </section>
+            <aside className="lg:sticky lg:top-24 lg:self-start">
+              <ResearchTray
+                entries={session.entries}
+                focus={null}
+                onAdd={() => {}}
+                onOpen={(entry) => navigate(`/research?${serializeGraphParams(entryToGraphParams(entry))}`)}
+                onRemove={session.remove}
+                onClear={session.clear}
+              />
+            </aside>
           </div>
         </div>
       </main>
