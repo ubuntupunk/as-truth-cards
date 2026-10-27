@@ -2,6 +2,7 @@ import { Menu, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { Link, useLocation } from 'react-router-dom'
 import { useAdminCheck } from '@/hooks/useAdminCheck'
+import { useAccount } from '@/hooks/session-context'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
 import { ThemeToggle } from './ThemeToggle'
@@ -87,6 +88,7 @@ const Header = () => {
   const [menuOpen, setMenuOpen] = useState(false)
   const lastPathname = useRef(location.pathname)
   const { isSignedIn, isAdmin: isAdminRole } = useAdminCheck()
+  const { user } = useAccount()
   const isAdmin = location.pathname.startsWith('/admin') || isAdminRole
 
   const entries: readonly NavEntry[] = isAdmin
@@ -159,9 +161,20 @@ const Header = () => {
           {isSignedIn ? (
             <Link
               to="/account"
-              className="hidden rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:block"
+              className="hidden items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:flex"
             >
-              Account
+              {user?.image ? (
+                <img
+                  src={user.image}
+                  alt=""
+                  className="h-7 w-7 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground">
+                  {(user?.name || user?.email || 'A').charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span>Account</span>
             </Link>
           ) : (
             <Link
@@ -220,9 +233,20 @@ const Header = () => {
             <Link
               to="/account"
               onClick={() => setMenuOpen(false)}
-              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
             >
-              Account
+              {user?.image ? (
+                <img
+                  src={user.image}
+                  alt=""
+                  className="h-7 w-7 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground">
+                  {(user?.name || user?.email || 'A').charAt(0).toUpperCase()}
+                </div>
+              )}
+              <span>Account</span>
             </Link>
           ) : (
             <Link
