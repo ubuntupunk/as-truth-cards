@@ -32,6 +32,14 @@ Commit `28e8775` inadvertently included a live E2E test account's email address 
 
 **Assessment:** The credential was in a development/E2E test account only, not a production user account. The account has no production data access beyond what any E2E test would create. The risk is limited to the test account itself and any E2E-generated test records, both of which have been cleaned up.
 
+### History-cleanup decision (deferred, documented)
+
+Commit `28e8775` remains in public git history on both `origin` (GitHub) and `codeberg`, including the credential line and the statement that the test account was escalated to ADMIN. The password has been rotated and the account disabled, so the credential value itself is unusable, but the text remains searchable in cached clone history and GitHub's cached views.
+
+**Decision:** History rewriting (`git filter-repo` / `git filter-branch` + force-push) is **deferred pending coordinator review** and will **not** be performed unilaterally. Rewriting would invalidate all downstream clones and requires coordinated force-push + clone re-fetch across all contributors, plus handling of GitHub's cached search/index views.
+
+**Accepted residual risk:** The exposed text (email + password + ADMIN escalation statement) remains in public history for commit `28e8775` and its ancestors. The password is rotated and unusable; the test account is disabled. This is accepted as residual risk pending coordinator decision on history cleanup. No production user data or production credentials are exposed.
+
 
 ## Environment
 
@@ -207,6 +215,42 @@ All E2E acceptance evidence was captured against `localhost:8080` (Vite dev serv
 
 ---
 
+## Release verification boundary
+
+The distinction below separates work that is **implemented and verified locally** from work that is **release-verified** (deployed Render environment). Items marked "local only" are NOT release-verified and must not be treated as release green.
+
+### Implemented + verified locally (localhost only)
+
+| Item | Status | Evidence |
+|------|--------|----------|
+| Save Card E2E (save → reload → unsave) | ✅ Local | Live-browser, `localhost:8080` + `localhost:3001` |
+| Save Card API error states (signed-in) | ✅ Local | `agent-browser`, `localhost:8080` |
+| Discovery promotion E2E | ✅ Local | Live-browser, `localhost:8080` + `localhost:3001` |
+| Card shell (three faces, keyboard, reduced motion, responsive) | ✅ Local | Live-browser, `localhost:8080` |
+| Deck live error state (abort graph API) | ✅ Local | Live-browser, `localhost:8080` |
+| Sign-out flow | ✅ Local | Live-browser, `localhost:8080` |
+| Route checks (`/explore`, `/research`, `/sources`) | ✅ Local | Live-browser, `localhost:8080` |
+| `pnpm run typecheck:all` | ✅ Local | Clean |
+| `pnpm run build` | ✅ Local | Exit 0 |
+| `pnpm run test:ui` | ✅ Local | 707 pass / 0 fail |
+| `pnpm run test:server` | ✅ Local | 157 pass / 0 fail |
+| `pnpm run lint` | ⚠️ Local | 2 errors / 3 warnings, all pre-existing baseline |
+
+### NOT release-verified (deferred / environment-blocked)
+
+| Item | Status | Blocker / follow-up | Owner |
+|------|--------|---------------------|-------|
+| `pnpm run trope-graph:check` | ⚠️ Environment-blocked | `trope_graph` database does not exist on configured Neon host; `migrate:check` aborts before drift validation. Pre-existing env limitation, not a regression. Sanctioned local path: `just graph-check` with `TROPE_GRAPH_DATABASE_URL` exported. | Maintainer / infra |
+| Deployed Render checks | ❌ None run | No deployment verification performed. Local acceptance ≠ deployed verification. Migration/runtime status on Render unknown. | Maintainer / deploy |
+| Figma frame reconciliation | ⚠️ Open | MCP unreachable (Starter-plan node-read quota lockout, resets ~35 h). Tracked separately. | Designer / maintainer |
+| In-card `MalformedState` live-browser test | ⚠️ Incomplete | Projection URL with query strings cannot be matched by `agent-browser network route --abort` (requires exact path, no query strings). Confirmed by code inspection + unit tests only. Not live-browser-triggerable. | Maintainer |
+
+### Conclusion on verification boundary
+
+All Issue #9 acceptance criteria are **implemented and verified locally**. None are **release-verified** until the deferred items above (graph DB availability, Render deployment checks, Figma reconciliation, in-card `MalformedState` browser test) are either completed or explicitly accepted as open follow-ups by the maintainer.
+
+---
+
 ## Changed files (this session)
 
 | File | Change |
@@ -279,10 +323,12 @@ Per Dav's approval, four additional live-browser E2E checks were run beyond Issu
 
 Issue #9's remaining acceptance criteria are now evidenced:
 
-- **Save Card E2E** — verified (with one bug found and fixed). API error-state gap **closed**: failed save/unsave now shows a visible `aria-live="polite"` error notice (`data-testid="save-card-error"`) instead of silent `console.error` logging. Regression test added.
-- **Discovery promotion E2E** — verified (with two bugs found and fixed, plus 7 migrations applied).
-- **Narrative Analysis / card shell** — verified (three faces, keyboard, reduced motion, responsive at 375px and 1280px). **Deck live error state verified in-browser**: aborting `/api/graph/cards?limit=200` before navigation renders "Network error: the graph API is unreachable" — `ApiErrorState` confirmed.
+- **Save Card E2E** — verified locally (with one bug found and fixed). API error-state gap **closed**: failed save/unsave now shows a visible `aria-live="polite"` error notice (`data-testid="save-card-error"`) instead of silent `console.error` logging. Regression test added.
+- **Discovery promotion E2E** — verified locally (with two bugs found and fixed, plus 7 migrations applied).
+- **Narrative Analysis / card shell** — verified locally (three faces, keyboard, reduced motion, responsive at 375px and 1280px). **Deck live error state verified locally in-browser**: aborting `/api/graph/cards?limit=200` before navigation renders "Network error: the graph API is unreachable" — `ApiErrorState` confirmed.
 - **Release gates** — `typecheck:all` clean, build green, UI tests 707/0, server tests 157/0. Graph gate environment-blocked (`trope_graph` DB not on configured Neon host — pre-existing). Lint: 2 errors / 3 warnings, all pre-existing baseline, 0 in changed files.
-- **Additional Dav-approved E2E** — route checks (`/explore`, `/research`, `/sources`), sign-out flow, Deck live error state, and Save Card error states all verified live in browser.
+- **Additional Dav-approved E2E** — route checks (`/explore`, `/research`, `/sources`), sign-out flow, Deck live error state, and Save Card error states all verified locally in browser.
 
-Issue #9 should remain open until the reviewer signs off on this report and any follow-ups (Figma frame reconciliation, graph database availability for `trope-graph:check`, etc.).
+**Verification boundary:** All criteria above are **implemented and verified locally** (localhost only). None are **release-verified**. Deferred follow-ups: graph DB availability for `trope-graph:check`, Render deployment checks, Figma frame reconciliation, and the in-card `MalformedState` live-browser test. These are listed as explicit blockers/follow-ups in §Release verification boundary.
+
+Issue #9 should remain open until the reviewer signs off on this report, the history-cleanup decision is coordinated with the maintainer, and the deferred release-verification follow-ups are either completed or explicitly accepted as open.
