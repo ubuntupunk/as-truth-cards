@@ -240,7 +240,11 @@ const Explore = () => {
                 entries={session.entries}
                 focus={null}
                 onAdd={() => {}}
-                onOpen={(entry) => navigate(`/research?${serializeGraphParams(entryToGraphParams(entry))}`)}
+                onOpen={(entry) =>
+                  navigate(
+                    `/research?${serializeGraphParams(entryToGraphParams(entry))}`,
+                  )
+                }
                 onRemove={session.remove}
                 onClear={session.clear}
               />
