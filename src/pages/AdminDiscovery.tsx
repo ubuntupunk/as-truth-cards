@@ -38,7 +38,9 @@ const AdminDiscovery = () => {
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [providerFilter, setProviderFilter] = useState<string>('')
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({})
-  const [promoteSourceIds, setPromoteSourceIds] = useState<Record<string, string>>({})
+  const [promoteSourceIds, setPromoteSourceIds] = useState<
+    Record<string, string>
+  >({})
   const { toast } = useToast()
   const queryClient = useQueryClient()
 
@@ -202,10 +204,9 @@ const AdminDiscovery = () => {
             >
               <option value="">All statuses</option>
               <option value="CANDIDATE">Candidate</option>
-              <option value="ACCEPTED">Accepted</option>
+              <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>
               <option value="DEFERRED">Deferred</option>
-              <option value="PROMOTED">Promoted</option>
             </select>
             <select
               value={providerFilter}
@@ -297,7 +298,7 @@ const AdminDiscovery = () => {
                           onClick={() =>
                             reviewMutation.mutate({
                               id: candidate.id,
-                              decision: 'ACCEPTED',
+                              decision: 'APPROVED',
                               notes: reviewNotes[candidate.id],
                               revision: candidate.revision,
                             })
@@ -339,12 +340,14 @@ const AdminDiscovery = () => {
                       </div>
                     </div>
                   )}
-                  {(candidate.reviewStatus === 'ACCEPTED' || candidate.reviewStatus === 'CANDIDATE') &&
+                  {(candidate.reviewStatus === 'APPROVED' ||
+                    candidate.reviewStatus === 'CANDIDATE') &&
                     !candidate.promotedSourceId && (
                       <div className="mt-4 space-y-2 rounded-md border border-border p-3">
                         <p className="text-sm font-medium">Promote to source</p>
                         <p className="text-xs text-muted-foreground">
-                          Promotion links this candidate to an existing source (no auto-creation). Provide a source UUID.
+                          Promotion links this candidate to an existing source
+                          (no auto-creation). Provide a source UUID.
                         </p>
                         <div className="flex flex-wrap gap-2">
                           <input
@@ -354,7 +357,8 @@ const AdminDiscovery = () => {
                             onChange={(e) =>
                               setPromoteSourceIds({
                                 ...promoteSourceIds,
-                                [candidate.id]: (e.target as HTMLInputElement).value,
+                                [candidate.id]: (e.target as HTMLInputElement)
+                                  .value,
                               })
                             }
                             className="w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -364,7 +368,11 @@ const AdminDiscovery = () => {
                             onClick={() => {
                               const sourceId = promoteSourceIds[candidate.id]
                               if (!sourceId) {
-                                toast({ title: 'Error', description: 'Source UUID required', variant: 'destructive' })
+                                toast({
+                                  title: 'Error',
+                                  description: 'Source UUID required',
+                                  variant: 'destructive',
+                                })
                                 return
                               }
                               promoteMutation.mutate({

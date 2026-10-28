@@ -6,7 +6,11 @@
  * and limitations; nothing here is treated as evidentiary support.
  */
 
-export type MetricProviderErrorKind = 'http' | 'timeout' | 'aborted' | 'malformed'
+export type MetricProviderErrorKind =
+  | 'http'
+  | 'timeout'
+  | 'aborted'
+  | 'malformed'
 
 export class MetricProviderError extends Error {
   constructor(

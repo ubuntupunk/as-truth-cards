@@ -39,8 +39,12 @@ export function ResearchMetrics({
         data-testid="research-metrics"
         className={`rounded-xl border border-graph-border bg-graph-surface p-4 ${className}`}
       >
-        <h3 className="text-sm font-semibold text-foreground">Research metrics</h3>
-        <p className="mt-2 text-xs text-graph-muted-foreground">Loading metrics…</p>
+        <h3 className="text-sm font-semibold text-foreground">
+          Research metrics
+        </h3>
+        <p className="mt-2 text-xs text-graph-muted-foreground">
+          Loading metrics…
+        </p>
       </section>
     )
   }
@@ -51,7 +55,9 @@ export function ResearchMetrics({
         data-testid="research-metrics"
         className={`rounded-xl border border-graph-border bg-graph-surface p-4 ${className}`}
       >
-        <h3 className="text-sm font-semibold text-foreground">Research metrics</h3>
+        <h3 className="text-sm font-semibold text-foreground">
+          Research metrics
+        </h3>
         <p className="mt-2 text-xs text-graph-muted-foreground">
           Metrics unavailable.
         </p>
@@ -65,10 +71,12 @@ export function ResearchMetrics({
         data-testid="research-metrics"
         className={`rounded-xl border border-graph-border bg-graph-surface p-4 ${className}`}
       >
-        <h3 className="text-sm font-semibold text-foreground">Research metrics</h3>
+        <h3 className="text-sm font-semibold text-foreground">
+          Research metrics
+        </h3>
         <p className="mt-2 text-xs text-graph-muted-foreground">
-          No metrics available for this source. Metrics indicate recorded attention or use, not
-          evidentiary strength.
+          No metrics available for this source. Metrics indicate recorded
+          attention or use, not evidentiary strength.
         </p>
       </section>
     )
@@ -79,14 +87,19 @@ export function ResearchMetrics({
       data-testid="research-metrics"
       className={`rounded-xl border border-graph-border bg-graph-surface p-4 ${className}`}
     >
-      <h3 className="text-sm font-semibold text-foreground">Research metrics</h3>
+      <h3 className="text-sm font-semibold text-foreground">
+        Research metrics
+      </h3>
       <p className="mt-1 text-xs text-graph-muted-foreground">
-        Indicators of recorded attention or use — not measures of truth, rigor, or evidentiary
-        strength.
+        Indicators of recorded attention or use — not measures of truth, rigor,
+        or evidentiary strength.
       </p>
       <dl className="mt-3 space-y-2">
         {metrics.map((metric) => (
-          <div key={metric.key} className="flex items-start justify-between gap-4">
+          <div
+            key={metric.key}
+            className="flex items-start justify-between gap-4"
+          >
             <dt className="text-xs text-graph-muted-foreground">
               {metric.label}
               <span className="sr-only">: {metric.definition}</span>

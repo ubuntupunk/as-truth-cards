@@ -25,7 +25,8 @@ const AccountActivity = () => {
         if (!cancelled) setSaved(slugs)
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load')
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : 'Failed to load')
       })
       .finally(() => {
         if (!cancelled) setLoadingSaved(false)
@@ -65,7 +66,9 @@ const AccountActivity = () => {
             </div>
 
             <section>
-              <h2 className="text-lg font-semibold text-foreground">Saved cards</h2>
+              <h2 className="text-lg font-semibold text-foreground">
+                Saved cards
+              </h2>
               {loadingSaved ? (
                 <p className="mt-3 text-sm text-muted-foreground">Loading...</p>
               ) : !isSignedIn ? (
@@ -81,7 +84,10 @@ const AccountActivity = () => {
               ) : (
                 <ul className="mt-3 space-y-2">
                   {saved.map((slug) => (
-                    <li key={slug} className="rounded-lg border border-graph-border bg-graph-surface p-3">
+                    <li
+                      key={slug}
+                      className="rounded-lg border border-graph-border bg-graph-surface p-3"
+                    >
                       <Link
                         to={`/graph?focus=${encodeURIComponent(slug)}`}
                         className="text-sm font-medium text-foreground hover:underline"
@@ -95,10 +101,13 @@ const AccountActivity = () => {
             </section>
 
             <section className="mt-8">
-              <h2 className="text-lg font-semibold text-foreground">Participation</h2>
+              <h2 className="text-lg font-semibold text-foreground">
+                Participation
+              </h2>
               <div className="mt-3 rounded-lg border border-border bg-card p-6">
                 <p className="text-sm text-muted-foreground">
-                  Participation tracking will be available as participation features are enabled.
+                  Participation tracking will be available as participation
+                  features are enabled.
                 </p>
               </div>
             </section>

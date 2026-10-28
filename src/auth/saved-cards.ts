@@ -4,7 +4,9 @@
 
 import { readErrorMessage } from './profile'
 
-export async function listSavedCards(fetchImpl: typeof fetch = fetch): Promise<string[]> {
+export async function listSavedCards(
+  fetchImpl: typeof fetch = fetch,
+): Promise<string[]> {
   const res = await fetchImpl('/api/saved-cards', { credentials: 'include' })
   if (!res.ok) {
     throw new Error(await readErrorMessage(res, 'Failed to load saved cards'))
@@ -13,8 +15,14 @@ export async function listSavedCards(fetchImpl: typeof fetch = fetch): Promise<s
   return (body.saved ?? []).map((s) => s.slug)
 }
 
-export async function checkSaved(slug: string, fetchImpl: typeof fetch = fetch): Promise<boolean> {
-  const res = await fetchImpl(`/api/saved-cards/check/${encodeURIComponent(slug)}`, { credentials: 'include' })
+export async function checkSaved(
+  slug: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<boolean> {
+  const res = await fetchImpl(
+    `/api/saved-cards/check/${encodeURIComponent(slug)}`,
+    { credentials: 'include' },
+  )
   if (!res.ok) {
     if (res.status === 401) return false
     throw new Error(await readErrorMessage(res, 'Failed to check saved card'))
@@ -23,7 +31,10 @@ export async function checkSaved(slug: string, fetchImpl: typeof fetch = fetch):
   return body.saved === true
 }
 
-export async function saveCard(slug: string, fetchImpl: typeof fetch = fetch): Promise<void> {
+export async function saveCard(
+  slug: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
   const res = await fetchImpl('/api/saved-cards', {
     method: 'POST',
     credentials: 'include',
@@ -35,7 +46,10 @@ export async function saveCard(slug: string, fetchImpl: typeof fetch = fetch): P
   }
 }
 
-export async function unsaveCard(slug: string, fetchImpl: typeof fetch = fetch): Promise<void> {
+export async function unsaveCard(
+  slug: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<void> {
   const res = await fetchImpl(`/api/saved-cards/${encodeURIComponent(slug)}`, {
     method: 'DELETE',
     credentials: 'include',
