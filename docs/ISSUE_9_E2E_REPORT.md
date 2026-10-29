@@ -13,7 +13,7 @@ End-to-end acceptance of Issue #9's remaining criteria:
 1. **Save Card end-to-end** — ✅ VERIFIED after fixing a `require()` no-op bug in `card-save-button.tsx`.
 2. **Discovery promotion end-to-end** — ✅ VERIFIED after fixing `ACCEPTED`→`APPROVED` enum mismatch in `AdminDiscovery.tsx` and applying 7 missing graph migrations.
 3. **Narrative Analysis / card shell** — ✅ VERIFIED (three-face navigation, keyboard, reduced motion, responsive).
-4. **Release gates** — ⚠️ PARTIALLY GREEN: `pnpm build` OK, `pnpm test:ui` 702/0, `pnpm test:server` 157/0, `pnpm run typecheck:all` clean. `trope-graph:check` is **environment-blocked** in this environment (`database "trope_graph" does not exist` on configured Neon host — pre-existing, not a regression). See §4–5 for exact commands and results.
+4. **Release gates** — ⚠️ PARTIALLY GREEN: `pnpm build` OK, `pnpm test:ui` 707/0, `pnpm test:server` 157/0, `pnpm run typecheck:all` clean. `trope-graph:check` is **environment-blocked** in this environment (`database "trope_graph" does not exist` on configured Neon host — pre-existing, not a regression). See §4–5 for exact commands and results.
 
 Issue #9 remains open per reviewer instruction until this consolidated report is filed. This is that report.
 
@@ -28,17 +28,26 @@ Commit `28e8775` inadvertently included a live E2E test account's email address 
 2. The credential line has been **removed from this report** (see §Environment, item above).
 3. The ADMIN role escalation on the test account has been **reverted**.
 4. E2E-created records (saved cards, discovery candidates/events) created under this account have been **purged** from the Neon `trope_graph` database where safe.
-5. Commit `28e8775` remains in history with the credential. **History rewriting is deferred pending coordinator review** — do not attempt `git filter-branch` or `filter-repo` without coordinating with the maintainer, as it would invalidate all downstream clones.
+5. Commit `28e8775` remains in history with the credential. **History rewriting is pending maintainer approval** (plan in §History-cleanup below) — do not attempt `git filter-branch` or `filter-repo` without the maintainer's approval, as it would invalidate all downstream clones.
 
 **Assessment:** The credential was in a development/E2E test account only, not a production user account. The account has no production data access beyond what any E2E test would create. The risk is limited to the test account itself and any E2E-generated test records, both of which have been cleaned up.
 
-### History-cleanup decision (deferred, documented)
+### History-cleanup — PENDING MAINTAINER APPROVAL (plan only, not executed)
 
-Commit `28e8775` remains in public git history on both `origin` (GitHub) and `codeberg`, including the credential line and the statement that the test account was escalated to ADMIN. The password has been rotated and the account disabled, so the credential value itself is unusable, but the text remains searchable in cached clone history and GitHub's cached views.
+Commit `28e8775` remains in public git history on both `origin` (GitHub) and `codeberg`, including the credential line and the statement that the test account was escalated to ADMIN. The password has been rotated and the account disabled, so the credential value itself is unusable, but the text remains reachable in clone history and GitHub's cached views.
 
-**Decision:** History rewriting (`git filter-repo` / `git filter-branch` + force-push) is **deferred pending coordinator review** and will **not** be performed unilaterally. Rewriting would invalidate all downstream clones and requires coordinated force-push + clone re-fetch across all contributors, plus handling of GitHub's cached search/index views.
+**Status: pending maintainer approval.** The agent has documented the exposure and prepared the plan below. It has **not** been approved, and nothing has been rewritten. The agent does not treat the exposure as an accepted risk on the maintainer's behalf.
 
-**Accepted residual risk:** The exposed text (email + password + ADMIN escalation statement) remains in public history for commit `28e8775` and its ancestors. The password is rotated and unusable; the test account is disabled. This is accepted as residual risk pending coordinator decision on history cleanup. No production user data or production credentials are exposed.
+**Proposed cleanup plan (for approval, do not execute before sign-off):**
+
+1. **Pre-flight:** freeze merges; `bd sync`; confirm both remotes point at the same commit; notify all contributors and record clone count.
+2. **Rewrite (local, single operator):** `git filter-repo --replace-text <redactions.txt>` on a fresh mirror clone, redacting the credential email, password, and ADMIN-escalation line across all history. Verify with `git log -S` / `git grep` over all revs.
+3. **Force-push both remotes:** `origin` (GitHub) and `codeberg`, with the maintainer performing or explicitly delegating the push. GitHub may need branch protection temporarily relaxed.
+4. **Downstream coordination:** every clone must re-fetch or re-clone (stale clones will re-push the secret); CI caches and any forks/branches need re-basing or deletion.
+5. **GitHub cached views:** request secret-scanning/history purge via GitHub Support for the affected commit, since force-push does not immediately clear cached views, search indexes, or already-fetched API responses.
+6. **Post-checks:** re-scan with `git log -S` and a secret scanner; confirm the rotated password was never reused; close out the incident note in this report.
+
+**Residual risk while pending:** the exposed text (email + password + ADMIN escalation statement) remains publicly reachable at commit `28e8775` and its ancestors on both remotes. Immediate risk is contained (account disabled, password rotated, sessions revoked, ADMIN reverted, E2E records purged) and no production user data or production credentials were involved. This risk is **open and pending maintainer disposition** — it is not accepted.
 
 
 ## Environment
@@ -93,7 +102,7 @@ Failed save/unsave previously surfaced **only via `console.error`** — no visib
 
 ### Verification after fix
 
-- `pnpm test:ui`: **702 pass / 0 fail** (193 suites) — includes new `card-save-button.test.tsx`.
+- `pnpm test:ui`: **707 pass / 0 fail** (194 suites) — includes new `card-save-button.test.tsx` signed-out branch plus 5 deterministic save/unsave failure-path tests.
 - Live browser: POST fired on save, DELETE fired on unsave, reload persistence holds. API failure now shows visible error notice instead of silent console-only logging.
 
 ---
@@ -247,7 +256,16 @@ The distinction below separates work that is **implemented and verified locally*
 
 ### Conclusion on verification boundary
 
-All Issue #9 acceptance criteria are **implemented and verified locally**. None are **release-verified** until the deferred items above (graph DB availability, Render deployment checks, Figma reconciliation, in-card `MalformedState` browser test) are either completed or explicitly accepted as open follow-ups by the maintainer.
+The **implemented feature paths were verified locally where noted** in the table above (Save Card E2E, discovery promotion, card shell, Deck API error state, sign-out, route checks, local build/tests/typecheck). They are **not** release-verified, and release readiness is **not** claimed.
+
+The following remain **unverified or open**, and are not passed gates:
+
+- graph integrity (`trope-graph:check`) — environment-blocked;
+- deployed Render behavior and migration status — no checks run;
+- Figma visual reconciliation — open;
+- in-card `MalformedState` live-browser case — incomplete.
+
+A documented boundary is not a passed gate. Each of these requires a disposition (completed with evidence, or explicitly accepted as an open follow-up by the maintainer) before Issue #9 can be signed off.
 
 ---
 
@@ -329,6 +347,6 @@ Issue #9's remaining acceptance criteria are now evidenced:
 - **Release gates** — `typecheck:all` clean, build green, UI tests 707/0, server tests 157/0. Graph gate environment-blocked (`trope_graph` DB not on configured Neon host — pre-existing). Lint: 2 errors / 3 warnings, all pre-existing baseline, 0 in changed files.
 - **Additional Dav-approved E2E** — route checks (`/explore`, `/research`, `/sources`), sign-out flow, Deck live error state, and Save Card error states all verified locally in browser.
 
-**Verification boundary:** All criteria above are **implemented and verified locally** (localhost only). None are **release-verified**. Deferred follow-ups: graph DB availability for `trope-graph:check`, Render deployment checks, Figma frame reconciliation, and the in-card `MalformedState` live-browser test. These are listed as explicit blockers/follow-ups in §Release verification boundary.
+**Verification boundary:** the implemented feature paths above were **verified locally** (localhost only) where noted. None are **release-verified**. Still unverified/open: graph integrity (`trope-graph:check`, environment-blocked), deployed Render behavior/migrations (none run), Figma frame reconciliation (open), and the in-card `MalformedState` live-browser test (incomplete). These are explicit blockers/follow-ups, not passed gates — see §Release verification boundary.
 
-Issue #9 should remain open until the reviewer signs off on this report, the history-cleanup decision is coordinated with the maintainer, and the deferred release-verification follow-ups are either completed or explicitly accepted as open.
+The history-cleanup decision is **pending maintainer approval** (plan in §History-cleanup, not executed). Issue #9 should remain open until the reviewer signs off on this report, the maintainer approves or rejects the history-cleanup plan, and each of the open verification items above is either completed with evidence or explicitly accepted as an open follow-up.
