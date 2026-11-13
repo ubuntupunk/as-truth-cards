@@ -206,15 +206,25 @@ runtime behaviour:
   `0016`), so a candidate or source with history is refused rather than cascading or blanking
   the events — history survives every DML delete.
 
-  **Scope of the guarantee (migration `0017`).** This is an application-integrity guard, not a
-  privilege boundary against the runtime role. The migration runner and the runtime resolve the
-  *same* connection string, so one role owns `trope_graph` and serves requests; a table owner
-  can always `ALTER TABLE … DISABLE TRIGGER` or drop the constraint, so those credentials can
-  still remove history through DDL even though they cannot through DML. Removing an event is a
-  table-owner DDL operation, and in the current shared-role deployment that operation is not
-  separately privileged. Migrations `0016`/`0017` and the schema comments say so explicitly;
-  `0017` sets the catalog comments and the trigger message to the DML-scoped wording. Splitting
-  owner/migration credentials from a non-owner runtime role is tracked as follow-up work.
+  **Scope of the guarantee (migrations `0017`, `0018`, bd `as-truth-cards-nnc`).** Whether that
+  immutability is *also* a privilege boundary depends on the role the application connects as.
+  Migration `0017` documented the original shared-role deployment honestly: one connection
+  string for the migration runner and the runtime, so one role owned `trope_graph` and served
+  requests, and a table owner can always `ALTER TABLE … DISABLE TRIGGER`. That limit is now
+  addressed rather than documented: the runtime connects as a **non-owner** login role with DML
+  only, migrations keep an owner URL (`TROPE_GRAPH_MIGRATION_URL` / `DATABASE_MIGRATION_URL`),
+  and `pnpm run trope-graph:provision-runtime-role` grants `USAGE` (not `CREATE`) on the schema,
+  DML on the tables, and **`SELECT, INSERT` only** on `discovery_candidate_events` — no
+  `TRIGGER`, no ownership, no membership in the owner role. `pnpm run
+  trope-graph:verify-runtime-role` connects with the runtime credentials and checks the live
+  catalog, failing the deploy on superuser/schema-owner/`CREATE`/`TRIGGER`/`UPDATE`/`DELETE`
+  findings. `trope-cards/test/runtime-role.integration.test.ts` proves the refusals under that
+  role: `UPDATE`/`DELETE`/`TRUNCATE` on the event log, `ALTER TABLE … DISABLE TRIGGER`,
+  `DROP TRIGGER`, `DROP TABLE`, `CREATE` in the schema, `SET ROLE` escalation, and deleting a
+  candidate that has history. Migration `0018` re-states the catalog comments and trigger
+  message so they describe the deployment-dependent boundary instead of asserting one. An
+  unprovisioned deployment (local development, or production before the role exists) still
+  gets the DML-scoped guarantee, and the startup log plus the deploy gate say so.
 - **Scope is single-page.** One Crossref search issues exactly one bounded `/works` request
   with no `offset`/cursor; provider pagination is tracked as outstanding on #12 (§7).
 
@@ -310,19 +320,23 @@ PlumX widget's cookie/consent behaviour is an explicit question in §4 and a har
 2. Schema/types/tests — **SHIPPED**: `0012_research_sources.sql`,
    `0013_discovery_review_events.sql`, `0014_discovery_candidate_revision.sql`,
    `0015_discovery_events_append_only.sql`, `0016_discovery_events_immutable.sql`,
-   `0017_discovery_events_dml_scope.sql`,
+   `0017_discovery_events_dml_scope.sql`, `0018_discovery_events_role_scope.sql`,
    `src/db/schema/researchSources.ts`, provenance
    columns on `sources` in `src/db/schema/tropeGraph.ts`, and
-   `test/schema-research-sources.test.ts`.
+   `test/schema-research-sources.test.ts`. The owner/runtime privilege split
+   (`src/db/runtime-role.ts`, `src/db/role-cli.ts`,
+   `test/runtime-role.integration.test.ts`) is the second half of §3.3.
 3. Discovery vertical slices — **SHIPPED (implemented + tested; no review UI)**:
    identifier normalization (Crossref **and** DataCite extraction), the Crossref and DataCite
    provider adapters (single-page, no raw-payload retention) built on a shared polite transport
    `src/discovery/providers/http.ts`, discovery service (two-provider allow-list), idempotent
    store with revision-token concurrency-safe review/promote and a database-enforced event log
-   that is immutable under all DML for every role (no settable bypass; DDL-scoped caveat in §3),
-   and an admin-gated `/api/discovery` router (list/search/review/promote/events). The Metrics
-   provider and component are **not** shipped; OpenCitations and OpenAlex are not shipped — their
-   fit is settled in §3.3 instead; provider pagination is not implemented.
+   that is immutable under all DML for every role (no settable bypass), and an admin-gated
+   `/api/discovery` router (list/search/review/promote/events). Since bd `as-truth-cards-nnc`
+   the immutability is also a **privilege boundary** when the runtime connects as the
+   provisioned non-owner role (§3.3), with a deploy-gate check and tests under that role. The
+   Metrics provider and component are **not** shipped; OpenCitations and OpenAlex are not
+   shipped — their fit is settled in §3.3 instead; provider pagination is not implemented.
 4. Eligibility inquiry — **SENT**, awaiting response (§4).
 5. Release gate — documented in §4, `SPEC.md` §8.4, and ROADMAP M6.
 6. ROADMAP/authoritative-doc updates — `ROADMAP.md` M6 updated with per-deliverable status;
@@ -359,6 +373,29 @@ What a machine verifies (automated, reproducible):
   database-free, so the live-Postgres integration suites above were deliberately **not** re-run
   against the shared Neon database — no store, migration, or ingest SQL changed.
 - `pnpm run build` — pass.
+
+**Role-separation update (bd `as-truth-cards-nnc`, this change):**
+
+- `pnpm run typecheck:graph` — pass.
+- `pnpm run trope-graph:migrate` — `0018_discovery_events_role_scope.sql` applied (18 in
+  the ledger, 0 pending).
+- `pnpm run trope-graph:provision-runtime-role` against a local `trope_app` role — role
+  created/refreshed; verification reported
+  `superuser=false owner=false ddl=false event-update=false event-delete=false event-insert=true`.
+- `TROPE_GRAPH_RUNTIME_TEST_URL=… pnpm run trope-graph:test` — **588 tests pass, 0 skipped**,
+  including `runtime-role.integration.test.ts` (11 tests under the non-owner role: UPDATE /
+  DELETE / TRUNCATE refusals, `DISABLE TRIGGER`, `DROP TRIGGER`, `DROP TABLE`, `CREATE`
+  refusal, `SET ROLE` refusal, FK refusal when deleting a candidate with history, and the
+  positive path — insert event, read queue, review a candidate).
+- `TROPE_GRAPH_DATABASE_URL=<owner> pnpm run trope-graph:verify-runtime-role` — exits 1 with
+  per-privilege findings, which is what the deploy gate does when the split is missing.
+- `pnpm run test:server` / `test:ui` / `lint` — see the closing comment on #12 for the exact
+  counts on the commit that landed this.
+
+What is **deployment-dependent** and needs the maintainer: the actual Neon provisioning
+(`trope-graph:provision-runtime-role --allow-remote`) and setting `DATABASE_MIGRATION_URL` /
+`DATABASE_URL` on the Render service. Until that is done, production keeps the DML-scoped
+guarantee, the startup log says so, and the pre-deploy gate fails.
 
 What only a human can confirm (manual, not yet done):
 

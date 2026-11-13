@@ -133,6 +133,19 @@ graph-verify:
 graph-drift:
     TROPE_GRAPH_DATABASE_URL="{{trope_graph_db}}" pnpm run trope-graph:check-drift
 
+# Create or refresh the non-owner runtime graph role, then verify its privileges
+#   just graph-provision-runtime "postgresql://trope_app:<password>@127.0.0.1/trope_cards_dev"
+graph-provision-runtime runtime_db:
+    TROPE_GRAPH_MIGRATION_URL="{{trope_graph_db}}" TROPE_GRAPH_DATABASE_URL="{{runtime_db}}" pnpm run trope-graph:provision-runtime-role
+
+# Check the runtime role's live privileges (fails if it can still issue DDL)
+graph-verify-runtime runtime_db:
+    TROPE_GRAPH_DATABASE_URL="{{runtime_db}}" pnpm run trope-graph:verify-runtime-role
+
+# Run the graph suites, including the runtime-role boundary test
+graph-test-runtime runtime_db:
+    TROPE_GRAPH_DATABASE_URL="{{trope_graph_db}}" TROPE_GRAPH_RUNTIME_TEST_URL="{{runtime_db}}" pnpm run trope-graph:test
+
 # ---------------------------------------------------------------- housekeeping
 
 # Lint, format, and typecheck

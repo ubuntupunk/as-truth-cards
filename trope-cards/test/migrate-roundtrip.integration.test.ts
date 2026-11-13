@@ -62,6 +62,10 @@ describe(
         expected.includes('0017_discovery_events_dml_scope.sql'),
         'the DML-scope migration must be part of the canonical set',
       )
+      assert.ok(
+        expected.includes('0018_discovery_events_role_scope.sql'),
+        'the role-scope migration must be part of the canonical set',
+      )
       assert.equal(
         result.skipped.length,
         expected.length,

@@ -97,15 +97,15 @@ function messageChain(error: unknown): string {
  * Remove committed rows from the discovery tables.
  *
  * The pool-level concurrency tests commit, so a savepoint cannot undo them and they must clean
- * up explicitly. Migrations 0015–0017 make `discovery_candidate_events` append-only under all
+ * up explicitly. Migrations 0015–0018 make `discovery_candidate_events` append-only under all
  * DML and refuse to delete a candidate or source that has history, so cleanup must disable the
  * guard trigger for one transaction, delete the events, then the candidate and any sources.
  *
- * This helper also demonstrates the limit migration `0017` documents: it runs DDL through the
- * *same* connection the tests use, because the migration runner and runtime share one role. That
- * is why these tests prove the DML and FK protections but do **not** prove a runtime role cannot
- * bypass them — a table owner can always disable the trigger. Splitting out a non-owner runtime
- * role (and testing under it) is tracked as follow-up work.
+ * This helper runs DDL through the *same* connection the tests use, because these tests run as
+ * the owner. That is exactly why they prove the DML and FK protections but do **not** prove a
+ * runtime role cannot bypass them — a table owner can always disable the trigger.
+ * `runtime-role.integration.test.ts` is the suite that connects as the provisioned non-owner
+ * runtime role and asserts the DDL and privilege refusals.
  */
 async function purge(
   db: ReturnType<typeof getDb>,

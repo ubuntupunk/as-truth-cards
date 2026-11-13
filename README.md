@@ -152,13 +152,14 @@ commands.** The pre-deploy rows below are configured but inert. See
 | Stage | Command | Runs on `free`? | Purpose |
 |---|---|---|---|
 | Build | `pnpm install --frozen-lockfile && pnpm run build` | yes | Installs dependencies, runs `prisma generate`, builds `dist/` via Vite |
-| Pre-deploy | `pnpm run db:migrate:deploy` | **no** | Applies pending Prisma migrations to the `public` schema |
+| Pre-deploy | `pnpm run db:migrate:deploy` | **no** | Applies pending Prisma migrations to the `public` schema, using `DATABASE_MIGRATION_URL` when set |
 | Pre-deploy | `pnpm run trope-graph:migrate -- --allow-remote` | **no** | Applies pending Drizzle migrations to the `trope_graph` schema |
 | Pre-deploy | `pnpm run trope-graph:seed` | **no** | Loads the authored corpus into `trope_graph` |
+| Pre-deploy | `pnpm run trope-graph:verify-runtime-role` | **no** | Fails the deploy if the runtime role can still issue DDL, which is what makes discovery-event history a privilege boundary |
 | Start | `pnpm run start` | yes | Runs `server/index.ts` via `tsx`; serves `dist/` and `/api/*` on `$PORT` |
 | Health | `GET /health` | n/a | Liveness endpoint; Render free tier port-scans instead of using `healthCheckPath` |
 
-**All three migration steps are required, and none runs automatically today.** Nothing
+**All four database steps are required, and none runs automatically today.** Nothing
 creates either schema, and migrate alone creates `trope_graph` without populating it.
 
 ### Free-tier deploys: migrations are manual
@@ -169,17 +170,22 @@ only that the build succeeded and the process started.** It says nothing about t
 
 When migrating by hand is required — after any commit touching `prisma/migrations/`,
 `trope-cards/drizzle/`, or anything the seeder reads under `trope-cards/src/db/seed/` — run
-all three, in order:
+all four, in order:
 
 ```sh
 pnpm run db:migrate:deploy
 pnpm run trope-graph:migrate -- --allow-remote
 TROPE_GRAPH_ALLOW_REMOTE=1 pnpm run trope-graph:seed
+pnpm run trope-graph:verify-runtime-role
 ```
 
 `TROPE_GRAPH_ALLOW_REMOTE=1` is required on the third command. The seeder reads that
 variable and has no `--allow-remote` flag of its own; without it it exits with
 `Refusing to touch non-local database host`, after the first two commands have already run.
+
+The last command is the one that matters for the discovery-event boundary: it connects with
+the **runtime** URL and exits non-zero if that role can still issue DDL. See
+[Separating migration and runtime database roles](#separating-migration-and-runtime-database-roles).
 
 Symptoms of skipping this, and what they mean:
 
@@ -193,6 +199,85 @@ Symptoms of skipping this, and what they mean:
 All three commands are safe to re-run. The seeder upserts by slug and id and
 `trope-graph:verify` asserts `"idempotent": true`, so re-seeding is the normal way to push a
 corpus change to production.
+
+### Separating migration and runtime database roles
+
+Discovery candidates and their review history live in `trope_graph` (migrations 0012–0018).
+The event log (`discovery_candidate_events`) is append-only: it rejects every `UPDATE` and
+`DELETE` under all DML for every role, and `ON DELETE RESTRICT` refuses to delete a candidate
+or source that has history. That is enforced by the database.
+
+What the database **cannot** enforce on its own is that the application cannot issue DDL. A
+table owner can always run `ALTER TABLE … DISABLE TRIGGER`. So the strong guarantee — the
+application cannot remove history even deliberately — needs two credentials:
+
+| Purpose | Variable | Role |
+|---|---|---|
+| Serving requests, seeding, verification | `DATABASE_URL`, `TROPE_GRAPH_DATABASE_URL` | non-owner app role, DML only |
+| Migrations only | `DATABASE_MIGRATION_URL`, `TROPE_GRAPH_MIGRATION_URL` | owner / DDL |
+
+Provision the runtime role **once**, with the owner URL available (the role name and password
+are read from the runtime URL, so exactly what the app uses is what gets granted):
+
+```sh
+export TROPE_GRAPH_MIGRATION_URL=postgresql://neondb_owner:…@ep-…/neondb
+export TROPE_GRAPH_DATABASE_URL=postgresql://trope_app:…@ep-…/neondb
+
+pnpm run trope-graph:provision-runtime-role -- --allow-remote
+```
+
+The script is idempotent. It creates or re-passwords the role, then:
+
+- `USAGE` (not `CREATE`) on schema `trope_graph`;
+- `SELECT, INSERT, UPDATE, DELETE` on its tables, `USAGE, SELECT` on its sequences;
+- **`SELECT, INSERT` only** on `discovery_candidate_events`, so the append-only rule is a
+  privilege as well as a trigger;
+- the same DML grants on `public` (the Prisma models use the same runtime URL);
+- `ALTER DEFAULT PRIVILEGES` so future owner-created tables inherit the DML grants;
+- no `TRIGGER`, no `CREATE`, no ownership, no membership in the owner role.
+
+Then point the application at the non-owner role and keep the owner URL only in
+`DATABASE_MIGRATION_URL` / `TROPE_GRAPH_MIGRATION_URL`. `db:migrate:deploy` swaps
+`DATABASE_URL` for the owner URL in its child process; `trope-graph:migrate` resolves the
+owner URL directly.
+
+Verify, and keep verifying on every deploy:
+
+```sh
+pnpm run trope-graph:verify-runtime-role
+```
+
+It connects with the **runtime** credentials and checks the live catalog: not a superuser, not
+the schema owner, not a member of it, no `CREATE` on the schema, no `TRIGGER` and no
+`UPDATE`/`DELETE`/`TRUNCATE` on the event log — while still being able to insert events and
+read candidates. On failure it prints one line per finding with the fix.
+
+Local development usually keeps one role (the local Postgres user). That is supported: the
+same command with `-- --allow-shared-role` downgrades findings to a warning, and
+`server/index.ts` logs the boundary at startup either way. The distinction is explicit rather
+than implied:
+
+| Runtime role | Guarantee |
+|---|---|
+| non-owner, DML only | event history immutable under DML **and** a privilege boundary against the application |
+| owner or superuser | event history immutable under DML only; the application could disable the guard with DDL |
+
+`trope-cards/test/runtime-role.integration.test.ts` is the proof for the strong case. It is
+skipped unless a provisioned role is available, and then asserts the refusals that matter:
+`UPDATE`/`DELETE`/`TRUNCATE` on the event log, `ALTER TABLE … DISABLE TRIGGER`,
+`DROP TRIGGER`, `DROP TABLE`, `CREATE` in the schema, `SET ROLE` escalation, and deleting a
+candidate that has history. Run it against a local role with:
+
+```sh
+createuser --login --pwprompt trope_app
+TROPE_GRAPH_MIGRATION_URL=postgresql:///trope_cards_dev \
+TROPE_GRAPH_DATABASE_URL=postgresql://trope_app:…@127.0.0.1/trope_cards_dev \
+  pnpm run trope-graph:provision-runtime-role
+
+TROPE_GRAPH_DATABASE_URL=postgresql:///trope_cards_dev \
+TROPE_GRAPH_RUNTIME_TEST_URL=postgresql://trope_app:…@127.0.0.1/trope_cards_dev \
+  pnpm run trope-graph:test
+```
 
 ### Build notes
 
@@ -221,14 +306,16 @@ first — the collection endpoint replaces the whole list.
 
 | Variable | Required | Notes |
 |---|---|---|
-| `DATABASE_URL` | yes | Neon Postgres connection string. Serves the Prisma `public` schema and the Drizzle `trope_graph` schema |
+| `DATABASE_URL` | yes | Neon Postgres connection string. Serves the Prisma `public` schema and the Drizzle `trope_graph` schema. **In production this is the non-owner runtime role** — see [Separating migration and runtime database roles](#separating-migration-and-runtime-database-roles) |
+| `DATABASE_MIGRATION_URL` | no | Owner/DDL connection string used only by the migration commands (`db:migrate:deploy` uses it for Prisma; `trope-graph:migrate` falls back to it when `TROPE_GRAPH_MIGRATION_URL` is unset). Without it migrations run with the runtime role, and `trope-graph:verify-runtime-role` fails the deploy |
 | `BETTER_AUTH_SECRET` | yes | Session signing. Render generates it once from the blueprint. **Without it the deploy looks healthy but is not secure** — see below. Rotating it logs out every session |
 | `BETTER_AUTH_URL` | yes | Public origin, e.g. `https://as-truth-cards.onrender.com`. Better Auth validates the `Origin` header against it |
 | `RESEND_API_KEY` | for email | Resend API key. Without it verification resends and password resets are **silently skipped** — the auth endpoints still answer success and nothing is dispatched. Watch for `email.skipped_unconfigured` in the service logs. Resend test-mode keys only deliver to the account owner's own address; real users require a live key |
 | `RESEND_FROM` | for email | Sender identity, e.g. `Trope Deck <noreply@tropecards.com>`. The sending domain must be verified in the Resend dashboard (DNS) |
 | `CORS_ORIGINS` | no | Comma-separated browser origins that may call `/api/*` cross-origin. Replaces the default *development* allow-list (`http://localhost:8080`, `http://localhost:3001`). In production the app's own origin (`BETTER_AUTH_URL`) is **always** trusted, even alongside an explicit value, so the same-origin account API cannot be excluded by config. Never `*`. See [Reverse proxy and origins](#reverse-proxy-and-origins) |
 | `NODE_ENV` | set by blueprint | `production`, which is what enables serving `dist/` |
-| `TROPE_GRAPH_DATABASE_URL` | no | Only if the graph lives in a *different* database from the host app. Takes precedence over `DATABASE_URL`; an empty or whitespace-only value is treated as unset and falls back to `DATABASE_URL` |
+| `TROPE_GRAPH_DATABASE_URL` | no | Only if the graph lives in a *different* database from the host app. Takes precedence over `DATABASE_URL`; an empty or whitespace-only value is treated as unset and falls back to `DATABASE_URL`. Also the **runtime** graph URL, so the same non-owner rule applies |
+| `TROPE_GRAPH_MIGRATION_URL` | no | Owner connection string for `trope-graph:migrate` only. Falls back to `DATABASE_MIGRATION_URL`, then to the runtime URL |
 | `TROPE_GRAPH_ALLOW_REMOTE` | set by blueprint | `1`. Required for the manual seed step above; the seeder and verifier read this and have no CLI flag |
 | `PORT` | set by Render | Injected automatically; `server/index.ts` falls back to `3001` |
 
