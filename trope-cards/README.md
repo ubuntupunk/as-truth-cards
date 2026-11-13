@@ -79,9 +79,11 @@ Run from the repository root. All graph commands honour
 
 | Command | Purpose |
 | --- | --- |
-| `trope-graph:migrate` | Apply pending migrations |
+| `trope-graph:migrate` | Apply pending migrations (owner connection: `TROPE_GRAPH_MIGRATION_URL`, else `DATABASE_MIGRATION_URL`, else the runtime URL) |
 | `trope-graph:migrate:check` | Report status; writes nothing |
 | `trope-graph:migrate:reset` | `DROP SCHEMA trope_graph CASCADE`, then reapply. Destroys graph data |
+| `trope-graph:provision-runtime-role` | Create/refresh the non-owner runtime role and grant DML only |
+| `trope-graph:verify-runtime-role` | Check the runtime role cannot issue DDL; non-zero exit if it can |
 | `trope-graph:seed` | Load the corpus in one transaction |
 | `trope-graph:verify` | Seed twice, assert row counts are unchanged |
 | `trope-graph:test` | `node:test` suites over the schema, seed corpus, and (with a database) persisted state |
@@ -92,6 +94,14 @@ Run from the repository root. All graph commands honour
 
 `--allow-remote` on the migration runner, or `TROPE_GRAPH_ALLOW_REMOTE=1` on
 the seed and verify entry points, are the only ways to target a remote host.
+
+### Owner vs runtime credentials
+
+Migrations need DDL; serving requests does not. In production the application connects as a
+non-owner role so it cannot disable the discovery event-log triggers, while
+`trope-graph:migrate` uses a separate owner URL. See the repository README, "Separating
+migration and runtime database roles", for provisioning and verification. Local development
+keeps one role and logs the weaker guarantee instead of hiding it.
 
 ## Safety
 

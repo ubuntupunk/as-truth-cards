@@ -415,6 +415,14 @@ providers must respect each provider's terms, rate limits, attribution, and lice
 metric observations with their definition, source, window, and limitations; and present
 "no data" honestly rather than inventing numbers.
 
+**Review-history integrity is a deployment property.** The discovery review/promotion event
+log is append-only under all DML for every role. It is a *privilege boundary* only when the
+application connects as a non-owner role with DML only and migrations keep the owner
+credential; a shared owner/runtime role can disable the guard with DDL. The deployment must
+therefore run the pre-deploy check `pnpm run trope-graph:verify-runtime-role`, and the
+guarantee must not be described as stronger than the role configuration that is live. See
+`docs/issue-12-plumx-research-report.md` §3.3 and bd `as-truth-cards-nnc`.
+
 ## 9. State and interaction contract
 
 ### 9.1 Graph page state order

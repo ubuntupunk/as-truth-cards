@@ -78,6 +78,12 @@ services:
     # The seeder has no flag of its own -- it reads TROPE_GRAPH_ALLOW_REMOTE from the
     # environment -- so that variable below is what lets this step reach production.
     #
+    # The final `verify-runtime-role` step is the guard on bd as-truth-cards-nnc: it connects
+    # with the runtime URL and fails the deploy if that role can still issue DDL (superuser,
+    # schema owner, TRIGGER privilege, UPDATE/DELETE on the discovery event log). With the
+    # owner role in DATABASE_MIGRATION_URL and the non-owner app role in DATABASE_URL, the
+    # event log stops being removable by the application.
+    #
     # INERT ON THE `free` PLAN. Render does not run pre-deploy commands on free instances. It
     # logs `Predeploy command not run. Commands can only run on paid instance types` and then
     # promotes the build anyway, reporting success. A green deploy on `free` therefore proves
@@ -89,11 +95,12 @@ services:
     #   pnpm run db:migrate:deploy
     #   pnpm run trope-graph:migrate -- --allow-remote
     #   TROPE_GRAPH_ALLOW_REMOTE=1 pnpm run trope-graph:seed
+    #   pnpm run trope-graph:verify-runtime-role
     #
     # Run it whenever a commit touches `prisma/migrations/`, `trope-cards/src/db/migrations/`
     # or anything the seeder reads (`trope-cards/src/db/seed/`). Seeding is idempotent, so
     # re-running all three is always safe and is how corpus changes reach production.
-    preDeployCommand: pnpm run db:migrate:deploy && pnpm run trope-graph:migrate -- --allow-remote && pnpm run trope-graph:seed
+    preDeployCommand: pnpm run db:migrate:deploy && pnpm run trope-graph:migrate -- --allow-remote && pnpm run trope-graph:seed && pnpm run trope-graph:verify-runtime-role
 
     # `tsx` executes server/index.ts directly; there is no server-side compile step.
     # It is a production dependency, so the start command is self-sufficient: an
@@ -115,7 +122,18 @@ services:
       # one database and cannot collide. To host the graph in a separate database instead,
       # add TROPE_GRAPH_DATABASE_URL below and give it a real value; an empty or
       # whitespace-only value is treated as unset and falls back to DATABASE_URL.
+      #
+      # This is the **runtime** credential. For the discovery-event privilege boundary
+      # (bd as-truth-cards-nnc) it must be the non-owner app role, not the Neon project
+      # owner. See README, "Separating migration and runtime database roles".
       - key: DATABASE_URL
+        sync: false
+
+      # Owner credential used only by `prisma migrate deploy` (and, as a fallback, by
+      # `trope-graph:migrate`). Keep DATABASE_URL non-owner. If this is unset, migrations
+      # run with the runtime credentials and `verify-runtime-role` fails the deploy,
+      # because a runtime role that can migrate can also disable the event-log triggers.
+      - key: DATABASE_MIGRATION_URL
         sync: false
 
       # Opts the graph migrate/verify/seed tooling in to a non-loopback host. Without it

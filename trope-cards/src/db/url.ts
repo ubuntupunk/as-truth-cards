@@ -3,7 +3,11 @@ import type { ClientConfig } from 'pg'
 /**
  * Connection-string resolution for the Trope Graph.
  *
- * Shared by the Drizzle pool and the migration runner so both connect identically.
+ * The runtime pool and the migration runner resolve their URLs here, but they resolve
+ * *different* ones: {@link resolveDatabaseUrl} is the runtime (non-owner) connection and
+ * {@link resolveMigrationDatabaseUrl} is the owner/migration connection. They fall back to
+ * the same URL when no migration URL is configured, which is why the deployment checks in
+ * `./runtime-role` verify the live privileges rather than trusting the configuration.
  */
 
 /** Socket directory used when peer authentication over the local socket is available. */
@@ -39,6 +43,96 @@ export function resolveDatabaseUrl(): string {
   }
 
   return url
+}
+
+/**
+ * Read the connection string the **migration runner** should use.
+ *
+ * Migrations are DDL: they create and alter tables, install triggers and grant privileges.
+ * The runtime connection should not be able to do any of that, so the two are separate
+ * roles in production (see `docs/issue-12-plumx-research-report.md` §3 and bd
+ * `as-truth-cards-nnc`). This resolver is the migration half of that split:
+ *
+ *   1. `TROPE_GRAPH_MIGRATION_URL` — the graph's owner/migration role.
+ *   2. `DATABASE_MIGRATION_URL` — the host application's owner role, reused so one Neon
+ *      owner credential covers both Prisma and graph migrations.
+ *   3. the runtime URL, unchanged — local development and any deployment that has not
+ *      provisioned a second role yet. {@link usesSeparateMigrationUrl} reports which
+ *      happened, so callers can log the difference instead of implying a boundary exists.
+ *
+ * @returns The resolved migration connection string.
+ * @throws {Error} If none of the three variables resolves to a non-empty value.
+ */
+export function resolveMigrationDatabaseUrl(): string {
+  const candidates = [
+    process.env.TROPE_GRAPH_MIGRATION_URL,
+    process.env.DATABASE_MIGRATION_URL,
+  ]
+
+  for (const candidate of candidates) {
+    if (candidate !== undefined && candidate.trim() !== '') return candidate
+  }
+
+  return resolveDatabaseUrl()
+}
+
+/**
+ * Whether a migration-specific connection string is configured.
+ *
+ * `false` means migrations and runtime share the runtime credentials, so the event-log
+ * immutability guarantee is DML-scoped only: a table owner can always disable its own
+ * triggers. This is a statement about configuration, not about the role that actually
+ * connected — use {@link inspectRuntimeRoleBoundary} to check the live privileges.
+ *
+ * @returns `true` when a migration URL is set explicitly.
+ */
+export function usesSeparateMigrationUrl(): boolean {
+  return (
+    [
+      process.env.TROPE_GRAPH_MIGRATION_URL,
+      process.env.DATABASE_MIGRATION_URL,
+    ].find((value) => value !== undefined && value.trim() !== '') !== undefined
+  )
+}
+
+/**
+ * A connection string described without its secret.
+ *
+ * Logs and error messages need to say *which* role and database a process connected as;
+ * they must never print the password. This is the shape both sides of the migration/runtime
+ * split report.
+ */
+export type DatabaseTarget = {
+  /** Host as written in the URL, or `''` for a keyword/value DSN. */
+  host: string
+  /** Login role, or `''` when it cannot be parsed. */
+  role: string
+  /** Database name, or `''` when it cannot be parsed. */
+  database: string
+  /** Whether the URL carries a password (the value itself is never returned). */
+  hasPassword: boolean
+}
+
+/**
+ * Describe a connection string for logs, without its secret.
+ *
+ * @param url Connection string to inspect.
+ * @returns Host, role, database and whether a password is present.
+ * @example
+ * ```ts
+ * describeDatabaseTarget('postgresql://trope_app:secret@db.example.com/neondb');
+ * // => { host: 'db.example.com', role: 'trope_app', database: 'neondb', hasPassword: true }
+ * ```
+ */
+export function describeDatabaseTarget(url: string): DatabaseTarget {
+  const parsed = parseUrl(url)
+  if (!parsed) return { host: '', role: '', database: '', hasPassword: false }
+  return {
+    host: parsed.host,
+    role: parsed.user,
+    database: parsed.database,
+    hasPassword: parsed.password !== undefined,
+  }
 }
 
 /**

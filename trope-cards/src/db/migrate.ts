@@ -8,7 +8,8 @@ import { Client } from 'pg'
 import {
   assertLocalHost,
   resolveDatabaseConfig,
-  resolveDatabaseUrl,
+  resolveMigrationDatabaseUrl,
+  usesSeparateMigrationUrl,
 } from './url'
 
 /**
@@ -72,8 +73,18 @@ export async function migrate(
 ): Promise<MigrateResult> {
   const { checkOnly = false, reset = false, allowRemote = false } = options
 
-  const url = resolveDatabaseUrl()
+  const url = resolveMigrationDatabaseUrl()
   const host = assertLocalHost(url, allowRemote)
+
+  if (!checkOnly && !usesSeparateMigrationUrl()) {
+    console.warn(
+      'Warning: no TROPE_GRAPH_MIGRATION_URL or DATABASE_MIGRATION_URL is set, so this\n' +
+        'migration runs with the runtime credentials. The discovery event log stays\n' +
+        'immutable under DML, but the runtime role owns the schema and could disable the\n' +
+        'guard. Provision a non-owner runtime role (see README, "Separating migration and\n' +
+        'runtime database roles") to make immutability a privilege boundary.',
+    )
+  }
 
   const files = (await readdir(MIGRATIONS_DIR))
     .filter((f) => /^\d{4}.*\.sql$/.test(f))

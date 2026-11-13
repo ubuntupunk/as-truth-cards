@@ -194,11 +194,14 @@ export const discoveryCandidates = tropeGraph.table(
  * a candidate or source that has history cannot be deleted either — the database refuses rather
  * than deleting or blanking the events.
  *
- * This is an application-integrity guard, not a privilege boundary. Migration `0017` documents
- * the scope: the migration runner and the runtime share one connection/role in the current
- * deployment, and a table owner can always disable the trigger or drop the constraint, so those
- * credentials can still remove history through DDL. Splitting owner/migration credentials from a
- * non-owner runtime role is tracked as follow-up work.
+ * Whether that is also a **privilege boundary** depends on the runtime role, and migration
+ * `0018` says so in the catalog. The application connects as a non-owner role with DML only
+ * (`pnpm run trope-graph:provision-runtime-role`), so it has no UPDATE/DELETE/TRIGGER privilege
+ * on this table and cannot disable the guard; migrations keep the owner credential. Under a
+ * shared owner/runtime role — local development, or a deployment that has not provisioned the
+ * second role — the guarantee is DML-scoped only. `pnpm run trope-graph:verify-runtime-role`
+ * reports which configuration is live; `runtime-role.ts` is the implementation.
+
  *
  * The checks make the two actions well-formed at the database level: `action` is limited to
  * the vocabulary, a `REVIEWED` row must name a decision, and a `PROMOTED` row must name a

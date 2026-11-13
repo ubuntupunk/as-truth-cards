@@ -202,9 +202,14 @@ decisions mutually exclusive; `0015_discovery_events_append_only.sql` installs t
 `0016_discovery_events_immutable.sql` makes them unconditional (no settable bypass) and sets
 the event foreign keys to `ON DELETE RESTRICT`, so the event log is immutable under all DML for
 every role and history cannot be cascaded or blanked away by a DML delete.
-`0017_discovery_events_dml_scope.sql` records the honest scope: this is an application-integrity
-guard, not a privilege boundary — the migration runner and runtime share one role in the current
-deployment, and a table owner can still disable the trigger with DDL. No
+`0017_discovery_events_dml_scope.sql` recorded the scope as it was then: the migration runner
+and runtime shared one role, so the guard was an application-integrity measure, not a privilege
+boundary. bd `as-truth-cards-nnc` closed that gap instead of leaving it documented:
+`0018_discovery_events_role_scope.sql` restates the catalog comments for a deployment-dependent
+boundary, `src/db/runtime-role.ts` inspects the live privileges, `src/db/role-cli.ts` provisions
+a non-owner runtime role (`USAGE` on the schema, DML on tables, `SELECT`/`INSERT` only on the
+event log) and verifies it, and `trope-cards/test/runtime-role.integration.test.ts` asserts the
+refusals under that role. `pnpm run trope-graph:verify-runtime-role` is a pre-deploy gate. No
 PlumX/Elsevier dependency was added; the layer is useful with open metadata on its own.
 Support semantics are unchanged: a discovered, cited, or popular source is not evidence, and
 the support chain still runs through `claim_sources`/`evidence_claims`.
@@ -214,7 +219,7 @@ Per-deliverable status:
 | Deliverable | Status | Evidence |
 | --- | --- | --- |
 | Storage: identifiers, candidates, metrics, provenance columns | Implemented, verified | migration `0012` applied locally; `trope-cards/test/schema-research-sources.test.ts` (DB-free) + migrate-check round-trip |
-| DML-immutable review/promotion event log | Implemented, verified | migrations `0013` + `0015` + `0016` + `0017`; store integration test asserts one event per decision/promotion, none on refusal, direct UPDATE/DELETE rejected by the trigger (no settable bypass), and candidate/source deletes with history refused by `ON DELETE RESTRICT`; immutability is scoped to DML — the shared owner/runtime role can still disable the trigger via DDL (see §"Foundation" above) |
+| Review log immutable under DML **and**, with the non-owner runtime role, a privilege boundary | Implemented, verified | migrations `0013` + `0015` + `0016` + `0017` + `0018`; store integration test asserts one event per decision/promotion, none on refusal, direct UPDATE/DELETE rejected by the trigger (no settable bypass), and candidate/source deletes with history refused by `ON DELETE RESTRICT`; `runtime-role.integration.test.ts` connects as the provisioned non-owner role and asserts UPDATE/DELETE/TRUNCATE, `DISABLE TRIGGER`, `DROP TRIGGER`, `DROP TABLE`, `CREATE`, `SET ROLE`, and history-bearing deletes are all refused. `trope-graph:verify-runtime-role` is the deploy gate; the shared-role fallback keeps the DML-only guarantee and is reported, not implied |
 | Identifier normalization (DOI/URL; per-provider extraction for Crossref and DataCite) | Implemented, verified | `trope-cards/test/discovery-identifiers.test.ts` |
 | Crossref provider adapter (bounded rows, timeout, throttle, tolerant mapping, single-page) | Implemented, verified | `trope-cards/test/discovery-crossref.test.ts` (mocked HTTP) |
 | Discovery service (allow-list provider, limit clamp, dedupe) | Implemented, verified | `trope-cards/test/discovery-service.test.ts` |
