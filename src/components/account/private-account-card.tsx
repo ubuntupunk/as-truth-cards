@@ -12,9 +12,10 @@ import type { GraphTreatment } from '@/graph/appearance'
  * spec-required counterpart (SPEC §9.4 authenticated-unverified, §17
  * onboarding≠verification, §10 amber-with-textual-status): an amber "Email not
  * verified" badge plus a real resend action wired to Better Auth's existing
- * verification capability. "Change email in Settings" is omitted — email
- * change is not implemented anywhere yet, and a dead button would misrepresent
- * that. Both omissions are labelled design decisions in the issue report.
+ * verification capability. The mockup's "Change email in Settings" pointer is
+ * accurate now: the capability lives in `/account/settings` (the `EmailPanel`),
+ * so this card stays a status surface rather than duplicating the form. The
+ * omission is labelled a design decision in the issue report.
  */
 
 /** Props for {@link PrivateAccountCard}. */

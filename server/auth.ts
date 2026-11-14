@@ -63,6 +63,21 @@ export const auth = betterAuth({
        */
       onboardedAt: { type: 'date', required: false, input: false },
     },
+    /**
+     * Email change is a Better Auth capability, off by default. Enabled here so
+     * `/account/settings` can offer it (bd as-truth-cards-fkt).
+     *
+     * The default policy is the one this project wants: a request mails a
+     * verification link to the **new** address, and the address is only swapped
+     * once that link is opened. `updateEmailWithoutVerification` stays off, so an
+     * unverified account cannot silently move to an address it never confirmed.
+     * Better Auth sends that mail through the existing
+     * `emailVerification.sendVerificationEmail` seam below, so delivery remains
+     * best-effort and observable exactly like every other auth email.
+     */
+    changeEmail: {
+      enabled: true,
+    },
   },
 
   /**
