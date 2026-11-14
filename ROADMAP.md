@@ -318,9 +318,10 @@ A complete account lifecycle and one account-gated action work end-to-end; role 
 | Unverified-email resolution: amber state + working resend via Better Auth `send-verification-email` | Implemented, verified | `src/auth/verification.test.tsx`, unverified/verified/error render tests |
 | Appearance + participation preferences | Device-local (localStorage), labelled as such in UI | No account columns exist by design; revisit when Settings ships email settings |
 | Saved cards surface: `/account/saved` with sidebar entry, saved slugs joined to card titles, unresolved entries reported not dropped | Implemented, verified | `src/pages/AccountSaved.tsx`, `src/account/saved-cards-model.test.tsx`, `src/components/account/saved-cards-panel.test.tsx`, `src/app-routes.test.tsx` |
-| Anonymous account-required action, Save card gating, My activity/Settings panel parity, email change, account-side preference persistence, sign-in/dropdown/settings improved panels | Outstanding | tracked in issues |
+| Email change in Settings: verification-first Better Auth `user.changeEmail`, with local validation and an actionable fresh-session refusal | Implemented, verified | `server/auth.ts`, `src/auth/change-email.ts`, `src/auth/change-email.test.tsx`, `src/components/account/email-panel.tsx`, `server/auth-change-email.test.ts` |
+| Anonymous account-required action, Save card gating, My activity/Settings panel parity, account-side preference persistence, sign-in/dropdown/settings improved panels | Outstanding | tracked in issues |
 
-Journey and panel copy follows the improved Figma onboarding/profile frames; unresolved design decisions (Lora typography without a font dependency, omitted "Choose visibility"/"Change email" affordances that have no product capability) are labelled in the issue #13 implementation report.
+Journey and panel copy follows the improved Figma onboarding/profile frames; remaining design decisions (Lora typography without a font dependency, the omitted "Choose visibility" affordance that has no product capability) are labelled in the issue #13 implementation report. The "Change email" affordance now has a real capability in `/account/settings` (verification-first, via Better Auth `user.changeEmail`).
 
 ---
 

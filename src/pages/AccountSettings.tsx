@@ -1,8 +1,10 @@
 import { useState } from 'preact/hooks'
 import { useNavigate } from 'react-router-dom'
 import { removeAvatar, uploadAvatar, validateAvatarFile } from '@/auth/avatar'
+import { requestEmailChange, validateEmailChange } from '@/auth/change-email'
 import { AccountNav } from '@/components/account/account-nav'
 import { AvatarPanel } from '@/components/account/avatar-panel'
+import { EmailPanel } from '@/components/account/email-panel'
 import Footer from '@/components/Footer'
 import Header from '@/components/Header'
 import { ResearchPreferencesPanel } from '@/components/research-preferences-panel'
@@ -60,6 +62,17 @@ const AccountSettings = () => {
   )
 
   /**
+   * The email-change form's state. Separate from the avatar block because the two
+   * operate on different capabilities and a failure in one must never look like a
+   * failure in the other.
+   */
+  const [emailDraft, setEmailDraft] = useState('')
+  const [emailFieldError, setEmailFieldError] = useState<string | null>(null)
+  const [emailBusy, setEmailBusy] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const [emailStatus, setEmailStatus] = useState<string | null>(null)
+
+  /**
    * The avatar flow's state, one object because every write touches several
    * fields and the setters must never disagree about which operation is in
    * flight. The panel renders this verbatim; the transitions live here.
@@ -86,6 +99,47 @@ const AccountSettings = () => {
     writeGraphTreatment(nextTreatment, deviceStorage())
     setPreferences(next)
     setTreatment(nextTreatment)
+  }
+
+  /**
+   * Ask Better Auth to start an email change.
+   *
+   * Validated locally first so a typo produces no request and no mail. The
+   * success line says the link was *requested* and that the change completes only
+   * when it is opened — never that the new inbox received anything.
+   */
+  const handleEmailChange = async () => {
+    if (user === null || emailBusy) return
+
+    const problem = validateEmailChange(user.email, emailDraft)
+    setEmailFieldError(problem)
+    setEmailError(null)
+    setEmailStatus(null)
+    if (problem !== null) return
+
+    const requested = emailDraft.trim()
+    setEmailBusy(true)
+    try {
+      const accepted = await requestEmailChange(requested)
+      if (accepted) {
+        setEmailStatus(
+          `If ${requested} can receive mail, a verification link is on its way. The change completes only when you open it.`,
+        )
+        setEmailDraft('')
+      } else {
+        setEmailError(
+          'The server did not accept the request. The address on this account is unchanged.',
+        )
+      }
+    } catch (error) {
+      setEmailError(
+        error instanceof Error && error.message.trim() !== ''
+          ? error.message
+          : 'Failed to request the email change',
+      )
+    } finally {
+      setEmailBusy(false)
+    }
   }
 
   /** A file was chosen (or the picker dismissed): hold it and validate it. */
@@ -230,6 +284,21 @@ const AccountSettings = () => {
                 Profile, email and sessions stay in your account.
               </p>
             </header>
+
+            <EmailPanel
+              currentEmail={user.email}
+              emailVerified={user.emailVerified}
+              value={emailDraft}
+              fieldError={emailFieldError}
+              busy={emailBusy}
+              error={emailError}
+              status={emailStatus}
+              onChange={(next) => {
+                setEmailDraft(next)
+                setEmailFieldError(null)
+              }}
+              onSubmit={handleEmailChange}
+            />
 
             <AvatarPanel
               name={user.name}
