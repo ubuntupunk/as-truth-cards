@@ -237,14 +237,14 @@ describe('EditProfileForm', () => {
  * maps directly to links, and the copy beside it is fixed JSX.
  */
 describe('AccountNav sections', () => {
-  it('offers the three designed account sections', () => {
+  it('offers the four designed account sections in panel order', () => {
     assert.deepEqual(
       ACCOUNT_NAV_SECTIONS.map((section) => section.label),
-      ['My profile', 'My activity', 'Settings'],
+      ['My profile', 'My activity', 'Saved cards', 'Settings'],
     )
     assert.deepEqual(
       ACCOUNT_NAV_SECTIONS.map((section) => section.key),
-      ['profile', 'activity', 'settings'],
+      ['profile', 'activity', 'saved', 'settings'],
     )
   })
 
@@ -256,10 +256,11 @@ describe('AccountNav sections', () => {
         `${section.label} → ${section.to} must be a real route`,
       )
     }
+    // The designed entry was withheld until `/account/saved` existed, and the
+    // sidebar must only offer it now that the surface is real.
     assert.equal(
       ACCOUNT_NAV_SECTIONS.some((section) => section.label === 'Saved cards'),
-      false,
-      'no route exists for saved cards yet',
+      true,
     )
   })
 

@@ -20,6 +20,10 @@ import type { VNode } from 'preact'
 import { matchRoutes, type RouteObject } from 'react-router-dom'
 import { APP_ROUTES } from './app-routes'
 import { NAV_ENTRIES } from './components/Header'
+import Account from './pages/Account'
+import AccountActivity from './pages/AccountActivity'
+import AccountSaved from './pages/AccountSaved'
+import AccountSettings from './pages/AccountSettings'
 import Deck from './pages/Deck'
 import ForgotPassword, { FORGOT_PASSWORD_PATH } from './pages/ForgotPassword'
 import LegacyDeck from './pages/LegacyDeck'
@@ -74,6 +78,13 @@ describe('application route table', () => {
   it('serves the password-reset surfaces at their shared path constants', () => {
     assert.equal(resolved(FORGOT_PASSWORD_PATH).type, ForgotPassword)
     assert.equal(resolved(RESET_PASSWORD_PATH).type, ResetPassword)
+  })
+
+  it('serves the account sections the sidebar links', () => {
+    assert.equal(resolved('/account').type, Account)
+    assert.equal(resolved('/account/activity').type, AccountActivity)
+    assert.equal(resolved('/account/saved').type, AccountSaved)
+    assert.equal(resolved('/account/settings').type, AccountSettings)
   })
 })
 

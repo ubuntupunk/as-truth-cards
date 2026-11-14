@@ -16,6 +16,7 @@ import type { VNode } from 'preact'
 import About from '@/pages/About'
 import Account from '@/pages/Account'
 import AccountActivity from '@/pages/AccountActivity'
+import AccountSaved from '@/pages/AccountSaved'
 import AccountSettings from '@/pages/AccountSettings'
 import Admin from '@/pages/Admin'
 import AdminDiscovery from '@/pages/AdminDiscovery'
@@ -69,6 +70,7 @@ export const APP_ROUTES: readonly AppRoute[] = [
   { path: RESET_PASSWORD_PATH, element: <ResetPassword /> },
   { path: '/account', element: <Account /> },
   { path: '/account/activity', element: <AccountActivity /> },
+  { path: '/account/saved', element: <AccountSaved /> },
   { path: '/account/settings', element: <AccountSettings /> },
   { path: '/onboarding', element: <Onboarding /> },
   { path: '*', element: <NotFound /> },
