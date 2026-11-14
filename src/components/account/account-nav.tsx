@@ -2,17 +2,17 @@ import { Link } from 'react-router-dom'
 
 /**
  * The account-area sidebar from the improved account panels ("Your account":
- * My profile / My activity / Settings, the research-session note, and the
- * return link).
+ * My profile / My activity / Saved cards / Settings, the research-session note,
+ * and the return link).
  *
  * Figma authority: "Account / Profile — Atmospheric · Improved", account
- * navigation (`62:13273`). The designed "Saved cards" entry is intentionally
- * absent: no saved-cards route exists yet, and this project never ships dead
- * links — it returns with its own surface (tracked as follow-up work).
+ * navigation (`62:13273`). The designed "Saved cards" entry was omitted while no
+ * saved-cards route existed (this project does not ship dead links); it returns
+ * now that `/account/saved` serves the surface.
  */
 
 /** Which account page is rendering, for the active treatment. */
-export type AccountNavSection = 'profile' | 'activity' | 'settings'
+export type AccountNavSection = 'profile' | 'activity' | 'saved' | 'settings'
 
 /** The navigable account sections, in panel order. */
 export const ACCOUNT_NAV_SECTIONS: readonly {
@@ -22,6 +22,7 @@ export const ACCOUNT_NAV_SECTIONS: readonly {
 }[] = [
   { key: 'profile', label: 'My profile', to: '/account' },
   { key: 'activity', label: 'My activity', to: '/account/activity' },
+  { key: 'saved', label: 'Saved cards', to: '/account/saved' },
   { key: 'settings', label: 'Settings', to: '/account/settings' },
 ]
 
