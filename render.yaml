@@ -164,14 +164,20 @@ services:
       - key: BETTER_AUTH_SECRET
         generateValue: true
 
-      # The public origin the browser uses, e.g. https://as-truth-cards.onrender.com.
-      # Renaming the service display name does not change this hostname or slug.
+      # The public origin the browser uses. Renaming the service display name does not
+      # change this hostname or slug (`trope-cards` service, `as-truth-cards` subdomain).
       # Better Auth validates the Origin header against it; production is same-origin, so
       # this must be the deployed URL and not a localhost value. Startup refuses a
       # loopback, malformed or non-https value in production: the links it would mail
       # point at a host that cannot validate the token that was signed here.
+      #
+      # This is the one non-secret value deliberately pinned in the file (the default
+      # sync: true): it is not a credential, it is verified against the live service, and
+      # pinning it means the origin that verification tokens are minted for is
+      # version-controlled. A dashboard edit here is reverted by the next Blueprint sync —
+      # change the public hostname by commit, not by dashboard.
       - key: BETTER_AUTH_URL
-        sync: false
+        value: https://as-truth-cards.onrender.com
 
       # Transactional email (verification resend, password reset) via Resend.
       #
