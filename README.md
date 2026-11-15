@@ -308,8 +308,8 @@ first — the collection endpoint replaces the whole list.
 |---|---|---|
 | `DATABASE_URL` | yes | Neon Postgres connection string. Serves the Prisma `public` schema and the Drizzle `trope_graph` schema. **In production this is the non-owner runtime role** — see [Separating migration and runtime database roles](#separating-migration-and-runtime-database-roles) |
 | `DATABASE_MIGRATION_URL` | no | Owner/DDL connection string used only by the migration commands (`db:migrate:deploy` uses it for Prisma; `trope-graph:migrate` falls back to it when `TROPE_GRAPH_MIGRATION_URL` is unset). Without it migrations run with the runtime role, and `trope-graph:verify-runtime-role` fails the deploy |
-| `BETTER_AUTH_SECRET` | yes | Session signing. Render generates it once from the blueprint. **Without it the deploy looks healthy but is not secure** — see below. Rotating it logs out every session |
-| `BETTER_AUTH_URL` | yes | Public origin, e.g. `https://as-truth-cards.onrender.com`. Better Auth validates the `Origin` header against it |
+| `BETTER_AUTH_SECRET` | yes | Session signing. Render generates it once from the blueprint. **One secret per environment — never copy it between them**; a leaked development secret must not mint tokens production accepts, and rotation signs out the environment you rotate. **Without it the deploy looks healthy but is not secure** — see below. Rotating it logs out every session in that environment |
+| `BETTER_AUTH_URL` | yes | Public origin, e.g. `https://as-truth-cards.onrender.com`. Better Auth validates the `Origin` header against it, and it builds the links in verification/reset mail. Production refuses to start if it is missing, malformed, loopback, or not `https` |
 | `RESEND_API_KEY` | for email | Resend API key. Without it verification resends and password resets are **silently skipped** — the auth endpoints still answer success and nothing is dispatched. Watch for `email.skipped_unconfigured` in the service logs. Resend test-mode keys only deliver to the account owner's own address; real users require a live key |
 | `RESEND_FROM` | for email | Sender identity, e.g. `Trope Deck <noreply@tropecards.com>`. The sending domain must be verified in the Resend dashboard (DNS) |
 | `CORS_ORIGINS` | no | Comma-separated browser origins that may call `/api/*` cross-origin. Replaces the default *development* allow-list (`http://localhost:8080`, `http://localhost:3001`). In production the app's own origin (`BETTER_AUTH_URL`) is **always** trusted, even alongside an explicit value, so the same-origin account API cannot be excluded by config. Never `*`. See [Reverse proxy and origins](#reverse-proxy-and-origins) |
@@ -381,6 +381,35 @@ The build-time guarantee: in production, `server/auth.ts` calls `assertAuthSecre
 Generate one with `openssl rand -base64 32`.
 
 Local development uses a different set — see `.env.example`.
+
+#### One secret per environment, never shared
+
+`BETTER_AUTH_SECRET` is **not** a shared project-wide value. Every environment — each
+developer's machine, staging if it exists, production — gets its own, generated independently.
+Do not copy a development secret into Render, and do not copy production's secret anywhere.
+
+The reason is that Better Auth signs email-verification, email-change and password-reset tokens
+as **stateless JWTs** with this secret. There is no token table: a link is valid only for the
+secret that signed it, so:
+
+- A secret shared between two environments lets a token minted in one be accepted by the other.
+  That is the wrong direction of trust: a leaked `BETTER_AUTH_SECRET` from a laptop or a preview
+  deploy would mint links that a deployed server happily accepts.
+- Rotating a shared secret signs out of **every** environment at once, which makes routine
+  rotation something people avoid.
+- A link is environment-scoped. A verification email sent by a local dev server does not work
+  against the deployed site, and a deployed link does not work locally against a different
+  secret. That is the intended rule, not a bug hunt: run the flow in the environment whose
+  address is in the link.
+
+The same reasoning applies to `BETTER_AUTH_URL`: it decides which host the link points at, so
+a local process carrying the deployed origin mails a token the deployed server will reject.
+`server/auth.ts` calls `assertAuthEnvironmentConsistent()` alongside the secret check above.
+In production it **refuses to start** when `BETTER_AUTH_URL` is missing, is not an absolute URL,
+points at loopback (`localhost`, `127.0.0.1`, `*.localhost`), or is not `https`. Outside
+production it only warns, so a developer can deliberately reproduce a remote bug — but the
+warning says why the link they are about to send will fail. Both behaviours are pinned in
+`server/lib/auth-environment.test.ts`.
 
 ### Reverse proxy and origins
 
