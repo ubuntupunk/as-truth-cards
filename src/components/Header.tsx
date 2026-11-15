@@ -1,8 +1,19 @@
-import { Menu, X } from 'lucide-react'
+import { ChevronDown, Menu, X } from 'lucide-react'
+import type { VNode } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { Link, useLocation } from 'react-router-dom'
-import { useAdminCheck } from '@/hooks/useAdminCheck'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import {
+  AccountMenuPanel,
+  type MenuLinkProps,
+} from '@/components/header/account-menu'
+import {
+  type GraphTreatment,
+  readGraphTreatment,
+  writeGraphTreatment,
+} from '@/graph/appearance'
 import { useAccount } from '@/hooks/session-context'
+import { authClient, useAdminCheck } from '@/hooks/useAdminCheck'
+import { deviceStorage } from '@/lib/device-storage'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
 import { ThemeToggle } from './ThemeToggle'
@@ -82,13 +93,51 @@ const NavLink = ({ label, active }: { label: string; active?: boolean }) => (
   </span>
 )
 
+/**
+ * The router link handed to {@link AccountMenuPanel}.
+ *
+ * The panel takes an injected link renderer so its contents can be tested without
+ * mounting a router; the header is where the real `Link` comes from.
+ *
+ * @param props Destination, classes, click hook, and children.
+ * @returns The router link.
+ */
+const RouterMenuLink = ({
+  to,
+  className,
+  onClick,
+  children,
+}: MenuLinkProps): VNode => (
+  <Link to={to} className={className} onClick={onClick}>
+    {children}
+  </Link>
+)
+
+/**
+ * The header, including the two account affordances.
+ *
+ * Signed in, the account cluster is a disclosure: a trigger showing the avatar
+ * (or initial), the display name and a chevron, opening the account panel. It
+ * closes on Escape (returning focus to the trigger), on a pointer down outside
+ * it, on navigation, and on sign-out. The mobile menu keeps its plain Account
+ * link, because a floating 376px panel has nowhere to go inside a 320px
+ * viewport.
+ */
 const Header = () => {
   const location = useLocation()
+  const navigate = useNavigate()
   const isVisible = useDelayedVisibility(100)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const [signingOut, setSigningOut] = useState(false)
+  const [treatment, setTreatment] = useState<GraphTreatment>(() =>
+    readGraphTreatment(deviceStorage()),
+  )
   const lastPathname = useRef(location.pathname)
+  const accountRef = useRef<HTMLDivElement>(null)
+  const accountTriggerRef = useRef<HTMLButtonElement>(null)
   const { isSignedIn, isAdmin: isAdminRole } = useAdminCheck()
-  const { user } = useAccount()
+  const { user, role } = useAccount()
   const isAdmin = location.pathname.startsWith('/admin') || isAdminRole
 
   const entries: readonly NavEntry[] = isAdmin
@@ -101,16 +150,61 @@ const Header = () => {
     if (lastPathname.current === location.pathname) return
     lastPathname.current = location.pathname
     setMenuOpen(false)
+    setAccountOpen(false)
   }, [location.pathname])
 
   useEffect(() => {
-    if (!menuOpen) return
+    if (!menuOpen && !accountOpen) return
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenuOpen(false)
+      if (event.key !== 'Escape') return
+      if (accountOpen) {
+        setAccountOpen(false)
+        accountTriggerRef.current?.focus()
+      }
+      setMenuOpen(false)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [menuOpen])
+  }, [menuOpen, accountOpen])
+
+  // A click anywhere outside the account cluster dismisses the panel, the way a
+  // menu is expected to behave. Kept on `pointerdown` so it fires before a
+  // link's own `click` handler can navigate and remount the tree.
+  useEffect(() => {
+    if (!accountOpen) return
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target
+      if (
+        target instanceof Node &&
+        accountRef.current !== null &&
+        !accountRef.current.contains(target)
+      ) {
+        setAccountOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [accountOpen])
+
+  const handleSelectTreatment = (next: GraphTreatment) => {
+    setTreatment(next)
+    writeGraphTreatment(next, deviceStorage())
+  }
+
+  const handleSignOut = async () => {
+    setSigningOut(true)
+    try {
+      await authClient.signOut()
+      setAccountOpen(false)
+      navigate('/')
+    } catch (err) {
+      console.error('Failed to sign out:', err)
+    } finally {
+      setSigningOut(false)
+    }
+  }
+
+  const accountName = user?.name?.trim() || user?.email || 'Account'
 
   return (
     <header
@@ -159,23 +253,59 @@ const Header = () => {
           </nav>
           <ThemeToggle />
           {isSignedIn ? (
-            <Link
-              to="/account"
-              className="hidden items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground md:flex"
-            >
-              {user?.image ? (
-                <img
-                  src={user.image}
-                  alt=""
-                  className="h-7 w-7 rounded-full object-cover"
+            <div ref={accountRef} className="relative hidden md:block">
+              <button
+                ref={accountTriggerRef}
+                type="button"
+                data-testid="account-menu-trigger"
+                aria-expanded={accountOpen}
+                aria-controls="account-menu-panel"
+                onClick={() => setAccountOpen((open) => !open)}
+                className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                {user?.image ? (
+                  <img
+                    src={user.image}
+                    alt=""
+                    className="h-7 w-7 rounded-full object-cover"
+                  />
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground"
+                  >
+                    {accountName.charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <span className="max-w-[10rem] truncate">{accountName}</span>
+                <ChevronDown
+                  aria-hidden="true"
+                  className={cn(
+                    'h-4 w-4 transition-transform',
+                    accountOpen ? 'rotate-180' : '',
+                  )}
                 />
-              ) : (
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-muted text-xs font-medium text-foreground">
-                  {(user?.name || user?.email || 'A').charAt(0).toUpperCase()}
+              </button>
+              {accountOpen ? (
+                <div
+                  id="account-menu-panel"
+                  className="absolute right-0 top-full z-50 mt-2"
+                >
+                  <AccountMenuPanel
+                    name={user?.name ?? ''}
+                    email={user?.email ?? ''}
+                    imageUrl={user?.image ?? null}
+                    accountRole={role}
+                    treatment={treatment}
+                    onSelectTreatment={handleSelectTreatment}
+                    onSignOut={handleSignOut}
+                    signingOut={signingOut}
+                    onNavigate={() => setAccountOpen(false)}
+                    link={RouterMenuLink}
+                  />
                 </div>
-              )}
-              <span>Account</span>
-            </Link>
+              ) : null}
+            </div>
           ) : (
             <Link
               to="/sign-in"

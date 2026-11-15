@@ -320,9 +320,12 @@ A complete account lifecycle and one account-gated action work end-to-end; role 
 | Saved cards surface: `/account/saved` with sidebar entry, saved slugs joined to card titles, unresolved entries reported not dropped | Implemented, verified | `src/pages/AccountSaved.tsx`, `src/account/saved-cards-model.test.tsx`, `src/components/account/saved-cards-panel.test.tsx`, `src/app-routes.test.tsx` |
 | Email change in Settings: verification-first Better Auth `user.changeEmail`, with local validation and an actionable fresh-session refusal | Implemented, verified | `server/auth.ts`, `src/auth/change-email.ts`, `src/auth/change-email.test.tsx`, `src/components/account/email-panel.tsx`, `server/auth-change-email.test.ts` |
 | Improved My activity panel: account shell with sidebar nav, saved-cards pointer instead of a duplicate raw-slug list, and an honest participation placeholder | Implemented, verified | `src/pages/AccountActivity.tsx`, `src/components/account/activity-panels.tsx`, `src/components/account/activity-panels.test.tsx`, `src/app-routes.test.tsx` |
-| Anonymous account-required action, Save card gating, Settings panel parity, account-side preference persistence, sign-in/dropdown/settings improved panels | Outstanding | tracked in issues |
+| Improved sign-in page and header account dropdown: two-column sign-in frame with claim→source→reasoning vignette, show/hide password, field-level validation; signed-in dropdown with role label, four destinations, appearance control and sign-out | Implemented, verified | `src/pages/SignIn.tsx`, `src/components/Header.tsx`, `src/components/header/account-menu.tsx`, `src/components/header/account-menu.test.tsx`, `src/auth/journey.unit.test.tsx`; Figma `62:12222` (Sign In), `62:11735` (Profile Dropdown), Atmospheric·Improved |
+| Anonymous account-required action, Save card gating, Settings panel parity, account-side preference persistence | Outstanding | tracked in issues |
 
 Journey and panel copy follows the improved Figma onboarding/profile frames; remaining design decisions (Lora typography without a font dependency, the omitted "Choose visibility" affordance that has no product capability) are labelled in the issue #13 implementation report. The "Change email" affordance now has a real capability in `/account/settings` (verification-first, via Better Auth `user.changeEmail`).
+
+The sign-in frame's "Email me a sign-in link" block and its confirmation state are withheld: no passwordless sign-in exists in `server/auth.ts`, so rendering the control would promise a delivery the product cannot make. The dropdown's "Verified researcher" and "History, ratings and feedback" copy is likewise replaced with the real server-owned role and an accurate destination description.
 
 ---
 

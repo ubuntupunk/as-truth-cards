@@ -16,6 +16,7 @@ import {
   writeGraphTreatment,
 } from '@/graph/appearance'
 import { authClient, useAdminCheck } from '@/hooks/useAdminCheck'
+import { deviceStorage } from '@/lib/device-storage'
 import {
   EMPTY_PROFILE_FORM,
   normalizeWebsite,
@@ -38,15 +39,6 @@ import {
  * Profile saves go through the server (update-user) and are confirmed by a
  * session refetch before the form closes.
  */
-
-/** The browser's localStorage, or null outside a browser / privacy mode. */
-function deviceStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
-  try {
-    return typeof window === 'undefined' ? null : window.localStorage
-  } catch {
-    return null
-  }
-}
 
 /** Best-effort error message extraction. */
 function messageOf(error: unknown, fallback: string): string {

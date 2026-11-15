@@ -120,6 +120,10 @@ export function validateSignUp(values: {
  * Validate the sign-in form. Only presence is required — the server owns the
  * password policy and it must not be leaked through client-side rules.
  *
+ * The email is additionally shape-checked, with the improved frame's own
+ * wording: a typo caught here saves a round trip to a server that will only
+ * answer "invalid credentials".
+ *
  * @param values The field values as entered.
  * @returns A {@link Validation}.
  */
@@ -128,7 +132,12 @@ export function validateSignIn(values: {
   password: string
 }): Validation {
   const errors: FieldErrors = {}
-  if (values.email.trim() === '') errors.email = 'Enter your email address'
+  const email = values.email.trim()
+  if (email === '') {
+    errors.email = 'Enter your email address'
+  } else if (!EMAIL_PATTERN.test(email)) {
+    errors.email = 'Enter a complete email address, such as you@example.org.'
+  }
   if (values.password === '') errors.password = 'Enter your password'
   return finish(errors)
 }
@@ -174,6 +183,34 @@ export interface AuthOutcome {
   ok: boolean
   redirect?: string
   error?: string
+}
+
+/** The improved frame's line for a generic credential failure (`62:12309`). */
+export const GENERIC_SIGN_IN_FAILURE =
+  "We couldn't sign you in. Check your email and password, then try again."
+
+/**
+ * Choose the message shown when sign-in fails.
+ *
+ * Better Auth's credential failure is deliberately vague ("Invalid email or
+ * password"), and the improved frame supplies a plainer sentence for exactly
+ * that case. Messages that tell the user something actionable — an unverified
+ * address, a rate limit, a server fault — are passed through untouched, because
+ * flattening those into "check your password" would hide the real next step.
+ *
+ * @param raw The server's message, if it sent one.
+ * @returns A user-facing sentence; never empty.
+ */
+export function signInErrorMessage(raw: string | null | undefined): string {
+  const message = (raw ?? '').trim()
+  if (message === '') return GENERIC_SIGN_IN_FAILURE
+  const lower = message.toLowerCase()
+  const soundsLikeCredentials =
+    lower.includes('invalid') &&
+    (lower.includes('password') ||
+      lower.includes('credential') ||
+      lower.includes('login'))
+  return soundsLikeCredentials ? GENERIC_SIGN_IN_FAILURE : message
 }
 
 /**

@@ -1,3 +1,4 @@
+import { roleLabel } from '@/account/role-label'
 import { Button } from '@/components/ui/button'
 import { normalizeWebsite } from '@/onboarding/wizard'
 
@@ -12,16 +13,6 @@ import { normalizeWebsite } from '@/onboarding/wizard'
  * research standing. The designed "Choose visibility" action is omitted: no
  * visibility setting exists in the product, and the panel says so.
  */
-
-/** Human labels for the role ladder. */
-const ROLE_LABELS: Readonly<Record<string, string>> = {
-  ANONYMOUS: 'Anonymous',
-  VERIFIED: 'Verified',
-  ACADEMIC: 'Academic',
-  RESEARCHER: 'Researcher',
-  MODERATOR: 'Moderator',
-  ADMIN: 'Admin',
-}
 
 /**
  * The first character of the display name, for the initial-avatar fallback.
@@ -98,7 +89,7 @@ export const PublicProfileCard = ({
           {name || 'Not added'}
         </h2>
         <p className="mt-1 inline-flex rounded-md bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">
-          {ROLE_LABELS[accountRole ?? 'ANONYMOUS'] ?? 'Anonymous'}
+          {roleLabel(accountRole)}
         </p>
       </div>
     </div>

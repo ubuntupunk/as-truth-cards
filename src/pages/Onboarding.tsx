@@ -18,6 +18,7 @@ import {
   writeGraphTreatment,
 } from '@/graph/appearance'
 import { useAdminCheck } from '@/hooks/useAdminCheck'
+import { deviceStorage } from '@/lib/device-storage'
 import {
   type ParticipationAnswer,
   type ParticipationPreferences,
@@ -64,15 +65,6 @@ function messageOf(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.trim() !== ''
     ? error.message
     : fallback
-}
-
-/** The browser's localStorage, or null outside a browser / privacy mode. */
-function deviceStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
-  try {
-    return typeof window === 'undefined' ? null : window.localStorage
-  } catch {
-    return null
-  }
 }
 
 /**

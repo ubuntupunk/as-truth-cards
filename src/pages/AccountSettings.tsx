@@ -17,6 +17,7 @@ import {
   writeGraphTreatment,
 } from '@/graph/appearance'
 import { useAdminCheck } from '@/hooks/useAdminCheck'
+import { deviceStorage } from '@/lib/device-storage'
 import {
   type ParticipationPreferences,
   readParticipationPreferences,
@@ -33,15 +34,6 @@ import {
  * this project does not invent one), so the page says "stored on this device"
  * rather than implying the account owns them.
  */
-
-/** The browser's localStorage, or null outside a browser / privacy mode. */
-function deviceStorage(): Pick<Storage, 'getItem' | 'setItem'> | null {
-  try {
-    return typeof window === 'undefined' ? null : window.localStorage
-  } catch {
-    return null
-  }
-}
 
 /**
  * Settings page: research preferences, appearance, and the profile pointer.

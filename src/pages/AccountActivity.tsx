@@ -11,6 +11,7 @@ import {
   readGraphTreatment,
 } from '@/graph/appearance'
 import { useAdminCheck } from '@/hooks/useAdminCheck'
+import { deviceStorage } from '@/lib/device-storage'
 
 /**
  * My activity — `/account/activity`.
@@ -29,15 +30,6 @@ import { useAdminCheck } from '@/hooks/useAdminCheck'
  * the page says that plainly rather than rendering an empty shell that reads like
  * "you have done nothing".
  */
-
-/** The browser's localStorage, or null outside a browser / privacy mode. */
-function deviceStorage(): Pick<Storage, 'getItem'> | null {
-  try {
-    return typeof window === 'undefined' ? null : window.localStorage
-  } catch {
-    return null
-  }
-}
 
 /**
  * Activity page: saved-cards pointer and the participation boundary.
