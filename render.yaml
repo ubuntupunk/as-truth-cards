@@ -156,13 +156,20 @@ services:
       #
       # Render generates a 256-bit value once; later blueprint syncs leave it alone.
       # Rotating it invalidates every existing session.
+      #
+      # Do not copy this value from a local .env or from another service. Each environment
+      # gets its own secret: verification and password-reset tokens are stateless JWTs
+      # signed with it, so a shared secret lets a token minted in one environment be
+      # accepted by another. Generate a fresh one with `openssl rand -base64 32`.
       - key: BETTER_AUTH_SECRET
         generateValue: true
 
       # The public origin the browser uses, e.g. https://as-truth-cards.onrender.com.
       # Renaming the service display name does not change this hostname or slug.
       # Better Auth validates the Origin header against it; production is same-origin, so
-      # this must be the deployed URL and not a localhost value.
+      # this must be the deployed URL and not a localhost value. Startup refuses a
+      # loopback, malformed or non-https value in production: the links it would mail
+      # point at a host that cannot validate the token that was signed here.
       - key: BETTER_AUTH_URL
         sync: false
 

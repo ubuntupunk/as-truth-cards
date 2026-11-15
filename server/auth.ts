@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { prisma } from './lib/db.js'
+import { assertAuthEnvironmentConsistent } from './lib/auth-environment.js'
 import { assertAuthSecretConfigured } from './lib/auth-secret.js'
 import { sendEmail } from './lib/email.js'
 import { resolveTrustedOrigins } from './lib/origin.js'
@@ -14,6 +15,18 @@ import { resolveTrustedOrigins } from './lib/origin.js'
  * have been called by the time any statement in `index.ts` could check anything.
  */
 assertAuthSecretConfigured()
+
+/**
+ * Refuse to start production with an origin that cannot serve a real link.
+ *
+ * Separate from the secret check because it answers a different question: the secret above may
+ * be perfectly strong and still belong to the wrong environment. Verification tokens are
+ * stateless JWTs signed with that secret (bd `as-truth-cards-4od`), so a link is only valid
+ * where it was signed — and a loopback or plain-http `BETTER_AUTH_URL` in production produces
+ * links nobody can open. Both failures are invisible from `/health`, which is why they are
+ * checked before the server binds a port.
+ */
+assertAuthEnvironmentConsistent()
 
 /**
  * Better Auth configuration.

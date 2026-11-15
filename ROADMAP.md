@@ -345,6 +345,16 @@ Track in [Issue #10](https://github.com/ubuntupunk/as-truth-cards/issues/10), se
 - Add tests for the selected CORS/headers policy.
 - Document any assumptions and avoid treating a review concern as a demonstrated exploit before evidence exists.
 
+**Auth environment topology (`4od`, 2026-11-15).** One `BETTER_AUTH_SECRET` per environment,
+never shared. Better Auth signs verification, email-change and password-reset tokens as stateless
+JWTs with that secret, so there is no token table to reconcile: a leaked development secret would
+otherwise mint links a deployed server accepts, and rotating a shared secret would sign out every
+environment at once. The consequence — a link works only against the environment that signed and
+sent it — is the documented rule rather than a defect. `server/auth.ts` now calls
+`assertAuthEnvironmentConsistent()` next to the secret check: in production it refuses to start
+when `BETTER_AUTH_URL` is missing, malformed, loopback, or not `https`; elsewhere it warns.
+Behaviour is pinned in `server/lib/auth-environment.test.ts` and described in the README.
+
 ### Privacy and operational claims
 
 - Distinguish application code behaviour from Render, Neon, and other provider/platform practices.
