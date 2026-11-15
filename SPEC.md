@@ -110,7 +110,9 @@ These values are design references. They should be represented as CSS/Tailwind d
 
 ### 4.2 Typography
 
-- Font family: Inter.
+- **Shipped font stack:** the system stack. `tailwind.config.ts` sets `sans` to `SF Pro Display` → `system-ui` → `sans-serif` (with `SF Mono` for code), and `--graph-font-family` uses the same family chain for the graph and account panes. The app downloads no webfont: there is no `@font-face`, no Google Fonts link, and no font package.
+- **Figma reference only:** the improved panels set body copy in Inter and display/identity text in Lora. Those name the design's intent; neither is a dependency.
+- **Decision (2026-11-15, issue `06o`): keep the system stack.** The app renders in the reader's own UI font, so it costs no download and cannot flash a fallback. Adding Lora would mean new font infrastructure (self-hosted files, `@font-face`, loading and fallback strategy, licence) for headings alone on a research tool whose reading experience is already established. Inter and Lora stay as Figma annotations. Revisit only in a typography pass that moves every surface at once, not panel by panel.
 - Navigation/body: regular, approximately 12–14px.
 - Section labels: semibold, uppercase, approximately 10–11px, muted.
 - Card title: semibold, approximately 34px on the featured desktop card, line-height ~1.15.
