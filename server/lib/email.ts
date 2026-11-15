@@ -25,6 +25,12 @@ import { Resend } from 'resend'
  * as a stable event identifier plus non-sensitive metadata (the app-defined
  * subject), and any provider/transport message is passed through
  * {@link redactEmails} so an address embedded in an error cannot leak either.
+ *
+ * Click tracking is off for every message this module sends. The only mail it
+ * carries is authentication mail, whose links hold single-use tokens; rewriting
+ * those URLs through a tracking subdomain lets a link scanner consume the token
+ * before the reader does. Tracking belongs to mailouts, which are a separate
+ * sender path and should decide it explicitly.
  */
 
 export interface SendEmailOptions {
@@ -53,6 +59,8 @@ interface EmailClient {
       subject: string
       html?: string
       text?: string
+      click_tracking?: boolean
+      open_tracking?: boolean
     }): Promise<{ error?: unknown; data?: unknown } | null | undefined>
   }
 }
@@ -151,6 +159,13 @@ export function createSendEmail(
         to,
         subject,
         ...body,
+        // Auth mail is never click-tracked (bd `as-truth-cards-wab`). Tracking rewrites
+        // every link through the domain's `links.` subdomain, and a verification or
+        // reset token is single-use: a mail scanner that prefetches the rewritten URL can
+        // consume it before the reader clicks. Click tracking belongs to mailouts, which
+        // are a different sender path, so it is switched off here rather than exposed as
+        // an option an auth caller could turn back on.
+        click_tracking: false,
       })
       if (result?.error) {
         log('[email] Resend rejected the send', {
