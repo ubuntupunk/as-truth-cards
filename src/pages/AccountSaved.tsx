@@ -36,15 +36,7 @@ import {
   readGraphTreatment,
 } from '@/graph/appearance'
 import { useAdminCheck } from '@/hooks/useAdminCheck'
-
-/** The browser's localStorage, or null outside a browser / privacy mode. */
-function deviceStorage(): Pick<Storage, 'getItem'> | null {
-  try {
-    return typeof window === 'undefined' ? null : window.localStorage
-  } catch {
-    return null
-  }
-}
+import { deviceStorage } from '@/lib/device-storage'
 
 /** Best-effort error message extraction. */
 function messageOf(error: unknown, fallback: string): string {

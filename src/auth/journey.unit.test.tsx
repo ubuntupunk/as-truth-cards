@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   DEFAULT_RETURN_TO,
+  GENERIC_SIGN_IN_FAILURE,
   MIN_PASSWORD_LENGTH,
   safeReturnTo,
+  signInErrorMessage,
   submitSignIn,
   submitSignUp,
   validateSignIn,
@@ -97,6 +99,43 @@ describe('validateSignIn', () => {
   it('requires email and password', () => {
     assert.equal(validateSignIn({ email: '', password: '' }).ok, false)
     assert.equal(validateSignIn({ email: 'a@b.com', password: 'pw' }).ok, true)
+  })
+
+  it('rejects an email that is present but incomplete', () => {
+    const result = validateSignIn({ email: 'dana@example', password: 'pw' })
+    assert.equal(result.ok, false)
+    assert.equal(
+      result.errors.email,
+      'Enter a complete email address, such as you@example.org.',
+    )
+  })
+
+  it('keeps presence and shape messages distinct', () => {
+    assert.equal(
+      validateSignIn({ email: '   ', password: 'pw' }).errors.email,
+      'Enter your email address',
+    )
+  })
+})
+
+describe('signInErrorMessage', () => {
+  it('replaces the vague credential failure with the frame copy', () => {
+    assert.equal(
+      signInErrorMessage('Invalid email or password'),
+      signInErrorMessage(undefined),
+    )
+    assert.equal(signInErrorMessage(undefined), GENERIC_SIGN_IN_FAILURE)
+  })
+
+  it('passes through messages that name a real next step', () => {
+    assert.equal(
+      signInErrorMessage('Email not verified. Check your inbox.'),
+      'Email not verified. Check your inbox.',
+    )
+    assert.equal(
+      signInErrorMessage('Too many requests. Try again later.'),
+      'Too many requests. Try again later.',
+    )
   })
 })
 
