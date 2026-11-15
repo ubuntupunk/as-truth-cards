@@ -355,6 +355,16 @@ sent it — is the documented rule rather than a defect. `server/auth.ts` now ca
 when `BETTER_AUTH_URL` is missing, malformed, loopback, or not `https`; elsewhere it warns.
 Behaviour is pinned in `server/lib/auth-environment.test.ts` and described in the README.
 
+**Transactional email (`wab`, 2026-11-15).** Verification and password-reset mail now sends from
+`Trope Deck <tropes@medialternatives.com>`, a domain verified in Resend with sending enabled. The
+bead's "test-mode key" diagnosis was wrong: the restriction is account-level and applies only
+until a domain is verified, which this account already had. Delivery to a non-owner mailbox was
+proved through the product's own sender (`{delivered: true}`). Auth mail is sent with click
+tracking off — a tracked link is rewritten through `links.<domain>`, and a scanner prefetching it
+can consume a single-use token; tracking belongs to mailouts. Every message carries the sponsor
+signature "Trope Deck is proudly sponsored by Medialternatives." with a link, in both text and HTML
+parts. Whether the user is ever told a send failed remains open in `tid`.
+
 ### Privacy and operational claims
 
 - Distinguish application code behaviour from Render, Neon, and other provider/platform practices.

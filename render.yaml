@@ -182,10 +182,16 @@ services:
       # answer success while silently dispatching nothing. The only signal is
       # an `email.skipped_unconfigured` entry in the service logs.
       #
-      # RESEND_FROM is the sender identity, e.g. "Trope Deck <noreply@tropecards.com>".
-      # The sending domain must be verified in the Resend dashboard (DNS).
-      # Note that Resend test-mode API keys only deliver to the account
-      # owner's own address; real users need a live key + verified domain.
+      # RESEND_FROM is the sender identity, e.g. "Trope Deck <tropes@medialternatives.com>".
+      # The sending domain must be verified in the Resend dashboard (DNS). The verified
+      # domain on this account is medialternatives.com; tropecards.com is not registered and
+      # cannot send. Auth mail goes out with click tracking off (server/lib/email.ts): a
+      # tracked link is rewritten through links.<domain>, and a mail scanner that prefetches
+      # it can consume a single-use verification token. Every message carries the sponsor
+      # signature (server/lib/email-signature.ts).
+      #
+      # Both values are `sync: false`, so a Blueprint sync neither creates nor restores
+      # them. Set them in the service dashboard; a deleted variable stays deleted.
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM

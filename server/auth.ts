@@ -3,6 +3,7 @@ import { prismaAdapter } from 'better-auth/adapters/prisma'
 import { prisma } from './lib/db.js'
 import { assertAuthEnvironmentConsistent } from './lib/auth-environment.js'
 import { assertAuthSecretConfigured } from './lib/auth-secret.js'
+import { passwordResetEmail, verificationEmail } from './lib/auth-email.js'
 import { sendEmail } from './lib/email.js'
 import { resolveTrustedOrigins } from './lib/origin.js'
 
@@ -112,11 +113,7 @@ export const auth = betterAuth({
 
   emailVerification: {
     sendVerificationEmail: async ({ user, url }: any) => {
-      void sendEmail({
-        to: user.email,
-        subject: 'Verify your email address',
-        text: `Click the link to verify your email: ${url}`,
-      })
+      void sendEmail({ to: user.email, ...verificationEmail(url) })
     },
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
@@ -126,11 +123,7 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false,
     sendResetPassword: async ({ user, url }: any) => {
-      void sendEmail({
-        to: user.email,
-        subject: 'Reset your password',
-        text: `Click the link to reset your password: ${url}`,
-      })
+      void sendEmail({ to: user.email, ...passwordResetEmail(url) })
     },
   },
 })

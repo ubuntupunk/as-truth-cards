@@ -310,8 +310,8 @@ first — the collection endpoint replaces the whole list.
 | `DATABASE_MIGRATION_URL` | no | Owner/DDL connection string used only by the migration commands (`db:migrate:deploy` uses it for Prisma; `trope-graph:migrate` falls back to it when `TROPE_GRAPH_MIGRATION_URL` is unset). Without it migrations run with the runtime role, and `trope-graph:verify-runtime-role` fails the deploy |
 | `BETTER_AUTH_SECRET` | yes | Session signing. Render generates it once from the blueprint. **One secret per environment — never copy it between them**; a leaked development secret must not mint tokens production accepts, and rotation signs out the environment you rotate. **Without it the deploy looks healthy but is not secure** — see below. Rotating it logs out every session in that environment |
 | `BETTER_AUTH_URL` | yes | Public origin, e.g. `https://as-truth-cards.onrender.com`. Better Auth validates the `Origin` header against it, and it builds the links in verification/reset mail. Production refuses to start if it is missing, malformed, loopback, or not `https` |
-| `RESEND_API_KEY` | for email | Resend API key. Without it verification resends and password resets are **silently skipped** — the auth endpoints still answer success and nothing is dispatched. Watch for `email.skipped_unconfigured` in the service logs. Resend test-mode keys only deliver to the account owner's own address; real users require a live key |
-| `RESEND_FROM` | for email | Sender identity, e.g. `Trope Deck <noreply@tropecards.com>`. The sending domain must be verified in the Resend dashboard (DNS) |
+| `RESEND_API_KEY` | for email | Resend API key. Without it verification resends and password resets are **silently skipped** — the auth endpoints still answer success and nothing is dispatched. Watch for `email.skipped_unconfigured` in the service logs. The account must have a verified sending domain; **the "test-mode" restriction is account-level, not a property of the key** — this account has `medialternatives.com` verified, and delivery to a non-owner mailbox was confirmed on 2026-11-15 |
+| `RESEND_FROM` | for email | Sender identity, e.g. `Trope Deck <tropes@medialternatives.com>`. Must be on a domain verified in Resend (DKIM + SPF). `tropecards.com` is not registered and cannot send. Every message carries the sponsor signature; auth mail is sent with click tracking off |
 | `CORS_ORIGINS` | no | Comma-separated browser origins that may call `/api/*` cross-origin. Replaces the default *development* allow-list (`http://localhost:8080`, `http://localhost:3001`). In production the app's own origin (`BETTER_AUTH_URL`) is **always** trusted, even alongside an explicit value, so the same-origin account API cannot be excluded by config. Never `*`. See [Reverse proxy and origins](#reverse-proxy-and-origins) |
 | `NODE_ENV` | set by blueprint | `production`, which is what enables serving `dist/` |
 | `TROPE_GRAPH_DATABASE_URL` | no | Only if the graph lives in a *different* database from the host app. Takes precedence over `DATABASE_URL`; an empty or whitespace-only value is treated as unset and falls back to `DATABASE_URL`. Also the **runtime** graph URL, so the same non-owner rule applies |
@@ -410,6 +410,40 @@ points at loopback (`localhost`, `127.0.0.1`, `*.localhost`), or is not `https`.
 production it only warns, so a developer can deliberately reproduce a remote bug — but the
 warning says why the link they are about to send will fail. Both behaviours are pinned in
 `server/lib/auth-environment.test.ts`.
+
+### Transactional email (Resend)
+
+The only mail the product sends today is Better Auth's verification and password-reset message;
+both go through `sendEmail()` in `server/lib/email.ts`.
+
+- **Sender:** `Trope Deck <tropes@medialternatives.com>`. The sending domain
+  `medialternatives.com` is verified in Resend (DKIM at `resend._domainkey`, MX + SPF at `send`,
+  tracking CNAME at `links`), with sending enabled in `eu-west-1`. `tropecards.com` is not
+  registered, so any address there is rejected by the provider — that is why the old README and
+  `render.yaml` examples were corrected.
+- **Delivery is best-effort, by design.** `requireEmailVerification=false`, so email is not an
+  access gate: sign-up and reset requests succeed even when mail fails, and `sendEmail()` returns
+  an `EmailDeliveryResult` instead of throwing. An unconfigured sender logs
+  `email.skipped_unconfigured`, a provider refusal logs `email.provider_rejected`, and a network
+  failure logs `email.send_threw` — in every environment. Recipient addresses are never logged.
+  The user-facing copy can only say "on its way"; surfacing the real outcome for an
+  authenticated self-resend is `as-truth-cards-tid`.
+- **Click tracking is off**, hard-coded in `sendEmail()`. Tracking rewrites links through the
+  domain's `links.` subdomain, and verification/reset tokens are single-use: a mail-security
+  scanner that prefetches a tracked URL can consume the token before the reader clicks. Click
+  tracking belongs to mailouts, which are a separate sender path.
+- **Every message carries the sponsor signature** — "Trope Deck is proudly sponsored by
+  Medialternatives." with a link to `https://www.medialternatives.com/` — in both the plain-text
+  and HTML parts (`server/lib/email-signature.ts`). The sending domain is an in-kind sponsor, so
+  this is part of the message contract and is pinned by tests.
+- **On Render**, `RESEND_API_KEY` and `RESEND_FROM` are `sync: false`: a Blueprint sync neither
+  creates nor restores them, so they must be set on the service and backed up like any other
+  dashboard-only secret.
+
+The non-owner delivery path was verified for bd `as-truth-cards-wab` by sending through the
+product's own sender to a non-owner mailbox and receiving `{delivered: true}`. The earlier
+"test-mode key" diagnosis was wrong: the restriction is account-level and disappears once a
+domain is verified — and this account's restriction had already been lifted.
 
 ### Reverse proxy and origins
 

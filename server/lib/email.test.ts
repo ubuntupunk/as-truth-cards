@@ -185,7 +185,31 @@ describe('sendEmail — success', () => {
       to: 'user@example.com',
       subject: 'Verify your email address',
       text: 'click the link',
+      click_tracking: false,
     })
+  })
+
+  it('never enables click tracking on auth mail', async () => {
+    // A tracked link is rewritten through the domain's `links.` subdomain; a scanner that
+    // prefetches it can consume a single-use verification token. The sender must not offer
+    // a way for an auth caller to turn tracking back on (bd `as-truth-cards-wab`).
+    let payload: Record<string, unknown> | undefined
+    const send = createSendEmail({
+      getClient: () => ({
+        emails: {
+          send: async (input: unknown) => {
+            payload = input as Record<string, unknown>
+            return {}
+          },
+        },
+      }),
+      getFrom: () => 'noreply@example.com',
+      log: () => undefined,
+    })
+
+    await send(OPTIONS)
+    assert.equal(payload?.click_tracking, false)
+    assert.equal('open_tracking' in (payload ?? {}), false)
   })
 
   it('sends an html body when one is provided', async () => {
