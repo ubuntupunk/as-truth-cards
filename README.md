@@ -309,7 +309,7 @@ first — the collection endpoint replaces the whole list.
 | `DATABASE_URL` | yes | Neon Postgres connection string. Serves the Prisma `public` schema and the Drizzle `trope_graph` schema. **In production this is the non-owner runtime role** — see [Separating migration and runtime database roles](#separating-migration-and-runtime-database-roles) |
 | `DATABASE_MIGRATION_URL` | no | Owner/DDL connection string used only by the migration commands (`db:migrate:deploy` uses it for Prisma; `trope-graph:migrate` falls back to it when `TROPE_GRAPH_MIGRATION_URL` is unset). Without it migrations run with the runtime role, and `trope-graph:verify-runtime-role` fails the deploy |
 | `BETTER_AUTH_SECRET` | yes | Session signing. Render generates it once from the blueprint. **One secret per environment — never copy it between them**; a leaked development secret must not mint tokens production accepts, and rotation signs out the environment you rotate. **Without it the deploy looks healthy but is not secure** — see below. Rotating it logs out every session in that environment |
-| `BETTER_AUTH_URL` | yes | Public origin, e.g. `https://as-truth-cards.onrender.com`. Better Auth validates the `Origin` header against it, and it builds the links in verification/reset mail. Production refuses to start if it is missing, malformed, loopback, or not `https` |
+| `BETTER_AUTH_URL` | yes | Public origin, e.g. `https://as-truth-cards.onrender.com`. Better Auth validates the `Origin` header against it, and it builds the links in verification/reset mail. Production refuses to start if it is missing, malformed, loopback, or not `https`. **Pinned in `render.yaml`** (it is not a secret) — the Blueprint sync enforces the file's value, so change the hostname by commit, not by dashboard |
 | `RESEND_API_KEY` | for email | Resend API key. Without it verification resends and password resets are **silently skipped** — the auth endpoints still answer success and nothing is dispatched. Watch for `email.skipped_unconfigured` in the service logs. The account must have a verified sending domain; **the "test-mode" restriction is account-level, not a property of the key** — this account has `medialternatives.com` verified, and delivery to a non-owner mailbox was confirmed on 2026-11-15 |
 | `RESEND_FROM` | for email | Sender identity, e.g. `Trope Deck <tropes@medialternatives.com>`. Must be on a domain verified in Resend (DKIM + SPF). `tropecards.com` is not registered and cannot send. Every message carries the sponsor signature; auth mail is sent with click tracking off |
 | `CORS_ORIGINS` | no | Comma-separated browser origins that may call `/api/*` cross-origin. Replaces the default *development* allow-list (`http://localhost:8080`, `http://localhost:3001`). In production the app's own origin (`BETTER_AUTH_URL`) is **always** trusted, even alongside an explicit value, so the same-origin account API cannot be excluded by config. Never `*`. See [Reverse proxy and origins](#reverse-proxy-and-origins) |
@@ -331,14 +331,16 @@ It returns `200 OK` with no warning and **deletes every variable not present in 
 body**, so a partial payload looks like a successful update while silently clearing the rest.
 Never use it to set a single variable.
 
-To change one variable, use the per-key endpoint, which leaves every other variable untouched:
+To change one variable, use the per-key endpoint, which leaves every other variable untouched.
+This only applies to the dashboard-held variables below — `BETTER_AUTH_URL` is pinned in
+`render.yaml`, so a dashboard or API change to it is reverted by the next Blueprint sync:
 
 ```sh
 curl -s -X PUT \
   -H "Authorization: Bearer $RENDER_API_KEY" \
   -H "Content-Type: application/json" \
-  "https://api.render.com/v1/services/$SERVICE_ID/env-vars/BETTER_AUTH_URL" \
-  --data '{"value":"https://as-truth-cards.onrender.com"}'
+  "https://api.render.com/v1/services/$SERVICE_ID/env-vars/RESEND_FROM" \
+  --data '{"value":"Trope Deck <tropes@medialternatives.com>"}'
 ```
 
 If the collection endpoint is unavoidable, back up first and treat the backup as the source of
@@ -369,10 +371,12 @@ Four further traps:
   variable on a service with many of them.
 - Env-var changes are **not deployed automatically** — call the deploy API (or trigger a
   deploy) afterwards, regardless of the service's `autoDeploy` setting.
-- `render.yaml` defines the blueprint-managed variables; the `sync: false` ones (the secret and
-  DB URL) exist only on the service. A redeploy does not recreate a deleted variable; a
-  Blueprint sync reconstructs the ones `render.yaml` declares, and **never** the `sync: false`
-  ones — those come back only from your backup.
+- `render.yaml` defines the blueprint-managed variables; the `sync: false` ones (the secrets,
+  DB URLs and both Resend values) exist only on the service. A redeploy does not recreate a
+  deleted variable; a Blueprint sync reconstructs the ones `render.yaml` declares, and **never**
+  the `sync: false` ones — those come back only from your backup. `BETTER_AUTH_URL` is the
+  exception in the other direction: it is pinned in the file with a literal value, so the sync
+  *overwrites* it (the origin that tokens are minted for is version-controlled on purpose).
 
 ### Why `BETTER_AUTH_SECRET` is required and enforced at startup
 
