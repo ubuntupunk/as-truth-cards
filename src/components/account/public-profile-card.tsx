@@ -62,7 +62,7 @@ export const PublicProfileCard = ({
     className="w-full rounded-xl border border-graph-border bg-graph-surface p-6 xl:w-[610px]"
     data-testid="public-profile-card"
   >
-    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
       Public profile preview
     </p>
 
@@ -96,7 +96,7 @@ export const PublicProfileCard = ({
 
     <dl className="mt-6 divide-y divide-graph-border rounded-lg border border-graph-border">
       <div className="flex items-center justify-between gap-4 px-4 py-3">
-        <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           Bio
         </dt>
         <dd
@@ -107,7 +107,7 @@ export const PublicProfileCard = ({
         </dd>
       </div>
       <div className="flex items-center justify-between gap-4 px-4 py-3">
-        <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           Website
         </dt>
         <dd className="truncate text-sm text-foreground">
@@ -127,7 +127,7 @@ export const PublicProfileCard = ({
         </dd>
       </div>
       <div className="flex items-center justify-between gap-4 px-4 py-3">
-        <dt className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <dt className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           Location
         </dt>
         <dd

@@ -18,8 +18,7 @@
 
 import { useMemo } from 'preact/hooks'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import { PageShell } from '@/components/page-shell'
 import { EVIDENCE_VIEW_NAME } from '../../trope-cards/src/graph/views.ts'
 import { NO_FACET_FILTER } from '../graph/deck-facets'
 import { type RefocusTarget, refocusView } from '../graph/entity-inspector'
@@ -100,80 +99,72 @@ const Sources = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-graph-page">
-      <Header />
-
-      <div className="flex-grow">
-        <GraphShell
-          treatment={SOURCES_TREATMENT}
-          contextLabel="Sources"
-          eyebrow="Provenance / Sources"
-          heading="Sources"
-          subtitle="The canonical bibliography behind the claims — attribution, not evidence."
-          workspace={
-            <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
-              <div className="lg:sticky lg:top-24 lg:self-start">
-                <SourceIndexPanel
-                  sources={sourcesQuery.data?.items ?? []}
-                  total={sourcesQuery.data?.total ?? 0}
-                  isPending={sourcesQuery.isPending}
-                  error={sourcesQuery.error}
-                  selectedId={selectedId}
-                  onSelect={selectSource}
-                  onSave={(source) =>
-                    session.add(sourceToResearchEntry(source))
-                  }
-                  isSaved={(id) => session.has(id)}
-                />
-              </div>
-
-              <div>
-                {selectedId === null ? (
-                  <SourceWorkspacePrompt />
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    <SourceDetailHeader source={selectedSource} />
-                    <GraphWorkspace
-                      params={params}
-                      projection={projectionQuery.data}
-                      isPending={projectionQuery.isPending}
-                      error={projectionQuery.error}
-                      descriptor={descriptor}
-                      stylesheet={stylesheet}
-                      facetFilter={NO_FACET_FILTER}
-                      onClearFacets={() => {}}
-                      onNavigateCard={navigateToCard}
-                      onRefocus={refocus}
-                    />
-                    <div>
-                      <Link
-                        data-testid="sources-open-graph"
-                        to={`/graph?${serializeGraphParams(
-                          sourceAttributionParams(selectedId),
-                        )}`}
-                        className="inline-flex rounded border border-input px-3 py-1.5 text-xs font-medium hover:bg-muted"
-                      >
-                        Open this source in the Graph Explorer
-                      </Link>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          }
-          status={
-            selectedId === null ? undefined : (
-              <GraphStatusStrip
-                projection={projectionQuery.data ?? null}
-                descriptor={descriptor}
+    <PageShell>
+      <GraphShell
+        treatment={SOURCES_TREATMENT}
+        contextLabel="Sources"
+        eyebrow="Provenance / Sources"
+        heading="Sources"
+        subtitle="The canonical bibliography behind the claims — attribution, not evidence."
+        workspace={
+          <div className="grid gap-4 lg:grid-cols-[380px_minmax(0,1fr)]">
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              <SourceIndexPanel
+                sources={sourcesQuery.data?.items ?? []}
+                total={sourcesQuery.data?.total ?? 0}
+                isPending={sourcesQuery.isPending}
+                error={sourcesQuery.error}
+                selectedId={selectedId}
+                onSelect={selectSource}
+                onSave={(source) => session.add(sourceToResearchEntry(source))}
+                isSaved={(id) => session.has(id)}
               />
-            )
-          }
-        />
-      </div>
+            </div>
 
-      <Footer />
-    </div>
+            <div>
+              {selectedId === null ? (
+                <SourceWorkspacePrompt />
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <SourceDetailHeader source={selectedSource} />
+                  <GraphWorkspace
+                    params={params}
+                    projection={projectionQuery.data}
+                    isPending={projectionQuery.isPending}
+                    error={projectionQuery.error}
+                    descriptor={descriptor}
+                    stylesheet={stylesheet}
+                    facetFilter={NO_FACET_FILTER}
+                    onClearFacets={() => {}}
+                    onNavigateCard={navigateToCard}
+                    onRefocus={refocus}
+                  />
+                  <div>
+                    <Link
+                      data-testid="sources-open-graph"
+                      to={`/graph?${serializeGraphParams(
+                        sourceAttributionParams(selectedId),
+                      )}`}
+                      className="inline-flex rounded border border-input px-3 py-1.5 text-xs font-medium hover:bg-muted"
+                    >
+                      Open this source in the Graph Explorer
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        }
+        status={
+          selectedId === null ? undefined : (
+            <GraphStatusStrip
+              projection={projectionQuery.data ?? null}
+              descriptor={descriptor}
+            />
+          )
+        }
+      />
+    </PageShell>
   )
 }
 

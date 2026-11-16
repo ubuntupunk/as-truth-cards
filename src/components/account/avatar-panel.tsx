@@ -85,7 +85,7 @@ export const AvatarPanel = ({
       className="rounded-xl border border-graph-border bg-graph-surface p-6"
       data-testid="avatar-panel"
     >
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         Profile photo
       </p>
 

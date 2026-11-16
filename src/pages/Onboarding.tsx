@@ -3,12 +3,11 @@ import { useEffect, useRef, useState } from 'preact/hooks'
 import { useNavigate } from 'react-router-dom'
 import { completeOnboarding } from '@/auth/onboarding'
 import { updateProfile } from '@/auth/profile'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
 import { AppearanceStep } from '@/components/onboarding/appearance-step'
 import { CompletionPanel } from '@/components/onboarding/completion-panel'
 import { PreferencesStep } from '@/components/onboarding/preferences-step'
 import { ProfileStep } from '@/components/onboarding/profile-step'
+import { PageMain, PageShell } from '@/components/page-shell'
 import { ResearchPreferencesPanel } from '@/components/research-preferences-panel'
 import { Button } from '@/components/ui/button'
 import {
@@ -215,24 +214,16 @@ function messageOf(error: unknown, fallback: string): string {
     wizard?.treatment ?? readGraphTreatment(deviceStorage())
 
   const shell = (content: ComponentChildren) => (
-    <div
-      className="flex min-h-screen flex-col bg-graph-page"
-      data-treatment={activeTreatment}
+    <PageShell
+      treatment={activeTreatment}
       style={graphTreatmentVars(activeTreatment)}
     >
-      <Header />
-      <main className="flex-grow px-4 pb-16 pt-24">
-        {/* The graph chrome tokens zone the setup panels; the header and
-            footer stay on the site stack because they sit outside it. */}
-        <div
-          className="mx-auto w-full max-w-6xl"
-          style={{ fontFamily: 'var(--graph-font-family)' }}
-        >
-          {content}
-        </div>
-      </main>
-      <Footer />
-    </div>
+      {/* The graph chrome tokens zone the setup panels; the header and footer
+          stay on the site stack because they sit outside it. */}
+      <PageMain innerStyle={{ fontFamily: 'var(--graph-font-family)' }}>
+        {content}
+      </PageMain>
+    </PageShell>
   )
 
   if (loading || (isSignedIn && wizard === null)) {

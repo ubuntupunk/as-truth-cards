@@ -72,6 +72,28 @@
     /* Lighten graph accent for sufficient contrast on very dark background */
     --graph-accent: 262 83.3% 64%;
     --graph-accent-foreground: 0 0% 100%;
+
+    /* The graph chrome defaults above are light-only surfaces. Without these
+       overrides a dark-preferring system rendered `text-foreground` (near
+       white) on `--graph-page` (light slate) — invisible copy — on every page
+       that now shares the graph chrome (bd `as-truth-cards-5ff`). These mirror
+       the dark app palette so panels, borders and muted text stay legible.
+       Treatments still ship a single light token set per treatment; giving
+       those dark variants is tracked separately. */
+    --graph-page: 215 27.9% 14%;
+    --graph-surface: 224 71.4% 8%;
+    --graph-canvas: 215 27.9% 12%;
+    --graph-inspector: 224 71.4% 8%;
+    --graph-border: 215 27.9% 22%;
+    --graph-muted: 215 27.9% 16.9%;
+    --graph-muted-foreground: 217.9 10.6% 64.9%;
+    --graph-focus: 221.2 83.2% 60%;
+    --graph-status-ok: 160 84.1% 45%;
+    --graph-status-warn: 38 92.1% 55%;
+    --graph-status-none: 215 20% 60%;
+    --graph-controls: 224 71.4% 8%;
+    --graph-disclaimer: 224 71.4% 10%;
+    --graph-disclaimer-border: 215 27.9% 24%;
   }
 }
 
@@ -87,6 +109,14 @@
     width: 100%;
     margin: 0;
     padding: 0;
+  }
+
+  /* Reserve the scrollbar track on every route (bd `as-truth-cards-5ff`).
+     Without it, a short page (no scrollbar) and a long page (12px scrollbar)
+     center the same `max-w-7xl` container half a scrollbar apart, so the page
+     edge — and the fixed header above it — shifts by ~6px when navigating. */
+  html {
+    scrollbar-gutter: stable;
   }
 
   body {

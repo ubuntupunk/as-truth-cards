@@ -10,8 +10,7 @@
  * yet — the panel says so rather than implying persistence that does not exist.
  */
 
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import { PageShell } from '@/components/page-shell'
 import { GRAPH_TREATMENT_TOKENS } from '../graph/appearance'
 import { GraphControls } from '../graph/graph-controls'
 import { GraphShell } from '../graph/graph-shell'
@@ -51,87 +50,79 @@ const Research = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-graph-page">
-      <Header />
-
-      <div className="flex-grow">
-        <GraphShell
-          treatment={page.treatment}
-          contextLabel="Research Workspace"
-          eyebrow="Research / Workspace"
-          heading="Research Workspace"
-          subtitle="Keep a session of focused entities over the canonical graph."
-          controls={
-            <GraphControls
-              focusInput={page.focusInput}
-              onFocusInput={page.onFocusInput}
-              onSubmitFocus={page.onFocusSubmit}
-              searchResults={page.searchResults}
-              searchPending={page.searchPending}
-              searchOpen={page.searchOpen}
-              onSelectCard={page.onSelectCard}
-              onSearchClose={page.onSearchClose}
-              views={page.views}
-              viewsError={page.viewsError}
-              view={page.view}
-              onViewChange={(value) => page.updateParam('view', value)}
-              maxDepth={page.maxDepth}
-              depth={page.depth}
-              onDepthChange={(value) =>
-                page.updateParam('depth', String(value))
-              }
-              descriptor={page.selectedDescriptor}
-              facets={page.facets.facets}
-              filter={page.facets.filter}
-              onFacetChange={page.facets.setFilter}
-              onClearFacets={page.facets.clear}
-              treatment={page.treatment}
-              onTreatmentChange={page.setTreatment}
-              nodeColors={GRAPH_TREATMENT_TOKENS[page.treatment].nodeColors}
-              edgeColors={GRAPH_TREATMENT_TOKENS[page.treatment].edgeColors}
-            />
-          }
-          workspace={
-            <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
-              <div className="lg:sticky lg:top-24 lg:self-start">
-                <ResearchWorkspacePanel
-                  entries={session.entries}
-                  focus={
-                    page.focusNode === null
-                      ? null
-                      : { id: page.focusNode.id, label: page.focusNode.label }
-                  }
-                  onAddFocus={addFocus}
-                  onOpen={openEntry}
-                  onRemove={session.remove}
-                  onClear={session.clear}
-                />
-              </div>
-              <GraphWorkspace
-                params={page.params}
-                projection={page.projection}
-                isPending={page.projectionPending}
-                error={page.projectionError}
-                descriptor={page.selectedDescriptor}
-                stylesheet={page.stylesheet}
-                facetFilter={page.facets.filter}
-                onClearFacets={page.facets.clear}
-                onNavigateCard={page.navigateToCard}
-                onRefocus={page.refocusEntity}
+    <PageShell>
+      <GraphShell
+        treatment={page.treatment}
+        contextLabel="Research Workspace"
+        eyebrow="Research / Workspace"
+        heading="Research Workspace"
+        subtitle="Keep a session of focused entities over the canonical graph."
+        controls={
+          <GraphControls
+            focusInput={page.focusInput}
+            onFocusInput={page.onFocusInput}
+            onSubmitFocus={page.onFocusSubmit}
+            searchResults={page.searchResults}
+            searchPending={page.searchPending}
+            searchOpen={page.searchOpen}
+            onSelectCard={page.onSelectCard}
+            onSearchClose={page.onSearchClose}
+            views={page.views}
+            viewsError={page.viewsError}
+            view={page.view}
+            onViewChange={(value) => page.updateParam('view', value)}
+            maxDepth={page.maxDepth}
+            depth={page.depth}
+            onDepthChange={(value) => page.updateParam('depth', String(value))}
+            descriptor={page.selectedDescriptor}
+            facets={page.facets.facets}
+            filter={page.facets.filter}
+            onFacetChange={page.facets.setFilter}
+            onClearFacets={page.facets.clear}
+            treatment={page.treatment}
+            onTreatmentChange={page.setTreatment}
+            nodeColors={GRAPH_TREATMENT_TOKENS[page.treatment].nodeColors}
+            edgeColors={GRAPH_TREATMENT_TOKENS[page.treatment].edgeColors}
+          />
+        }
+        workspace={
+          <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+            <div className="lg:sticky lg:top-24 lg:self-start">
+              <ResearchWorkspacePanel
+                entries={session.entries}
+                focus={
+                  page.focusNode === null
+                    ? null
+                    : { id: page.focusNode.id, label: page.focusNode.label }
+                }
+                onAddFocus={addFocus}
+                onOpen={openEntry}
+                onRemove={session.remove}
+                onClear={session.clear}
               />
             </div>
-          }
-          status={
-            <GraphStatusStrip
-              projection={page.projection ?? null}
+            <GraphWorkspace
+              params={page.params}
+              projection={page.projection}
+              isPending={page.projectionPending}
+              error={page.projectionError}
               descriptor={page.selectedDescriptor}
+              stylesheet={page.stylesheet}
+              facetFilter={page.facets.filter}
+              onClearFacets={page.facets.clear}
+              onNavigateCard={page.navigateToCard}
+              onRefocus={page.refocusEntity}
             />
-          }
-        />
-      </div>
-
-      <Footer />
-    </div>
+          </div>
+        }
+        status={
+          <GraphStatusStrip
+            projection={page.projection ?? null}
+            descriptor={page.selectedDescriptor}
+          />
+        }
+      />
+    </PageShell>
   )
 }
 

@@ -1,3 +1,4 @@
+import { PageHeading } from '@/components/page-shell'
 import { Button } from '@/components/ui/button'
 
 /**
@@ -26,18 +27,11 @@ export interface ActivityPanelsProps {
 export function ActivityPanels({ onOpenSaved }: ActivityPanelsProps) {
   return (
     <div className="min-w-0 flex-1 space-y-8">
-      <header>
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Account / My activity
-        </p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          What you have kept and done.
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Activity tied to your account, kept separate from the research
-          session.
-        </p>
-      </header>
+      <PageHeading
+        eyebrow="Account / My activity"
+        title="What you have kept and done."
+        description="Activity tied to your account, kept separate from the research session."
+      />
 
       <section
         aria-labelledby="activity-saved-heading"

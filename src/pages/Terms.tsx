@@ -8,8 +8,7 @@
  * the underlying sources, which remain the property of their authors.
  */
 
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import { PageHeading, PageMain, PageShell } from '@/components/page-shell'
 
 /** The date these terms were last revised. */
 const LAST_UPDATED = '11 October 2026'
@@ -20,22 +19,14 @@ const LAST_UPDATED = '11 October 2026'
  * @returns The routed page: header, terms of use, footer.
  */
 const Terms = () => (
-  <div className="flex min-h-screen flex-col">
-    <Header />
-
-    <main className="flex-grow px-4 pb-16 pt-24">
+  <PageShell>
+    <PageMain>
       <article className="mx-auto w-full max-w-3xl">
-        <header className="mt-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Legal / Terms
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
-            Terms of Use
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Last updated {LAST_UPDATED}.
-          </p>
-        </header>
+        <PageHeading
+          eyebrow="Legal / Terms"
+          title="Terms of Use"
+          description={`Last updated ${LAST_UPDATED}.`}
+        />
 
         <div className="mt-8 space-y-8 text-sm leading-relaxed text-foreground">
           <p className="text-muted-foreground">
@@ -134,10 +125,8 @@ const Terms = () => (
           </section>
         </div>
       </article>
-    </main>
-
-    <Footer />
-  </div>
+    </PageMain>
+  </PageShell>
 )
 
 export default Terms

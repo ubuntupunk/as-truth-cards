@@ -1,7 +1,6 @@
 import { useState } from 'preact/hooks'
 import { Link } from 'react-router-dom'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import { PageMain, PageShell } from '@/components/page-shell'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -104,9 +103,8 @@ const ForgotPassword = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-grow px-4 pb-16 pt-24">
+    <PageShell>
+      <PageMain>
         <div className="mx-auto w-full max-w-md">
           <div className="mt-8 space-y-6">
             <div className="space-y-2 text-center">
@@ -162,9 +160,8 @@ const ForgotPassword = () => {
             )}
           </div>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </PageMain>
+    </PageShell>
   )
 }
 

@@ -8,8 +8,7 @@ import {
   submitSignIn,
   validateSignIn,
 } from '@/auth/journey'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import { PageMain, PageShell } from '@/components/page-shell'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -89,9 +88,8 @@ const SignIn = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-grow px-4 pb-16 pt-24">
+    <PageShell>
+      <PageMain>
         <div className="mx-auto grid w-full max-w-5xl gap-10 lg:grid-cols-[1.05fr_1fr] lg:gap-16">
           <section
             aria-labelledby="signin-heading"
@@ -271,9 +269,8 @@ const SignIn = () => {
         <p className="mx-auto mt-10 max-w-5xl text-xs text-muted-foreground">
           Profile, participation and activity are not research evidence.
         </p>
-      </main>
-      <Footer />
-    </div>
+      </PageMain>
+    </PageShell>
   )
 }
 

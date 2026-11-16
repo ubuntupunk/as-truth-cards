@@ -23,8 +23,12 @@
 
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import {
+  PageBreadcrumb,
+  PageHeading,
+  PageMain,
+  PageShell,
+} from '@/components/page-shell'
 import { CanonicalDecomposition } from '@/compose/canonical-read'
 import {
   ComposeEditor,
@@ -330,43 +334,22 @@ const Compose = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-grow px-4 pb-16 pt-24">
-        <div className="mx-auto w-full max-w-5xl">
-          <nav
-            data-testid="compose-context-bar"
-            aria-label="Breadcrumb"
-            className="mt-6 flex items-center gap-2 text-xs text-muted-foreground"
-          >
-            <span>Trope Cards</span>
-            <span aria-hidden="true">·</span>
-            <span>Research</span>
-            <span aria-hidden="true">·</span>
-            <span className="font-medium text-foreground">Compose</span>
-          </nav>
+    <PageShell>
+      <PageMain>
+        <PageBreadcrumb contextLabel="Compose" testId="compose-context-bar" />
+        <PageHeading
+          eyebrow="Research / Compose"
+          title="Compose"
+          description="Study a card's canonical decomposition, then author your own — saved to your account, never into the corpus."
+          testId="compose-heading"
+        />
 
-          <header className="mt-4" data-testid="compose-heading">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Research / Compose
-            </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
-              Compose
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Study a card's canonical decomposition, then author your own —
-              saved to your account, never into the corpus.
-            </p>
-          </header>
-
-          <div className="mt-5 space-y-4">
-            {picker}
-            {renderEditor()}
-          </div>
+        <div className="mt-5 space-y-4">
+          {picker}
+          {renderEditor()}
         </div>
-      </main>
-      <Footer />
-    </div>
+      </PageMain>
+    </PageShell>
   )
 }
 

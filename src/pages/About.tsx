@@ -10,8 +10,7 @@
  */
 
 import { Link } from 'react-router-dom'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import { PageHeading, PageMain, PageShell } from '@/components/page-shell'
 
 /**
  * The About page.
@@ -19,23 +18,14 @@ import Header from '@/components/Header'
  * @returns The routed page: header, mission copy, and footer.
  */
 const About = () => (
-  <div className="flex min-h-screen flex-col">
-    <Header />
-
-    <main className="flex-grow px-4 pb-16 pt-24">
+  <PageShell>
+    <PageMain>
       <article className="mx-auto w-full max-w-3xl">
-        <header className="mt-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            About / Mission
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
-            Understanding Our Purpose
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Why this educational tool exists and how it approaches antisemitic
-            tropes.
-          </p>
-        </header>
+        <PageHeading
+          eyebrow="About / Mission"
+          title="Understanding Our Purpose"
+          description="Why this educational tool exists and how it approaches antisemitic tropes."
+        />
 
         <div className="mt-8 space-y-8 text-sm leading-relaxed text-foreground">
           <p className="text-muted-foreground">
@@ -100,10 +90,8 @@ const About = () => (
           </p>
         </div>
       </article>
-    </main>
-
-    <Footer />
-  </div>
+    </PageMain>
+  </PageShell>
 )
 
 export default About

@@ -71,7 +71,7 @@ export const EditProfileForm = ({
       <div className="space-y-2">
         <Label
           htmlFor="edit-name"
-          className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+          className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
         >
           Display name
         </Label>
@@ -98,7 +98,7 @@ export const EditProfileForm = ({
       <div className="space-y-2">
         <Label
           htmlFor="edit-bio"
-          className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+          className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
         >
           Bio <span className="font-normal normal-case">Optional</span>
         </Label>
@@ -126,7 +126,7 @@ export const EditProfileForm = ({
         <div className="space-y-2">
           <Label
             htmlFor="edit-website"
-            className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+            className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
           >
             Website <span className="font-normal normal-case">Optional</span>
           </Label>
@@ -154,7 +154,7 @@ export const EditProfileForm = ({
         <div className="space-y-2">
           <Label
             htmlFor="edit-location"
-            className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+            className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
           >
             Location <span className="font-normal normal-case">Optional</span>
           </Label>

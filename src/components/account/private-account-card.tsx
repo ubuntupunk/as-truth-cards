@@ -50,7 +50,7 @@ export const PrivateAccountCard = ({
     data-testid="private-account-card"
   >
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         Private account
       </p>
       <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
@@ -59,7 +59,7 @@ export const PrivateAccountCard = ({
     </div>
 
     <div className="mt-4 space-y-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         Email address
       </p>
       <div className="flex flex-wrap items-center gap-3">
@@ -130,7 +130,7 @@ export const PrivateAccountCard = ({
     </div>
 
     <div className="mt-6 space-y-3 border-t border-graph-border pt-5">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         Appearance
       </p>
       <AppearanceSelector value={treatment} onSelect={onSelectTreatment} />

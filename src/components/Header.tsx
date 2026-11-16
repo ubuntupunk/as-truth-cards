@@ -14,6 +14,7 @@ import {
 import { useAccount } from '@/hooks/session-context'
 import { authClient, useAdminCheck } from '@/hooks/useAdminCheck'
 import { deviceStorage } from '@/lib/device-storage'
+import { PAGE_GUTTER_CLASS, PAGE_WIDTH_CLASS } from '@/lib/page-layout'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
 import { ThemeToggle } from './ThemeToggle'
@@ -209,11 +210,17 @@ const Header = () => {
   return (
     <header
       className={cn(
-        'fixed top-0 w-full z-50 px-6 py-4 glass transition-all duration-700 ease-out',
+        'fixed top-0 z-50 w-full py-4 glass transition-all duration-700 ease-out',
+        PAGE_GUTTER_CLASS,
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4',
       )}
     >
-      <div className="container mx-auto flex justify-between items-center gap-4">
+      <div
+        className={cn(
+          PAGE_WIDTH_CLASS,
+          'flex justify-between items-center gap-4',
+        )}
+      >
         <div className="flex min-w-0 flex-col">
           <Link
             to="/"
@@ -337,7 +344,10 @@ const Header = () => {
           id="global-nav-menu"
           data-testid="nav-menu"
           aria-label="Global navigation"
-          className="container mx-auto mt-3 flex flex-col gap-1 rounded-lg border border-border bg-card p-2 shadow-lg md:hidden"
+          className={cn(
+            PAGE_WIDTH_CLASS,
+            'mt-3 flex flex-col gap-1 rounded-lg border border-border bg-card p-2 shadow-lg md:hidden',
+          )}
         >
           {entries.map((entry) => {
             const active = isNavEntryActive(entry, location.pathname)

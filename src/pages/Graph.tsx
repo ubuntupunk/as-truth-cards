@@ -13,8 +13,7 @@
  * selection, or any semantic readout.
  */
 
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import { PageShell } from '@/components/page-shell'
 import { GRAPH_TREATMENT_TOKENS } from '../graph/appearance'
 import { GraphControls } from '../graph/graph-controls'
 import { GraphShell } from '../graph/graph-shell'
@@ -32,67 +31,59 @@ const Graph = () => {
   const page = useGraphPage()
 
   return (
-    <div className="flex min-h-screen flex-col bg-graph-page">
-      <Header />
-
-      <div className="flex-grow">
-        <GraphShell
-          treatment={page.treatment}
-          controls={
-            <GraphControls
-              focusInput={page.focusInput}
-              onFocusInput={page.onFocusInput}
-              onSubmitFocus={page.onFocusSubmit}
-              searchResults={page.searchResults}
-              searchPending={page.searchPending}
-              searchOpen={page.searchOpen}
-              onSelectCard={page.onSelectCard}
-              onSearchClose={page.onSearchClose}
-              views={page.views}
-              viewsError={page.viewsError}
-              view={page.view}
-              onViewChange={(value) => page.updateParam('view', value)}
-              maxDepth={page.maxDepth}
-              depth={page.depth}
-              onDepthChange={(value) =>
-                page.updateParam('depth', String(value))
-              }
-              descriptor={page.selectedDescriptor}
-              facets={page.facets.facets}
-              filter={page.facets.filter}
-              onFacetChange={page.facets.setFilter}
-              onClearFacets={page.facets.clear}
-              treatment={page.treatment}
-              onTreatmentChange={page.setTreatment}
-              nodeColors={GRAPH_TREATMENT_TOKENS[page.treatment].nodeColors}
-              edgeColors={GRAPH_TREATMENT_TOKENS[page.treatment].edgeColors}
-            />
-          }
-          workspace={
-            <GraphWorkspace
-              params={page.params}
-              projection={page.projection}
-              isPending={page.projectionPending}
-              error={page.projectionError}
-              descriptor={page.selectedDescriptor}
-              stylesheet={page.stylesheet}
-              facetFilter={page.facets.filter}
-              onClearFacets={page.facets.clear}
-              onNavigateCard={page.navigateToCard}
-              onRefocus={page.refocusEntity}
-            />
-          }
-          status={
-            <GraphStatusStrip
-              projection={page.projection ?? null}
-              descriptor={page.selectedDescriptor}
-            />
-          }
-        />
-      </div>
-
-      <Footer />
-    </div>
+    <PageShell>
+      <GraphShell
+        treatment={page.treatment}
+        controls={
+          <GraphControls
+            focusInput={page.focusInput}
+            onFocusInput={page.onFocusInput}
+            onSubmitFocus={page.onFocusSubmit}
+            searchResults={page.searchResults}
+            searchPending={page.searchPending}
+            searchOpen={page.searchOpen}
+            onSelectCard={page.onSelectCard}
+            onSearchClose={page.onSearchClose}
+            views={page.views}
+            viewsError={page.viewsError}
+            view={page.view}
+            onViewChange={(value) => page.updateParam('view', value)}
+            maxDepth={page.maxDepth}
+            depth={page.depth}
+            onDepthChange={(value) => page.updateParam('depth', String(value))}
+            descriptor={page.selectedDescriptor}
+            facets={page.facets.facets}
+            filter={page.facets.filter}
+            onFacetChange={page.facets.setFilter}
+            onClearFacets={page.facets.clear}
+            treatment={page.treatment}
+            onTreatmentChange={page.setTreatment}
+            nodeColors={GRAPH_TREATMENT_TOKENS[page.treatment].nodeColors}
+            edgeColors={GRAPH_TREATMENT_TOKENS[page.treatment].edgeColors}
+          />
+        }
+        workspace={
+          <GraphWorkspace
+            params={page.params}
+            projection={page.projection}
+            isPending={page.projectionPending}
+            error={page.projectionError}
+            descriptor={page.selectedDescriptor}
+            stylesheet={page.stylesheet}
+            facetFilter={page.facets.filter}
+            onClearFacets={page.facets.clear}
+            onNavigateCard={page.navigateToCard}
+            onRefocus={page.refocusEntity}
+          />
+        }
+        status={
+          <GraphStatusStrip
+            projection={page.projection ?? null}
+            descriptor={page.selectedDescriptor}
+          />
+        }
+      />
+    </PageShell>
   )
 }
 

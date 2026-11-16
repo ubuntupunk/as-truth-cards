@@ -1,5 +1,6 @@
 import { Coffee, Github } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { PAGE_GUTTER_CLASS, PAGE_WIDTH_CLASS } from '@/lib/page-layout'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
 
@@ -34,12 +35,13 @@ const Footer = () => {
   return (
     <footer
       className={cn(
-        'w-full py-8 px-6 mt-auto',
+        'w-full py-8 mt-auto',
+        PAGE_GUTTER_CLASS,
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4',
         'transition-all duration-700 ease-out',
       )}
     >
-      <div className="container mx-auto">
+      <div className={PAGE_WIDTH_CLASS}>
         <div className="border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-sm text-muted-foreground mb-4 md:mb-0">
             © {new Date().getFullYear()} Trope Deck. Educational purposes only.

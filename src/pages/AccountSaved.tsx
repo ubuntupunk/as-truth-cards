@@ -26,8 +26,7 @@ import {
 import { listSavedCards, unsaveCard } from '@/auth/saved-cards'
 import { AccountNav } from '@/components/account/account-nav'
 import { SavedCardsPanel } from '@/components/account/saved-cards-panel'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import { PageHeading, PageMain, PageShell } from '@/components/page-shell'
 import { Button } from '@/components/ui/button'
 import { useDeckCards } from '@/deck/use-deck'
 import {
@@ -136,58 +135,42 @@ const AccountSaved = () => {
   })
 
   return (
-    <div
-      className="flex min-h-screen flex-col bg-graph-page"
-      data-treatment={treatment}
-      style={graphTreatmentVars(treatment)}
-    >
-      <Header />
-      <main className="flex-grow px-4 pb-16 pt-24">
-        {/* The graph chrome tokens zone the account panels; the header and
-            footer stay on the site stack because they sit outside it. */}
-        <div
-          className="mx-auto flex w-full max-w-7xl flex-col gap-8 md:flex-row md:gap-10"
-          style={{ fontFamily: 'var(--graph-font-family)' }}
-        >
-          <AccountNav active="saved" />
+    <PageShell treatment={treatment} style={graphTreatmentVars(treatment)}>
+      <PageMain
+        innerClassName="flex flex-col gap-8 md:flex-row md:gap-10"
+        innerStyle={{ fontFamily: 'var(--graph-font-family)' }}
+      >
+        <AccountNav active="saved" />
 
-          <div className="min-w-0 flex-1 space-y-8">
-            <header>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Account / Saved cards
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                The cards you kept.
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                A reading list tied to your account. Saving a card records
-                interest; it never counts as support for a claim or as evidence.
-              </p>
-            </header>
+        <div className="min-w-0 flex-1 space-y-8">
+          <PageHeading
+            eyebrow="Account / Saved cards"
+            title="The cards you kept."
+            description="A reading list tied to your account. Saving a card records
+                interest; it never counts as support for a claim or as evidence."
+          />
 
-            <SavedCardsPanel
-              state={state}
-              onUnsave={(slug) => {
-                void handleUnsave(slug)
-              }}
-              unsavingSlug={unsavingSlug}
-              notice={notice}
-            />
+          <SavedCardsPanel
+            state={state}
+            onUnsave={(slug) => {
+              void handleUnsave(slug)
+            }}
+            unsavingSlug={unsavingSlug}
+            notice={notice}
+          />
 
-            {state.kind === 'error' && (
-              <Button onClick={handleRetry}>Try again</Button>
-            )}
+          {state.kind === 'error' && (
+            <Button onClick={handleRetry}>Try again</Button>
+          )}
 
-            {state.kind === 'signed-out' && (
-              <Button onClick={() => navigate(SAVED_CARDS_SIGN_IN_HREF)}>
-                Sign in
-              </Button>
-            )}
-          </div>
+          {state.kind === 'signed-out' && (
+            <Button onClick={() => navigate(SAVED_CARDS_SIGN_IN_HREF)}>
+              Sign in
+            </Button>
+          )}
         </div>
-      </main>
-      <Footer />
-    </div>
+      </PageMain>
+    </PageShell>
   )
 }
 
