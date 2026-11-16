@@ -11,8 +11,7 @@
 
 import { useState } from 'react'
 import CardDeck from '@/components/CardDeck'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import { PageMain, PageShell } from '@/components/page-shell'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
@@ -24,11 +23,9 @@ const LegacyDeck = () => {
   const [showPalestineStack, setShowPalestineStack] = useState(false)
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-
-      <main className="flex-grow pt-24 pb-16 px-4">
-        <section className="container mx-auto max-w-4xl py-12 space-y-16">
+    <PageShell>
+      <PageMain>
+        <section className="py-12 space-y-16">
           <div className="text-center space-y-6">
             <div className="inline-block px-3 py-1 rounded-full bg-primary text-xs font-medium mb-2 animate-fade-in">
               Interactive Education
@@ -86,10 +83,8 @@ const LegacyDeck = () => {
 
           <CardDeck includePalestineStack={showPalestineStack} />
         </section>
-      </main>
-
-      <Footer />
-    </div>
+      </PageMain>
+    </PageShell>
   )
 }
 

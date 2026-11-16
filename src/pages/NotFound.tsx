@@ -17,9 +17,8 @@
 
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
 import { NotFoundPanel } from '@/components/not-found-panel'
+import { PageMain, PageShell } from '@/components/page-shell'
 
 /**
  * The catch-all 404 page.
@@ -38,15 +37,11 @@ const NotFound = () => {
   }, [location.pathname])
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-
-      <main className="flex flex-grow items-center justify-center px-4 pb-16 pt-24">
+    <PageShell>
+      <PageMain className="flex items-center justify-center">
         <NotFoundPanel />
-      </main>
-
-      <Footer />
-    </div>
+      </PageMain>
+    </PageShell>
   )
 }
 

@@ -20,8 +20,14 @@
  */
 
 import type { ComponentChildren, JSX } from 'preact'
-
+import { PageBreadcrumb, PageHeading } from '../components/page-shell'
 import { ResearchDisclaimer } from '../components/ResearchDisclaimer'
+import {
+  PAGE_GUTTER_CLASS,
+  PAGE_MAIN_CLASS,
+  PAGE_WIDTH_CLASS,
+} from '../lib/page-layout'
+import { cn } from '../lib/utils'
 import { type GraphTreatment, graphTreatmentVars } from './appearance'
 
 /** Shared copy defaults; both graph-backed pages use the same shell. */
@@ -77,86 +83,31 @@ export function GraphShell({
       data-testid="graph-shell"
       data-treatment={treatment}
       style={style}
-      className="mx-auto w-full max-w-7xl px-4 pb-16 lg:px-6"
+      className={cn(PAGE_MAIN_CLASS, PAGE_GUTTER_CLASS)}
     >
-      <GraphContextBar contextLabel={contextLabel} />
-      <GraphHeading eyebrow={eyebrow} heading={heading} subtitle={subtitle} />
-      {/* The disclaimer copy lives in `components/ResearchDisclaimer` so every
-          research surface (Graph, Research, Sources, Decks) mounts identical
-          wording; this shell only supplies the treatment-driven chrome. */}
-      <ResearchDisclaimer className="mt-5 border-graph-disclaimer-border bg-graph-disclaimer text-graph-muted-foreground" />
-      {controls !== undefined && controls !== null ? (
-        <div className="mt-6">{controls}</div>
-      ) : null}
-      <div className="mt-4">{workspace}</div>
-      {status !== undefined && status !== null ? (
-        <div className="mt-4">{status}</div>
-      ) : null}
-    </main>
-  )
-}
-
-/**
- * The context/breadcrumb bar — establishes that this is a research/graph
- * workspace rather than an isolated visualization. Not a page title.
- */
-function GraphContextBar({ contextLabel }: { contextLabel: string }) {
-  return (
-    <nav
-      data-testid="graph-context-bar"
-      className="mt-6 flex items-center gap-2 text-xs text-graph-muted-foreground"
-    >
-      <span>Trope Cards</span>
-      <BreadcrumbSeparator />
-      <span>Research</span>
-      <BreadcrumbSeparator />
-      <span className="font-medium text-foreground">{contextLabel}</span>
-    </nav>
-  )
-}
-
-/** The heading block, verbatim from the Figma file when left at defaults. */
-function GraphHeading({
-  eyebrow,
-  heading,
-  subtitle,
-}: {
-  eyebrow: string
-  heading: string
-  subtitle: string
-}) {
-  return (
-    <header
-      data-testid="graph-heading"
-      className="mt-4 flex items-end justify-between"
-    >
-      <div>
-        <p className="text-xs font-semibold tracking-[0.18em] uppercase text-graph-muted-foreground">
-          {eyebrow}
-        </p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
-          {heading}
-        </h1>
-        <p className="mt-1 text-sm text-graph-muted-foreground">{subtitle}</p>
+      <div className={PAGE_WIDTH_CLASS}>
+        <PageBreadcrumb
+          contextLabel={contextLabel}
+          testId="graph-context-bar"
+        />
+        <PageHeading
+          eyebrow={eyebrow}
+          title={heading}
+          description={subtitle}
+          testId="graph-heading"
+        />
+        {/* The disclaimer copy lives in `components/ResearchDisclaimer` so every
+            research surface (Graph, Research, Sources, Decks) mounts identical
+            wording; this shell only supplies the treatment-driven chrome. */}
+        <ResearchDisclaimer className="mt-5 border-graph-disclaimer-border bg-graph-disclaimer text-graph-muted-foreground" />
+        {controls !== undefined && controls !== null ? (
+          <div className="mt-6">{controls}</div>
+        ) : null}
+        <div className="mt-4">{workspace}</div>
+        {status !== undefined && status !== null ? (
+          <div className="mt-4">{status}</div>
+        ) : null}
       </div>
-    </header>
-  )
-}
-
-/** Small slash between breadcrumb segments. */
-function BreadcrumbSeparator() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-3 w-3"
-      aria-hidden="true"
-    >
-      <path d="m13 5-6 14" />
-    </svg>
+    </main>
   )
 }

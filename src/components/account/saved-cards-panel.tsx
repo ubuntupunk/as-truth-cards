@@ -222,7 +222,7 @@ function renderBody(
 
       {state.unresolvedSlugs.length > 0 && (
         <div data-testid="saved-cards-unresolved">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Not available right now
           </h3>
           <ul className="mt-2 space-y-1">

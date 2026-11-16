@@ -22,10 +22,15 @@
  */
 
 import { useState } from 'preact/hooks'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
-import { ResearchTray } from '@/deck/research-tray'
+import { useNavigate } from 'react-router-dom'
+import {
+  PageBreadcrumb,
+  PageHeading,
+  PageMain,
+  PageShell,
+} from '@/components/page-shell'
 import { availableAxes, availableStatuses } from '@/deck/deck-model'
+import { ResearchTray } from '@/deck/research-tray'
 import { useDeckCards } from '@/deck/use-deck'
 import { ExploreFilters } from '@/explore/explore-filters'
 import {
@@ -44,12 +49,10 @@ import {
   MalformedState,
 } from '@/graph/graph-states'
 import { ProjectionShapeError } from '@/graph/projection-guards'
+import { serializeGraphParams } from '@/graph/query-params'
 import { useCardSearch } from '@/graph/use-graph'
-import { useNavigate } from 'react-router-dom'
-import { EMPTY_GRAPH_PARAMS } from '@/graph/query-params'
-import { entryFromNode, entryToGraphParams } from '../research/research-session'
+import { entryToGraphParams } from '../research/research-session'
 import { useResearchSession } from '../research/use-research-session'
-import { serializeGraphParams } from '../graph/query-params'
 
 /**
  * The `/explore` page.
@@ -188,72 +191,51 @@ const Explore = () => {
   }
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-grow px-4 pb-16 pt-24">
-        <div className="mx-auto w-full max-w-5xl">
-          <nav
-            data-testid="explore-context-bar"
-            aria-label="Breadcrumb"
-            className="mt-6 flex items-center gap-2 text-xs text-muted-foreground"
-          >
-            <span>Trope Cards</span>
-            <span aria-hidden="true">·</span>
-            <span>Research</span>
-            <span aria-hidden="true">·</span>
-            <span className="font-medium text-foreground">Explorer</span>
-          </nav>
+    <PageShell>
+      <PageMain>
+        <PageBreadcrumb contextLabel="Explorer" testId="explore-context-bar" />
+        <PageHeading
+          eyebrow="Research / Explore"
+          title="Explorer"
+          description="Search and filter the card corpus, then open a card in the deck or expand it in the graph."
+          testId="explore-heading"
+        />
 
-          <header className="mt-4" data-testid="explore-heading">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              Research / Explore
-            </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
-              Explorer
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Search and filter the card corpus, then open a card in the deck or
-              expand it in the graph.
-            </p>
-          </header>
-
-          <div className="mt-5">
-            <ExploreSearchField value={term} onChange={setTerm} />
-          </div>
-
-          <div className="mt-4 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)_280px]">
-            <aside className="lg:sticky lg:top-24 lg:self-start">
-              <ExploreFilters
-                query={query}
-                axes={availableAxes(cards)}
-                statuses={availableStatuses(cards)}
-                suits={availableSuits(cards)}
-                searching={searching}
-                onChange={setQuery}
-              />
-            </aside>
-            <section aria-label="Results" className="min-w-0">
-              {renderResults()}
-            </section>
-            <aside className="lg:sticky lg:top-24 lg:self-start">
-              <ResearchTray
-                entries={session.entries}
-                focus={null}
-                onAdd={() => {}}
-                onOpen={(entry) =>
-                  navigate(
-                    `/research?${serializeGraphParams(entryToGraphParams(entry))}`,
-                  )
-                }
-                onRemove={session.remove}
-                onClear={session.clear}
-              />
-            </aside>
-          </div>
+        <div className="mt-5">
+          <ExploreSearchField value={term} onChange={setTerm} />
         </div>
-      </main>
-      <Footer />
-    </div>
+
+        <div className="mt-4 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)_280px]">
+          <aside className="lg:sticky lg:top-24 lg:self-start">
+            <ExploreFilters
+              query={query}
+              axes={availableAxes(cards)}
+              statuses={availableStatuses(cards)}
+              suits={availableSuits(cards)}
+              searching={searching}
+              onChange={setQuery}
+            />
+          </aside>
+          <section aria-label="Results" className="min-w-0">
+            {renderResults()}
+          </section>
+          <aside className="lg:sticky lg:top-24 lg:self-start">
+            <ResearchTray
+              entries={session.entries}
+              focus={null}
+              onAdd={() => {}}
+              onOpen={(entry) =>
+                navigate(
+                  `/research?${serializeGraphParams(entryToGraphParams(entry))}`,
+                )
+              }
+              onRemove={session.remove}
+              onClear={session.clear}
+            />
+          </aside>
+        </div>
+      </PageMain>
+    </PageShell>
   )
 }
 

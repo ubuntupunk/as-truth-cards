@@ -9,8 +9,7 @@
  * implying endorsement of the orgs' full output.
  */
 
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import { PageHeading, PageMain, PageShell } from '@/components/page-shell'
 
 /**
  * A single external resource entry on the Resources page.
@@ -77,23 +76,14 @@ const RESEARCH: readonly ResourceEntry[] = [
  * @returns The routed page: header, curated external resource index, footer.
  */
 const Resources = () => (
-  <div className="flex min-h-screen flex-col">
-    <Header />
-
-    <main className="flex-grow px-4 pb-16 pt-24">
+  <PageShell>
+    <PageMain>
       <article className="mx-auto w-full max-w-3xl">
-        <header className="mt-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Learn / Resources
-          </p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
-            Resources
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Organizations and materials for learning about antisemitism and the
-            Holocaust, and for responding to prejudice.
-          </p>
-        </header>
+        <PageHeading
+          eyebrow="Learn / Resources"
+          title="Resources"
+          description="Organizations and materials for learning about antisemitism and the Holocaust, and for responding to prejudice."
+        />
 
         <div className="mt-8 space-y-10 text-sm leading-relaxed text-foreground">
           <p className="text-muted-foreground">
@@ -124,10 +114,8 @@ const Resources = () => (
           </p>
         </div>
       </article>
-    </main>
-
-    <Footer />
-  </div>
+    </PageMain>
+  </PageShell>
 )
 
 /**

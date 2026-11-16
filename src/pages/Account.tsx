@@ -6,8 +6,7 @@ import { AccountNav } from '@/components/account/account-nav'
 import { EditProfileForm } from '@/components/account/edit-profile-form'
 import { PrivateAccountCard } from '@/components/account/private-account-card'
 import { PublicProfileCard } from '@/components/account/public-profile-card'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import { PageHeading, PageMain, PageShell } from '@/components/page-shell'
 import { Button } from '@/components/ui/button'
 import {
   type GraphTreatment,
@@ -146,135 +145,111 @@ const Account = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col">
-        <Header />
-        <main className="flex-grow px-4 pb-16 pt-24">
-          <div className="mx-auto w-full max-w-6xl">
-            <p className="text-sm text-muted-foreground">Loading...</p>
-          </div>
-        </main>
-        <Footer />
-      </div>
+      <PageShell>
+        <PageMain>
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </PageMain>
+      </PageShell>
     )
   }
 
   if (!isSignedIn || !user) {
     return (
-      <div className="flex min-h-screen flex-col">
-        <Header />
-        <main className="flex-grow px-4 pb-16 pt-24">
-          <div className="mx-auto w-full max-w-6xl">
-            <div className="space-y-4">
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                Account
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                You need to be signed in to view this page.
-              </p>
-              <Button onClick={() => navigate('/sign-in?returnTo=/account')}>
-                Sign in
-              </Button>
-            </div>
+      <PageShell>
+        <PageMain>
+          <div className="space-y-4">
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+              Account
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              You need to be signed in to view this page.
+            </p>
+            <Button onClick={() => navigate('/sign-in?returnTo=/account')}>
+              Sign in
+            </Button>
           </div>
-        </main>
-        <Footer />
-      </div>
+        </PageMain>
+      </PageShell>
     )
   }
 
   return (
-    <div
-      className="flex min-h-screen flex-col bg-graph-page"
-      data-treatment={treatment}
-      style={graphTreatmentVars(treatment)}
-    >
-      <Header />
-      <main className="flex-grow px-4 pb-16 pt-24">
-        {/* The graph chrome tokens zone the account panels; the header and
-            footer stay on the site stack because they sit outside it. */}
-        <div
-          className="mx-auto flex w-full max-w-7xl flex-col gap-8 md:flex-row md:gap-10"
-          style={{ fontFamily: 'var(--graph-font-family)' }}
-        >
-          <AccountNav active="profile" />
+    <PageShell treatment={treatment} style={graphTreatmentVars(treatment)}>
+      <PageMain
+        innerClassName="flex flex-col gap-8 md:flex-row md:gap-10"
+        innerStyle={{ fontFamily: 'var(--graph-font-family)' }}
+      >
+        <AccountNav active="profile" />
 
-          <div className="min-w-0 flex-1 space-y-8">
-            <header>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Account / My profile
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                Your research identity.
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                A clear boundary between what you share and what stays in your
-                account.
-              </p>
-            </header>
+        <div className="min-w-0 flex-1 space-y-8">
+          <PageHeading
+            eyebrow="Account / My profile"
+            title="Your research identity."
+            description="A clear boundary between what you share and what stays in your
+                account."
+          />
 
-            <div className="flex flex-col gap-6 xl:flex-row">
-              <PublicProfileCard
-                name={user.name}
-                bio={user.bio}
-                website={user.website}
-                location={user.location}
-                imageUrl={user.image}
-                accountRole={role}
-                onEdit={handleEdit}
-              />
-              <PrivateAccountCard
-                email={user.email}
-                emailVerified={user.emailVerified}
-                resendStatus={resendStatus}
-                resendError={resendError}
-                onResend={handleResend}
-                treatment={treatment}
-                onSelectTreatment={handleSelectTreatment}
-              />
-            </div>
+          <div className="flex flex-col gap-6 xl:flex-row">
+            <PublicProfileCard
+              name={user.name}
+              bio={user.bio}
+              website={user.website}
+              location={user.location}
+              imageUrl={user.image}
+              accountRole={role}
+              onEdit={handleEdit}
+            />
+            <PrivateAccountCard
+              email={user.email}
+              emailVerified={user.emailVerified}
+              resendStatus={resendStatus}
+              resendError={resendError}
+              onResend={handleResend}
+              treatment={treatment}
+              onSelectTreatment={handleSelectTreatment}
+            />
+          </div>
 
-            {editing ? (
-              <EditProfileForm
-                values={form}
-                errors={formErrors}
-                saving={saving}
-                error={saveError}
-                onFieldChange={handleFieldChange}
-                onSave={handleSave}
-                onCancel={() => setEditing(false)}
-              />
-            ) : null}
+          {editing ? (
+            <EditProfileForm
+              values={form}
+              errors={formErrors}
+              saving={saving}
+              error={saveError}
+              onFieldChange={handleFieldChange}
+              onSave={handleSave}
+              onCancel={() => setEditing(false)}
+            />
+          ) : null}
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
-              <p
-                className="text-xs text-muted-foreground"
-                data-testid="account-onboarding-status"
-              >
-                Onboarding: {onboardingComplete ? 'Complete' : 'Not completed'}
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {!onboardingComplete ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate('/onboarding')}
-                  >
-                    Finish onboarding
-                  </Button>
-                ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
+            <p
+              className="text-xs text-muted-foreground"
+              data-testid="account-onboarding-status"
+            >
+              Onboarding: {onboardingComplete ? 'Complete' : 'Not completed'}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {!onboardingComplete ? (
                 <Button
                   variant="outline"
-                  onClick={handleSignOut}
-                  disabled={signingOut}
+                  onClick={() => navigate('/onboarding')}
                 >
-                  {signingOut ? 'Signing out...' : 'Sign out'}
+                  Finish onboarding
                 </Button>
-              </div>
+              ) : null}
+              <Button
+                variant="outline"
+                onClick={handleSignOut}
+                disabled={signingOut}
+              >
+                {signingOut ? 'Signing out...' : 'Sign out'}
+              </Button>
             </div>
           </div>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </PageMain>
+    </PageShell>
   )
 }
 

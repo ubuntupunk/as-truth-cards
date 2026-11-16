@@ -43,7 +43,7 @@ export const AccountNav = ({ active }: AccountNavProps) => (
     className="w-full shrink-0 md:w-[210px]"
     data-testid="account-nav"
   >
-    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
       Your account
     </p>
     <ul className="mt-2 flex flex-col gap-1">

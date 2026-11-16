@@ -5,8 +5,7 @@ import { requestEmailChange, validateEmailChange } from '@/auth/change-email'
 import { AccountNav } from '@/components/account/account-nav'
 import { AvatarPanel } from '@/components/account/avatar-panel'
 import { EmailPanel } from '@/components/account/email-panel'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import { PageHeading, PageMain, PageShell } from '@/components/page-shell'
 import { ResearchPreferencesPanel } from '@/components/research-preferences-panel'
 import { Button } from '@/components/ui/button'
 import {
@@ -209,137 +208,113 @@ const AccountSettings = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col">
-        <Header />
-        <main className="flex-grow px-4 pb-16 pt-24">
-          <div className="mx-auto w-full max-w-6xl">
-            <p className="text-sm text-muted-foreground">Loading...</p>
-          </div>
-        </main>
-        <Footer />
-      </div>
+      <PageShell>
+        <PageMain>
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </PageMain>
+      </PageShell>
     )
   }
 
   if (!isSignedIn || !user) {
     return (
-      <div className="flex min-h-screen flex-col">
-        <Header />
-        <main className="flex-grow px-4 pb-16 pt-24">
-          <div className="mx-auto w-full max-w-6xl">
-            <div className="space-y-4">
-              <h1 className="text-3xl font-semibold tracking-tight text-foreground">
-                Settings
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                You need to be signed in to manage your settings.
-              </p>
-              <Button
-                onClick={() => navigate('/sign-in?returnTo=/account/settings')}
-              >
-                Sign in
-              </Button>
-            </div>
+      <PageShell>
+        <PageMain>
+          <div className="space-y-4">
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+              Settings
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              You need to be signed in to manage your settings.
+            </p>
+            <Button
+              onClick={() => navigate('/sign-in?returnTo=/account/settings')}
+            >
+              Sign in
+            </Button>
           </div>
-        </main>
-        <Footer />
-      </div>
+        </PageMain>
+      </PageShell>
     )
   }
 
   return (
-    <div
-      className="flex min-h-screen flex-col bg-graph-page"
-      data-treatment={treatment}
-      style={graphTreatmentVars(treatment)}
-    >
-      <Header />
-      <main className="flex-grow px-4 pb-16 pt-24">
-        {/* The graph chrome tokens zone the account panels; the header and
-            footer stay on the site stack because they sit outside it. */}
-        <div
-          className="mx-auto flex w-full max-w-7xl flex-col gap-8 md:flex-row md:gap-10"
-          style={{ fontFamily: 'var(--graph-font-family)' }}
-        >
-          <AccountNav active="settings" />
+    <PageShell treatment={treatment} style={graphTreatmentVars(treatment)}>
+      <PageMain
+        innerClassName="flex flex-col gap-8 md:flex-row md:gap-10"
+        innerStyle={{ fontFamily: 'var(--graph-font-family)' }}
+      >
+        <AccountNav active="settings" />
 
-          <div className="min-w-0 flex-1 space-y-8">
-            <header>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Account / Settings
-              </p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                Set the terms you work on.
-              </h1>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Research preferences are optional and stay on this device.
-                Profile, email and sessions stay in your account.
-              </p>
-            </header>
+        <div className="min-w-0 flex-1 space-y-8">
+          <PageHeading
+            eyebrow="Account / Settings"
+            title="Set the terms you work on."
+            description="Research preferences are optional and stay on this device.
+                Profile, email and sessions stay in your account."
+          />
 
-            <EmailPanel
-              currentEmail={user.email}
-              emailVerified={user.emailVerified}
-              value={emailDraft}
-              fieldError={emailFieldError}
-              busy={emailBusy}
-              error={emailError}
-              status={emailStatus}
-              onChange={(next) => {
-                setEmailDraft(next)
-                setEmailFieldError(null)
-              }}
-              onSubmit={handleEmailChange}
-            />
+          <EmailPanel
+            currentEmail={user.email}
+            emailVerified={user.emailVerified}
+            value={emailDraft}
+            fieldError={emailFieldError}
+            busy={emailBusy}
+            error={emailError}
+            status={emailStatus}
+            onChange={(next) => {
+              setEmailDraft(next)
+              setEmailFieldError(null)
+            }}
+            onSubmit={handleEmailChange}
+          />
 
-            <AvatarPanel
-              name={user.name}
-              imageUrl={user.image}
-              draftFile={avatar.draft}
-              draftError={avatar.draftError}
-              busy={avatar.busy}
-              error={avatar.error}
-              status={avatar.status}
-              onChoose={handleAvatarChoose}
-              onCancelDraft={() =>
-                setAvatar((current) => ({
-                  ...current,
-                  draft: null,
-                  draftError: null,
-                }))
-              }
-              onUpload={handleAvatarUpload}
-              onRemove={handleAvatarRemove}
-            />
+          <AvatarPanel
+            name={user.name}
+            imageUrl={user.image}
+            draftFile={avatar.draft}
+            draftError={avatar.draftError}
+            busy={avatar.busy}
+            error={avatar.error}
+            status={avatar.status}
+            onChoose={handleAvatarChoose}
+            onCancelDraft={() =>
+              setAvatar((current) => ({
+                ...current,
+                draft: null,
+                draftError: null,
+              }))
+            }
+            onUpload={handleAvatarUpload}
+            onRemove={handleAvatarRemove}
+          />
 
-            <ResearchPreferencesPanel
-              values={preferences}
-              treatment={treatment}
-              name={user.name}
-              summary={{
-                profile: user.name,
-                appearance: GRAPH_TREATMENT_LABELS[treatment],
-                researchPreferences: '',
-              }}
-              onSave={handleSave}
-              onEditProfile={() => navigate('/account')}
-            />
+          <ResearchPreferencesPanel
+            values={preferences}
+            treatment={treatment}
+            name={user.name}
+            summary={{
+              profile: user.name,
+              appearance: GRAPH_TREATMENT_LABELS[treatment],
+              researchPreferences: '',
+            }}
+            onSave={handleSave}
+            onEditProfile={() => navigate('/account')}
+          />
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
-              <p className="text-xs text-muted-foreground">
-                Signed in as {user.email}
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => setPendingExit('activity')}
-              >
-                My activity
-              </Button>
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
+            <p className="text-xs text-muted-foreground">
+              Signed in as {user.email}
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => setPendingExit('activity')}
+            >
+              My activity
+            </Button>
           </div>
         </div>
-      </main>
-      <Footer />
+      </PageMain>
 
       {pendingExit ? (
         <div
@@ -348,7 +323,7 @@ const AccountSettings = () => {
           className="fixed inset-x-0 bottom-0 z-50 border-t border-graph-border bg-graph-surface p-4"
           data-testid="settings-unsaved-prompt"
         >
-          <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3">
+          <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-foreground">
               You have unsaved preference changes. Leaving discards them.
             </p>
@@ -373,7 +348,7 @@ const AccountSettings = () => {
           </div>
         </div>
       ) : null}
-    </div>
+    </PageShell>
   )
 }
 

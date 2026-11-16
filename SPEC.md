@@ -131,6 +131,7 @@ These values are design references. They should be represented as CSS/Tailwind d
 - Featured card internal vertical rhythm: approximately 14–22px.
 - Desktop graph workspace is split into graph canvas and inspector.
 - Responsive layouts collapse to a single column on narrow screens.
+- **Page geometry (decision 2026-11-16, issue `5ff`):** every routed page uses the same shell — surface `bg-muted` (identical to the graph chrome's light slate, and theme-aware in dark mode), one container `mx-auto w-full max-w-7xl`, gutters `px-4 sm:px-6 lg:px-8` applied at the viewport edge, and `pt-24 pb-16`. Header, main and footer all resolve to the same container, so their content edges line up. Reading pages cap prose *inside* that container; they never narrow it. Tailwind's `container` utility is banned for page geometry: its breakpoint snapping (640/768/1024/1280/1400px) is the "sudden jump in size" this replaces. The constants live in `src/lib/page-layout.ts`; pages compose `PageShell`/`PageMain`/`PageBreadcrumb`/`PageHeading` from `src/components/page-shell.tsx` and choose content only.
 
 ## 5. Graph Explorer UI contract
 

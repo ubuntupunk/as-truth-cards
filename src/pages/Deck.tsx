@@ -26,8 +26,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import Footer from '@/components/Footer'
-import Header from '@/components/Header'
+import {
+  PageBreadcrumb,
+  PageHeading,
+  PageMain,
+  PageShell,
+} from '@/components/page-shell'
 import { ResearchDisclaimer } from '@/components/ResearchDisclaimer'
 import { BrowseRail } from '@/deck/browse-rail'
 import { CardDiscovery } from '@/deck/card-discovery'
@@ -396,103 +400,73 @@ const Deck = () => {
   }
 
   return (
-    <div
-      className="flex min-h-screen flex-col bg-graph-page"
-      data-treatment={treatment}
-      style={graphTreatmentVars(treatment)}
-    >
-      <Header />
-      <main className="flex-grow px-4 pb-16 pt-24">
-        {/* The graph chrome tokens zone the deck + Rails; the header and
-            footer stay on the site stack because they sit outside it. */}
-        <div
-          className="mx-auto w-full max-w-4xl xl:max-w-7xl"
-          style={{ fontFamily: 'var(--graph-font-family)' }}
-        >
-          <nav
-            data-testid="deck-context-bar"
-            aria-label="Breadcrumb"
-            className="mt-6 flex items-center gap-2 text-xs text-graph-muted-foreground"
-          >
-            <span>Trope Cards</span>
-            <span aria-hidden="true">·</span>
-            <span>Research</span>
-            <span aria-hidden="true">·</span>
-            <span className="font-medium text-foreground">Decks</span>
-          </nav>
-
-          <header
-            data-testid="deck-heading"
-            className="mt-4 flex items-end justify-between gap-4"
-          >
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-graph-muted-foreground">
-                Research / Cards
-              </p>
-              <h1 className="mt-1 text-3xl font-semibold tracking-tight text-foreground">
-                Decks
-              </h1>
-              <p className="mt-1 text-sm text-graph-muted-foreground">
-                Browse research cards by axis and research status.
-              </p>
-            </div>
+    <PageShell treatment={treatment} style={graphTreatmentVars(treatment)}>
+      {/* The graph chrome tokens zone the deck + Rails; the header and footer
+          stay on the site stack because they sit outside it. */}
+      <PageMain innerStyle={{ fontFamily: 'var(--graph-font-family)' }}>
+        <PageBreadcrumb contextLabel="Decks" testId="deck-context-bar" />
+        <PageHeading
+          eyebrow="Research / Cards"
+          title="Decks"
+          description="Browse research cards by axis and research status."
+          testId="deck-heading"
+          actions={
             <DeckAppearanceControl
               treatment={treatment}
               onChange={setTreatment}
             />
-          </header>
+          }
+        />
 
-          <ResearchDisclaimer className="mt-5 border-graph-disclaimer-border bg-graph-disclaimer text-graph-muted-foreground" />
+        <ResearchDisclaimer className="mt-5 border-graph-disclaimer-border bg-graph-disclaimer text-graph-muted-foreground" />
 
-          <DeckWorkspace
-            drawer={drawer}
-            onOpenDrawer={(kind) => {
-              invokerRef.current =
-                document.activeElement instanceof HTMLElement
-                  ? document.activeElement
-                  : null
-              setDrawer(kind)
-            }}
-            onCloseDrawer={() => setDrawer(null)}
-            browseRail={
-              <BrowseRail
-                axes={availableAxes(cards)}
-                activeAxis={scope.axis}
-                onChange={(axis) => setScope({ ...scope, axis })}
-                locales={availableLocales(cards)}
-                activeLocale={scope.locale}
-                onLocaleChange={(locale) => setScope({ ...scope, locale })}
-                graphHref="/graph"
+        <DeckWorkspace
+          drawer={drawer}
+          onOpenDrawer={(kind) => {
+            invokerRef.current =
+              document.activeElement instanceof HTMLElement
+                ? document.activeElement
+                : null
+            setDrawer(kind)
+          }}
+          onCloseDrawer={() => setDrawer(null)}
+          browseRail={
+            <BrowseRail
+              axes={availableAxes(cards)}
+              activeAxis={scope.axis}
+              onChange={(axis) => setScope({ ...scope, axis })}
+              locales={availableLocales(cards)}
+              activeLocale={scope.locale}
+              onLocaleChange={(locale) => setScope({ ...scope, locale })}
+              graphHref="/graph"
+            />
+          }
+          tray={
+            <div className="space-y-4">
+              <ResearchTray
+                entries={tray.entries}
+                focus={trayFocus}
+                onAdd={addToTray}
+                onOpen={openTrayEntry}
+                onRemove={tray.remove}
+                onClear={tray.clear}
               />
-            }
-            tray={
-              <div className="space-y-4">
-                <ResearchTray
-                  entries={tray.entries}
-                  focus={trayFocus}
-                  onAdd={addToTray}
-                  onOpen={openTrayEntry}
-                  onRemove={tray.remove}
-                  onClear={tray.clear}
-                />
-                <SuiteTray
-                  entries={suite.entries}
-                  focus={suiteFocus}
-                  onAdd={addToSuite}
-                  onRemove={suite.remove}
-                  onClear={suite.clear}
-                  onExport={() => void exportSuite()}
-                  exportStatus={suiteExportState}
-                />
-              </div>
-            }
-          >
-            <div className="space-y-4">{content}</div>
-          </DeckWorkspace>
-        </div>
-      </main>
-      <Footer />
-    </div>
+              <SuiteTray
+                entries={suite.entries}
+                focus={suiteFocus}
+                onAdd={addToSuite}
+                onRemove={suite.remove}
+                onClear={suite.clear}
+                onExport={() => void exportSuite()}
+                exportStatus={suiteExportState}
+              />
+            </div>
+          }
+        >
+          <div className="space-y-4">{content}</div>
+        </DeckWorkspace>
+      </PageMain>
+    </PageShell>
   )
 }
 
