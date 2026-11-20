@@ -677,7 +677,10 @@ The following Figma nodes are the visual references for implementation:
 | `38:3` | Atmospheric graph explorer |
 | `38:168` | Editorial graph explorer |
 | `7:4518` | Card discovery |
-| `7:4528` | Featured card |
+| `7:4528` | Featured card (Cover) — `Read front & back` flip and secondary `Read analysis` entry |
+| `76:2` | Cover's secondary `Read analysis` action beside the flip |
+| `7:4617` | Card detail — paired faces, provenance panel, and Analysis face |
+| `76:4` | Analysis face — prioritised narrative region (empty and authored states) |
 | `7:4558` | Card navigation |
 | `7:4571` | Discovery prompt |
 | `49:2` | Account / Sign In |
