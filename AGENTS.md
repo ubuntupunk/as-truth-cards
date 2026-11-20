@@ -97,6 +97,14 @@ bd close <id>         # Complete work
 bd sync               # Sync with git
 ```
 
+### Visual QA with a vision sub-agent
+
+- The primary model cannot see images. When a task needs visual review (screenshots, Figma frames, rendered UI), delegate to a vision-capable sub-agent instead of inferring from text or structural metadata.
+- Use model `nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b` for the QA sub-agent.
+- Capture Figma frames with `tools.figma.get_screenshot` via Code Mode (`enableBase64Response: true`) after `create_session` for the target file, and pass the images to the sub-agent.
+- Give the sub-agent a read-only brief: confirm what is present and correct, and report clipping, overlap, misalignment, cramped spacing, low contrast, or layout breakage. It must not edit code or designs.
+- Treat the sub-agent's findings as the evidence for visual sign-off; structural checks alone are not visual QA.
+
 ### Landing the Plane (Session Completion)
 
 When ending a work session, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
