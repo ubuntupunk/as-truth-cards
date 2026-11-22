@@ -104,6 +104,45 @@ describe('graph appearance token shape', () => {
       }
     }
   })
+
+  it('gives every treatment a full, distinct dark chrome set', () => {
+    for (const treatment of GRAPH_TREATMENTS) {
+      const tokens = GRAPH_TREATMENT_TOKENS[treatment]
+      const lightKeys = Object.keys(tokens.chrome).sort()
+      const darkKeys = Object.keys(tokens.darkChrome).sort()
+      assert.equal(darkKeys.length, 16, `${treatment}: all 16 dark surfaces`)
+      assert.deepEqual(darkKeys, lightKeys, `${treatment}: matching key sets`)
+      for (const key of darkKeys) {
+        const light = tokens.chrome[key as keyof GraphChromeTokens]
+        const dark = tokens.darkChrome[key as keyof GraphChromeTokens]
+        assert.match(
+          dark,
+          /^\d+(\.\d+)? \d+(\.\d+)?% \d+(\.\d+)?%$/,
+          `${treatment}: dark ${key} must be an HSL triplet`,
+        )
+        assert.notEqual(dark, light, `${treatment}: dark ${key} differs`)
+      }
+      // Dark page/surface/canvas must stay dark under near-white foreground.
+      for (const key of ['page', 'surface', 'canvas', 'controls'] as const) {
+        const lightness = Number(
+          tokens.darkChrome[key].match(/(\d+(\.\d+)?)%\s*$/)?.[1],
+        )
+        assert.ok(
+          lightness <= 25,
+          `${treatment}: dark ${key} must be a dark surface`,
+        )
+      }
+    }
+    assert.notEqual(
+      GRAPH_TREATMENT_TOKENS.atmospheric.darkChrome.page,
+      GRAPH_TREATMENT_TOKENS.editorial.darkChrome.page,
+      'each treatment keeps its dark character',
+    )
+    assert.notEqual(
+      GRAPH_TREATMENT_TOKENS.editorial.darkChrome.accent,
+      GRAPH_TREATMENT_TOKENS.workspace.darkChrome.accent,
+    )
+  })
 })
 
 describe('graph appearance storage', () => {

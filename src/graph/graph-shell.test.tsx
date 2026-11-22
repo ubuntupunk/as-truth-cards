@@ -4,12 +4,13 @@
  * The shell is surfaces only: context bar, heading, research disclaimer, and
  * the three slots (controls / workspace / status) in the approved top-to-bottom
  * order. The interesting contract is that a treatment's chrome reaches the DOM
- * as inline `--graph-*` variables on the `data-treatment` element — that is what
- * makes the appearance switcher a working control without any class toggling —
- * and that nothing semantic leaks into the shell.
+ * as inline `--graph-<surface>-light` / `--graph-<surface>-dark` pairs on the
+ * `data-treatment` element — which `index.css` maps onto the bare `--graph-*`
+ * variables per theme — and that nothing semantic leaks into the shell.
  */
 
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 import { render } from 'preact-render-to-string'
 import {
@@ -78,11 +79,14 @@ describe('graph-shell composition', () => {
 })
 
 describe('graph-shell appearance application', () => {
-  it('marks the shell with the treatment and inline chrome variables', () => {
+  it('marks the shell with the treatment and inline light/dark chrome variables', () => {
     const html = renderShell('atmospheric')
     assert.ok(html.includes('data-treatment="atmospheric"'))
-    assert.ok(html.includes('--graph-page:220 14.3% 95.9%'))
-    assert.ok(html.includes('--graph-accent:262 83.3% 57.8%'))
+    assert.ok(html.includes('--graph-page-light:220 14.3% 95.9%'))
+    assert.ok(html.includes('--graph-accent-light:262 83.3% 57.8%'))
+    assert.ok(html.includes('--graph-page-dark:215 28% 12%'))
+    assert.ok(html.includes('--graph-accent-dark:262 90% 72%'))
+    assert.equal(html.includes('--graph-page:'), false)
     assert.ok(html.includes('--graph-font-family:'))
   })
 
@@ -95,8 +99,14 @@ describe('graph-shell appearance application', () => {
       )
       const { chrome, typography } = GRAPH_TREATMENT_TOKENS[treatment]
       assert.ok(
-        html.includes(`--graph-page:${chrome.page}`),
-        `${treatment} page token must reach the DOM`,
+        html.includes(`--graph-page-light:${chrome.page}`),
+        `${treatment} light page token must reach the DOM`,
+      )
+      assert.ok(
+        html.includes(
+          `--graph-page-dark:${GRAPH_TREATMENT_TOKENS[treatment].darkChrome.page}`,
+        ),
+        `${treatment} dark page token must reach the DOM`,
       )
       assert.ok(
         html.includes(`--graph-font-family:${typography.fontFamily}`),
@@ -105,5 +115,100 @@ describe('graph-shell appearance application', () => {
       // None of the graph-* utility classes leak into the shell markup.
       assert.ok(!html.includes('bg-graph-canvas'))
     }
+  })
+})
+
+/** The chrome surfaces the app theme must repaint (bd `as-truth-cards-ci8`). */
+const CHROME_SURFACES = [
+  'page',
+  'surface',
+  'canvas',
+  'inspector',
+  'border',
+  'accent',
+  'accent-foreground',
+  'muted',
+  'muted-foreground',
+  'focus',
+  'status-ok',
+  'status-warn',
+  'status-none',
+  'controls',
+  'disclaimer',
+  'disclaimer-border',
+] as const
+
+/** Read a repository file relative to this test. */
+function repoFile(path: string): string {
+  return readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8')
+}
+
+describe('graph-shell chrome across themes', () => {
+  it('supplies a distinct dark chrome value for every surface of every treatment', () => {
+    for (const treatment of GRAPH_TREATMENTS) {
+      const html = renderShell(treatment)
+      for (const surface of CHROME_SURFACES) {
+        const light = html.match(
+          new RegExp(`--graph-${surface}-light:([^;"]+)`),
+        )?.[1]
+        const dark = html.match(
+          new RegExp(`--graph-${surface}-dark:([^;"]+)`),
+        )?.[1]
+        assert.ok(
+          light,
+          `${treatment}: --graph-${surface}-light must reach the shell`,
+        )
+        assert.ok(
+          dark,
+          `${treatment}: --graph-${surface}-dark must reach the shell`,
+        )
+        assert.notEqual(
+          dark,
+          light,
+          `${treatment}: dark ${surface} must differ from its light value`,
+        )
+        assert.match(
+          dark,
+          /^\d+(\.\d+)? \d+(\.\d+)?% \d+(\.\d+)?%$/,
+          `${treatment}: dark ${surface} must be an HSL triplet`,
+        )
+      }
+    }
+  })
+
+  it('selects light chrome normally and dark chrome under the .dark class', () => {
+    const css = repoFile('src/index.css')
+    const lightStart = css.indexOf('[data-treatment] {')
+    const darkStart = css.indexOf('.dark [data-treatment] {')
+    assert.notEqual(lightStart, -1, 'treatment zones must map light chrome')
+    assert.notEqual(darkStart, -1, 'treatment zones must map dark chrome')
+    const lightZone = css.slice(lightStart, darkStart)
+    const darkZone = css.slice(darkStart, css.indexOf('}', darkStart))
+    for (const surface of CHROME_SURFACES) {
+      assert.match(
+        lightZone,
+        new RegExp(`--graph-${surface}:\\s*var\\(--graph-${surface}-light\\b`),
+        `light mode must feed --graph-${surface} from its light variant`,
+      )
+      assert.match(
+        darkZone,
+        new RegExp(`--graph-${surface}:\\s*var\\(--graph-${surface}-dark\\b`),
+        `dark mode must feed --graph-${surface} from its dark variant`,
+      )
+    }
+  })
+
+  it('keeps shell semantics identical when the dark class is on the page', () => {
+    const shell = (
+      <GraphShell
+        treatment="editorial"
+        controls="[[controls]]"
+        workspace="[[workspace]]"
+        status="[[status]]"
+      />
+    )
+    const light = render(shell)
+    const dark = render(<div className="dark">{shell}</div>)
+    assert.equal(dark, `<div class="dark">${light}</div>`)
   })
 })

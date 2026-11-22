@@ -77,9 +77,9 @@
        overrides a dark-preferring system rendered `text-foreground` (near
        white) on `--graph-page` (light slate) — invisible copy — on every page
        that now shares the graph chrome (bd `as-truth-cards-5ff`). These mirror
-       the dark app palette so panels, borders and muted text stay legible.
-       Treatments still ship a single light token set per treatment; giving
-       those dark variants is tracked separately. */
+       the dark app palette for zones *without* a treatment; inside a
+       `data-treatment` zone the dark mapping below selects that treatment's
+       own dark token set (bd `as-truth-cards-ci8`). */
     --graph-page: 215 27.9% 14%;
     --graph-surface: 224 71.4% 8%;
     --graph-canvas: 215 27.9% 12%;
@@ -94,6 +94,49 @@
     --graph-controls: 224 71.4% 8%;
     --graph-disclaimer: 224 71.4% 10%;
     --graph-disclaimer-border: 215 27.9% 24%;
+  }
+
+  /* Treatment zones supply both a light and a dark HSL pair inline (from
+     appearance.ts). Mapping the bare `--graph-*` variables here — on the same
+     element that carries `data-treatment` — keeps the light value from winning
+     the cascade as an inline declaration under `.dark`. The fallbacks mirror
+     the `:root`/`.dark` defaults above for zones with no explicit pair. */
+  [data-treatment] {
+    --graph-page: var(--graph-page-light, 220 14.3% 95.9%);
+    --graph-surface: var(--graph-surface-light, 0 0% 100%);
+    --graph-canvas: var(--graph-canvas-light, 220 14.3% 95.9%);
+    --graph-inspector: var(--graph-inspector-light, 0 0% 100%);
+    --graph-border: var(--graph-border-light, 220 13% 91%);
+    --graph-accent: var(--graph-accent-light, 262 83.3% 57.8%);
+    --graph-accent-foreground: var(--graph-accent-foreground-light, 0 0% 100%);
+    --graph-muted: var(--graph-muted-light, 220 14.3% 95.9%);
+    --graph-muted-foreground: var(--graph-muted-foreground-light, 220 8.9% 46.1%);
+    --graph-focus: var(--graph-focus-light, 221.2 83.2% 53.3%);
+    --graph-status-ok: var(--graph-status-ok-light, 160 84.1% 34.5%);
+    --graph-status-warn: var(--graph-status-warn-light, 38 92.1% 50.2%);
+    --graph-status-none: var(--graph-status-none-light, 215 20% 60%);
+    --graph-controls: var(--graph-controls-light, 0 0% 100%);
+    --graph-disclaimer: var(--graph-disclaimer-light, 224 71.4% 97%);
+    --graph-disclaimer-border: var(--graph-disclaimer-border-light, 224 50% 88%);
+  }
+
+  .dark [data-treatment] {
+    --graph-page: var(--graph-page-dark, 215 27.9% 14%);
+    --graph-surface: var(--graph-surface-dark, 224 71.4% 8%);
+    --graph-canvas: var(--graph-canvas-dark, 215 27.9% 12%);
+    --graph-inspector: var(--graph-inspector-dark, 224 71.4% 8%);
+    --graph-border: var(--graph-border-dark, 215 27.9% 22%);
+    --graph-accent: var(--graph-accent-dark, 262 83.3% 64%);
+    --graph-accent-foreground: var(--graph-accent-foreground-dark, 0 0% 100%);
+    --graph-muted: var(--graph-muted-dark, 215 27.9% 16.9%);
+    --graph-muted-foreground: var(--graph-muted-foreground-dark, 217.9 10.6% 64.9%);
+    --graph-focus: var(--graph-focus-dark, 221.2 83.2% 60%);
+    --graph-status-ok: var(--graph-status-ok-dark, 160 84.1% 45%);
+    --graph-status-warn: var(--graph-status-warn-dark, 38 92.1% 55%);
+    --graph-status-none: var(--graph-status-none-dark, 215 20% 60%);
+    --graph-controls: var(--graph-controls-dark, 224 71.4% 8%);
+    --graph-disclaimer: var(--graph-disclaimer-dark, 224 71.4% 10%);
+    --graph-disclaimer-border: var(--graph-disclaimer-border-dark, 215 27.9% 24%);
   }
 }
 

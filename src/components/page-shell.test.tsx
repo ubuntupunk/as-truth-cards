@@ -46,8 +46,8 @@ describe('page layout constants', () => {
       true,
     )
     assert.equal(PAGE_SURFACE_CLASS.includes('bg-muted'), true)
-    // `--graph-page` is a light-only literal; a page surface keyed to it broke
-    // dark mode. The shell must stay on the theme-aware token.
+    // The page frame must stay on the site's theme-aware `--muted` token;
+    // `--graph-page` belongs to treatment zones, not to the global shell.
     assert.equal(PAGE_SURFACE_CLASS.includes('bg-graph-page'), false)
     assert.equal(PAGE_WIDTH_CLASS.includes('max-w-7xl'), true)
     assert.equal(PAGE_GUTTER_CLASS, 'px-4 sm:px-6 lg:px-8')

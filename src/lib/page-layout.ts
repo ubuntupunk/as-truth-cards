@@ -32,13 +32,12 @@
 /**
  * Page wrapper: full height, column flow so the footer stays at the bottom.
  *
- * The surface is `bg-muted`, not the literal `bg-graph-page` class. The two are
- * the same colour in light mode — both resolve to `220 14.3% 95.9%` — but
- * `bg-graph-page` reads `--graph-page`, which the graph treatments redefine as
- * a light-only literal and which `.dark` never overrides. On a dark-preferring
- * system that produced near-white text on a light slate page. `--muted` and
- * `--foreground` move together per theme, so "graph chrome everywhere" now
- * holds in dark mode too.
+ * The surface is `bg-muted`, not the literal `bg-graph-page` class. The two
+ * start at the same light colour, but `bg-graph-page` reads `--graph-page`,
+ * whose value depends on the active graph treatment rather than the site theme.
+ * Before bd `as-truth-cards-ci8` that produced near-white text on light slate
+ * in dark mode; `--muted` and `--foreground` always move together per theme,
+ * so the page frame stays legible regardless of treatment.
  */
 export const PAGE_SURFACE_CLASS =
   'flex min-h-screen flex-col bg-muted text-foreground'

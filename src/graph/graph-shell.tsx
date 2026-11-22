@@ -10,13 +10,15 @@
  *
  * ## How a treatment is applied
  *
- * `data-treatment` marks the shell, and the treatment's chrome tokens ride the
- * element as inline `--graph-*` custom properties (plus `--graph-font-family`)
- * straight from `graphTreatmentVars` in `appearance.ts` — that module is the
- * single source of truth; `tailwind.config.ts` maps the variables to
- * `graph-*` color classes and `index.css` supplies `:root` defaults so
- * surfaces render sanely before the shell mounts. Switching a treatment
- * therefore repaints chrome without touching a single semantic value.
+ * `data-treatment` marks the shell, and both light and dark chrome token sets
+ * ride the element as inline `--graph-<surface>-light` / `--graph-<surface>-dark`
+ * custom properties (plus the theme-neutral `--graph-font-family`) straight
+ * from `graphTreatmentVars` in `appearance.ts` — that module is the single
+ * source of truth. `index.css` maps the active pair onto the bare `--graph-*`
+ * properties consumed by the Tailwind `graph-*` color classes, so the `.dark`
+ * class on `<html>` selects the dark set without any JS class toggling.
+ * Switching a treatment therefore repaints chrome without touching a single
+ * semantic value.
  */
 
 import type { ComponentChildren, JSX } from 'preact'

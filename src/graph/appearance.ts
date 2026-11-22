@@ -13,12 +13,15 @@
  *
  * - **Chrome** (page, surfaces, borders, accent, status, controls, disclaimer)
  *   travels as CSS custom properties on the shell wrapper, scoped per treatment
- *   through `data-treatment`. `GraphShell` applies each treatment's chrome
- *   inline (as `--graph-*` variables) directly from this module — appearance.ts
- *   is the single source of truth. `index.css` declares `:root` defaults so
- *   surfaces render sanely before/without the shell; `tailwind.config.ts` maps
- *   the `--graph-*` variables into `graph-*` color classes. Values here are raw
- *   HSL triplets so they slot straight into those variable declarations.
+ *   through `data-treatment`. `GraphShell` applies both a light and a dark set
+ *   inline (as `--graph-<surface>-light` / `--graph-<surface>-dark` variables)
+ *   directly from this module — appearance.ts is the single source of truth.
+ *   `index.css` declares `:root`/`.dark` defaults for zones without a treatment
+ *   and maps each `data-treatment` zone's light/dark pair onto the bare
+ *   `--graph-*` variables the Tailwind `graph-*` classes consume, so the theme
+ *   class on `<html>` selects the right set without any JS class toggling.
+ *   Values here are raw HSL triplets so they slot straight into those
+ *   declarations.
  * - **Node/edge palettes** are consumed by `buildGraphStylesheet(treatment)` in
  *   `graph-stylesheet.ts` — Cytoscape styles are inline JSON, not CSS, so the
  *   canvas treatment is data the stylesheet reads, not a class the page toggles.
@@ -106,7 +109,10 @@ export type GraphTypographyTokens = {
  * duplicating stylesheet logic.
  */
 export type GraphTreatmentTokens = {
+  /** Light-mode chrome, used when the app theme is not `.dark`. */
   readonly chrome: GraphChromeTokens
+  /** Dark-mode chrome, selected by `.dark [data-treatment]` in `index.css`. */
+  readonly darkChrome: GraphChromeTokens
   readonly typography: GraphTypographyTokens
   readonly nodeColors: Record<GraphNodeType, string>
   readonly edgeColors: Record<EdgeFamily, string>
@@ -131,6 +137,24 @@ const ATMOSPHERIC: GraphTreatmentTokens = {
     controls: '0 0% 100%',
     disclaimer: '224 71.4% 97%',
     disclaimerBorder: '224 50% 88%',
+  },
+  darkChrome: {
+    page: '215 28% 12%',
+    surface: '220 26% 16%',
+    canvas: '215 30% 9%',
+    inspector: '220 25% 14%',
+    border: '215 22% 26%',
+    accent: '262 90% 72%',
+    accentForeground: '262 40% 12%',
+    muted: '215 25% 19%',
+    mutedForeground: '217.9 15% 72%',
+    focus: '221.2 95% 70%',
+    statusOk: '160 70% 55%',
+    statusWarn: '38 95% 65%',
+    statusNone: '215 20% 68%',
+    controls: '220 25% 14%',
+    disclaimer: '220 30% 16%',
+    disclaimerBorder: '215 25% 30%',
   },
   typography: {
     fontFamily: "'SF Pro Display', 'system-ui', 'Segoe UI', Roboto, sans-serif",
@@ -180,6 +204,24 @@ const EDITORIAL: GraphTreatmentTokens = {
     disclaimer: '40 33% 96%',
     disclaimerBorder: '35 20% 82%',
   },
+  darkChrome: {
+    page: '30 18% 11%',
+    surface: '32 16% 15%',
+    canvas: '28 20% 9%',
+    inspector: '32 15% 14%',
+    border: '30 14% 27%',
+    accent: '24 80% 62%',
+    accentForeground: '24 50% 10%',
+    muted: '30 15% 19%',
+    mutedForeground: '35 16% 74%',
+    focus: '24 85% 65%',
+    statusOk: '145 45% 55%',
+    statusWarn: '38 92% 62%',
+    statusNone: '30 14% 70%',
+    controls: '32 16% 14%',
+    disclaimer: '30 20% 16%',
+    disclaimerBorder: '30 16% 30%',
+  },
   typography: {
     fontFamily: "'Georgia', 'Iowan Old Style', 'Palatino Linotype', serif",
   },
@@ -227,6 +269,24 @@ const WORKSPACE: GraphTreatmentTokens = {
     controls: '0 0% 100%',
     disclaimer: '220 20% 94%',
     disclaimerBorder: '220 12% 85%',
+  },
+  darkChrome: {
+    page: '220 16% 11%',
+    surface: '220 14% 15%',
+    canvas: '220 18% 8%',
+    inspector: '220 15% 13%',
+    border: '220 12% 26%',
+    accent: '217 95% 70%',
+    accentForeground: '220 60% 10%',
+    muted: '220 13% 19%',
+    mutedForeground: '218 12% 72%',
+    focus: '217 95% 72%',
+    statusOk: '160 70% 52%',
+    statusWarn: '26 95% 65%',
+    statusNone: '215 16% 70%',
+    controls: '220 14% 14%',
+    disclaimer: '220 16% 16%',
+    disclaimerBorder: '220 12% 30%',
   },
   typography: {
     fontFamily:
@@ -324,8 +384,8 @@ export function writeGraphTreatment(
   storage.setItem(GRAPH_TREATMENT_STORAGE_KEY, value)
 }
 
-/** Every chrome token, as the `--graph-*` custom property it feeds. */
-const GRAPH_CHROME_VARIABLES: Record<keyof GraphChromeTokens, string> = {
+/** Every chrome token, as the stem of the `-light` / `-dark` pair it feeds. */
+const GRAPH_CHROME_VARIABLE_STEMS: Record<keyof GraphChromeTokens, string> = {
   page: '--graph-page',
   surface: '--graph-surface',
   canvas: '--graph-canvas',
@@ -349,23 +409,31 @@ const GRAPH_CHROME_VARIABLES: Record<keyof GraphChromeTokens, string> = {
  *
  * This is the single place a treatment becomes CSS variables: every surface
  * (`page`, `surface`, `border`, `muted`, `accent`, `disclaimer`, …) maps to a
- * `--graph-*` property, plus `--graph-font-family` for the workspace stack.
- * Both `GraphShell` (Graph / Research) and the Decks page mount the same map
- * on their `data-treatment` wrapper, so tokens never drift between surfaces.
+ * `--graph-<surface>-light` / `--graph-<surface>-dark` pair, plus the
+ * theme-neutral `--graph-font-family` for the workspace stack. The bare
+ * `--graph-<surface>` variables are intentionally *not* set here: `index.css`
+ * maps them from the right pair on the same `data-treatment` element, so the
+ * `.dark` theme rule can win the cascade instead of being beaten by an inline
+ * light value. Every caller mounts this map on its `data-treatment` wrapper.
  *
  * @param treatment The active treatment.
- * @returns An object of `--graph-*` custom property names to HSL values.
+ * @returns An object of custom property names to HSL triplets (or, for the
+ * font family, a CSS font stack).
  */
 export function graphTreatmentVars(
   treatment: GraphTreatment,
 ): Record<string, string> {
-  const { chrome, typography } = GRAPH_TREATMENT_TOKENS[treatment]
+  const { chrome, darkChrome, typography } = GRAPH_TREATMENT_TOKENS[treatment]
   const vars: Record<string, string> = {
     '--graph-font-family': typography.fontFamily,
   }
   for (const [key, value] of Object.entries(chrome)) {
-    const name = GRAPH_CHROME_VARIABLES[key as keyof GraphChromeTokens]
-    if (name) vars[name] = value
+    const name = GRAPH_CHROME_VARIABLE_STEMS[key as keyof GraphChromeTokens]
+    if (name) vars[`${name}-light`] = value
+  }
+  for (const [key, value] of Object.entries(darkChrome)) {
+    const name = GRAPH_CHROME_VARIABLE_STEMS[key as keyof GraphChromeTokens]
+    if (name) vars[`${name}-dark`] = value
   }
   return vars
 }
