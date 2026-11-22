@@ -1,23 +1,16 @@
-import { useState } from 'preact/hooks'
 import { useNavigate } from 'react-router-dom'
 import { AccountNav } from '@/components/account/account-nav'
 import { ActivityPanels } from '@/components/account/activity-panels'
 import { PageMain, PageShell } from '@/components/page-shell'
 import { Button } from '@/components/ui/button'
-import {
-  type GraphTreatment,
-  graphTreatmentVars,
-  readGraphTreatment,
-} from '@/graph/appearance'
 import { useAdminCheck } from '@/hooks/useAdminCheck'
-import { deviceStorage } from '@/lib/device-storage'
 
 /**
  * My activity — `/account/activity`.
  *
  * The improved account panels give this page the same shell as My profile and
- * Settings: the {@link AccountNav} sidebar inside the graph-treatment zone, with
- * the header and footer kept on the site stack outside it.
+ * Settings: the {@link AccountNav} sidebar inside the global treatment zone,
+ * with the header and footer kept on the site stack outside it.
  *
  * The saved-cards list that used to live here is deliberately gone. It listed raw
  * slugs and linked into the graph, while `/account/saved` is the surface built for
@@ -38,9 +31,6 @@ import { deviceStorage } from '@/lib/device-storage'
 const AccountActivity = () => {
   const { isSignedIn, loading } = useAdminCheck()
   const navigate = useNavigate()
-  const [treatment] = useState<GraphTreatment>(() =>
-    readGraphTreatment(deviceStorage()),
-  )
 
   if (loading) {
     return (
@@ -75,7 +65,7 @@ const AccountActivity = () => {
   }
 
   return (
-    <PageShell treatment={treatment} style={graphTreatmentVars(treatment)}>
+    <PageShell>
       <PageMain
         innerClassName="flex flex-col gap-8 md:flex-row md:gap-10"
         innerStyle={{ fontFamily: 'var(--graph-font-family)' }}

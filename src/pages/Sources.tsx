@@ -19,6 +19,7 @@
 import { useMemo } from 'preact/hooks'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { PageShell } from '@/components/page-shell'
+import { useTreatment } from '@/components/TreatmentProvider'
 import { EVIDENCE_VIEW_NAME } from '../../trope-cards/src/graph/views.ts'
 import { NO_FACET_FILTER } from '../graph/deck-facets'
 import { type RefocusTarget, refocusView } from '../graph/entity-inspector'
@@ -37,9 +38,6 @@ import {
   sourceToResearchEntry,
 } from '../sources/source-model'
 import { useSources } from '../sources/use-sources'
-
-/** The appearance treatment; the Sources surface does not expose a switcher. */
-const SOURCES_TREATMENT = 'atmospheric' as const
 
 /** Graph params that request nothing — used before a source is selected. */
 const NO_SOURCE_PARAMS: GraphParams = {
@@ -62,6 +60,7 @@ const Sources = () => {
   const sourcesQuery = useSources()
   const session = useResearchSession()
   const viewsQuery = useGraphViews()
+  const { treatment } = useTreatment()
 
   const params: GraphParams =
     selectedId !== null ? sourceAttributionParams(selectedId) : NO_SOURCE_PARAMS
@@ -70,7 +69,7 @@ const Sources = () => {
   const descriptor =
     viewsQuery.data?.views.find((view) => view.name === EVIDENCE_VIEW_NAME) ??
     null
-  const stylesheet = useMemo(() => buildGraphStylesheet(SOURCES_TREATMENT), [])
+  const stylesheet = useMemo(() => buildGraphStylesheet(treatment), [treatment])
 
   const selectedSource =
     selectedId === null
@@ -101,7 +100,6 @@ const Sources = () => {
   return (
     <PageShell>
       <GraphShell
-        treatment={SOURCES_TREATMENT}
         contextLabel="Sources"
         eyebrow="Provenance / Sources"
         heading="Sources"

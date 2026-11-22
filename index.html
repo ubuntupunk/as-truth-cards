@@ -9,6 +9,27 @@
       content="Research cards on antisemitic tropes: their classification, the claims attached to them, and the argument structure behind those claims."
     />
     <meta property="og:image" content="/og-image.png" />
+    <script>
+      // Apply the stored theme before first paint so dark users never see a flash of light.
+      ;(function () {
+        try {
+          var themes = ['light', 'dark', 'system']
+          var stored = localStorage.getItem('theme')
+          var selected = themes.indexOf(stored) !== -1 ? stored : 'system'
+          var isDark =
+            selected === 'dark' ||
+            (selected === 'system' &&
+              typeof window.matchMedia === 'function' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          var resolved = isDark ? 'dark' : 'light'
+          var root = document.documentElement
+          root.classList.add(resolved)
+          root.style.colorScheme = resolved
+        } catch (error) {
+          // Storage or matchMedia may be blocked; keep the light default.
+        }
+      })()
+    </script>
   </head>
 
   <body>

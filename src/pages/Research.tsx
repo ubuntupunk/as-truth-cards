@@ -52,7 +52,6 @@ const Research = () => {
   return (
     <PageShell>
       <GraphShell
-        treatment={page.treatment}
         contextLabel="Research Workspace"
         eyebrow="Research / Workspace"
         heading="Research Workspace"

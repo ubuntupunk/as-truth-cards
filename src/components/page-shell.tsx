@@ -10,7 +10,9 @@
  * Why a shell at all: before bd `as-truth-cards-5ff` each page rebuilt
  * `<div class="flex min-h-screen flex-col"><Header/><main/><Footer/></div>`
  * with its own width and padding, so routes disagreed about the page edge. A
- * page now picks *content* (what goes inside `PageMain`), never geometry.
+ * page now picks *content* (what goes inside `PageMain`), never geometry. The
+ * appearance treatment zone likewise lives once in `TreatmentProvider` above the
+ * router — a page never mounts its own `data-treatment` wrapper.
  */
 
 import type { ComponentChildren, JSX } from 'preact'
@@ -29,29 +31,18 @@ import Header from './Header'
  * the global footer.
  *
  * @param props.children The page body — normally a {@link PageMain}.
- * @param props.className Extra wrapper classes (e.g. a deck treatment marker).
- * @param props.style Inline custom properties for the graph chrome treatments.
- * @param props.treatment When set, marks the wrapper with `data-treatment` so
- *   treatment-scoped selectors and tests see which chrome is active.
+ * @param props.className Extra wrapper classes for the page surface.
  * @returns The full-height page frame.
  */
 export function PageShell({
   children,
   className,
-  style,
-  treatment,
 }: {
   children: ComponentChildren
   className?: string
-  style?: JSX.CSSProperties
-  treatment?: string
 }) {
   return (
-    <div
-      className={cn(PAGE_SURFACE_CLASS, className)}
-      style={style}
-      data-treatment={treatment}
-    >
+    <div className={cn(PAGE_SURFACE_CLASS, className)}>
       <Header />
       {children}
       <Footer />

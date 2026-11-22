@@ -3,16 +3,17 @@
  *
  * The shell is surfaces only: context bar, heading, research disclaimer, and
  * the three slots (controls / workspace / status) in the approved top-to-bottom
- * order. The interesting contract is that a treatment's chrome reaches the DOM
- * as inline `--graph-<surface>-light` / `--graph-<surface>-dark` pairs on the
- * `data-treatment` element — which `index.css` maps onto the bare `--graph-*`
- * variables per theme — and that nothing semantic leaks into the shell.
+ * order. Since bd `as-truth-cards-e4k` it no longer owns a treatment zone:
+ * `TreatmentProvider` mounts the one `data-treatment` wrapper above the router.
+ * These tests keep the composition and the per-treatment dark palette coverage
+ * (bd `as-truth-cards-ci8`) without letting the shell become a second authority.
  */
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 import { render } from 'preact-render-to-string'
+import { TreatmentProvider } from '@/components/TreatmentProvider'
 import {
   GRAPH_TREATMENT_TOKENS,
   GRAPH_TREATMENTS,
@@ -21,14 +22,22 @@ import {
 import { GraphShell } from './graph-shell'
 
 /** Render the shell with string slots so the composition order is visible. */
-function renderShell(treatment: GraphTreatment = 'atmospheric') {
+function renderShell() {
   return render(
     <GraphShell
-      treatment={treatment}
       controls="[[controls]]"
       workspace="[[workspace]]"
       status="[[status]]"
     />,
+  )
+}
+
+/** Render a treatment's tokens from the one global authority. */
+function renderTreatment(treatment: GraphTreatment) {
+  return render(
+    <TreatmentProvider initialTreatment={treatment}>
+      <span>[[content]]</span>
+    </TreatmentProvider>,
   )
 }
 
@@ -79,42 +88,17 @@ describe('graph-shell composition', () => {
 })
 
 describe('graph-shell appearance application', () => {
-  it('marks the shell with the treatment and inline light/dark chrome variables', () => {
-    const html = renderShell('atmospheric')
-    assert.ok(html.includes('data-treatment="atmospheric"'))
-    assert.ok(html.includes('--graph-page-light:220 14.3% 95.9%'))
-    assert.ok(html.includes('--graph-accent-light:262 83.3% 57.8%'))
-    assert.ok(html.includes('--graph-page-dark:215 28% 12%'))
-    assert.ok(html.includes('--graph-accent-dark:262 90% 72%'))
-    assert.equal(html.includes('--graph-page:'), false)
-    assert.ok(html.includes('--graph-font-family:'))
+  it('does not mount a second treatment zone', () => {
+    const html = renderShell()
+    assert.equal(html.includes('data-treatment='), false)
+    assert.equal(html.includes('--graph-page-light:'), false)
+    assert.equal(html.includes('--graph-page-dark:'), false)
+    assert.equal(html.includes('--graph-font-family:'), false)
   })
 
-  it('applies a different token set per treatment', () => {
-    for (const treatment of GRAPH_TREATMENTS) {
-      const html = renderShell(treatment)
-      assert.ok(
-        html.includes(`data-treatment="${treatment}"`),
-        `${treatment} must mark the shell`,
-      )
-      const { chrome, typography } = GRAPH_TREATMENT_TOKENS[treatment]
-      assert.ok(
-        html.includes(`--graph-page-light:${chrome.page}`),
-        `${treatment} light page token must reach the DOM`,
-      )
-      assert.ok(
-        html.includes(
-          `--graph-page-dark:${GRAPH_TREATMENT_TOKENS[treatment].darkChrome.page}`,
-        ),
-        `${treatment} dark page token must reach the DOM`,
-      )
-      assert.ok(
-        html.includes(`--graph-font-family:${typography.fontFamily}`),
-        `${treatment} type token must reach the DOM`,
-      )
-      // None of the graph-* utility classes leak into the shell markup.
-      assert.ok(!html.includes('bg-graph-canvas'))
-    }
+  it('still consumes the global workspace font variable', () => {
+    const html = renderShell()
+    assert.match(html, /font-family:\s*var\(--graph-font-family\)/)
   })
 })
 
@@ -143,10 +127,11 @@ function repoFile(path: string): string {
   return readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8')
 }
 
-describe('graph-shell chrome across themes', () => {
+describe('global treatment chrome across themes', () => {
   it('supplies a distinct dark chrome value for every surface of every treatment', () => {
     for (const treatment of GRAPH_TREATMENTS) {
-      const html = renderShell(treatment)
+      const html = renderTreatment(treatment)
+      assert.ok(html.includes(`data-treatment="${treatment}"`))
       for (const surface of CHROME_SURFACES) {
         const light = html.match(
           new RegExp(`--graph-${surface}-light:([^;"]+)`),
@@ -156,11 +141,11 @@ describe('graph-shell chrome across themes', () => {
         )?.[1]
         assert.ok(
           light,
-          `${treatment}: --graph-${surface}-light must reach the shell`,
+          `${treatment}: --graph-${surface}-light must reach the global zone`,
         )
         assert.ok(
           dark,
-          `${treatment}: --graph-${surface}-dark must reach the shell`,
+          `${treatment}: --graph-${surface}-dark must reach the global zone`,
         )
         assert.notEqual(
           dark,
@@ -173,6 +158,12 @@ describe('graph-shell chrome across themes', () => {
           `${treatment}: dark ${surface} must be an HSL triplet`,
         )
       }
+      assert.ok(
+        html.includes(
+          `--graph-font-family:${GRAPH_TREATMENT_TOKENS[treatment].typography.fontFamily}`,
+        ),
+        `${treatment}: type token must reach the global zone`,
+      )
     }
   })
 
@@ -201,7 +192,6 @@ describe('graph-shell chrome across themes', () => {
   it('keeps shell semantics identical when the dark class is on the page', () => {
     const shell = (
       <GraphShell
-        treatment="editorial"
         controls="[[controls]]"
         workspace="[[workspace]]"
         status="[[status]]"

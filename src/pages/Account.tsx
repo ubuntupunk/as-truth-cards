@@ -7,15 +7,9 @@ import { EditProfileForm } from '@/components/account/edit-profile-form'
 import { PrivateAccountCard } from '@/components/account/private-account-card'
 import { PublicProfileCard } from '@/components/account/public-profile-card'
 import { PageHeading, PageMain, PageShell } from '@/components/page-shell'
+import { useTreatment } from '@/components/TreatmentProvider'
 import { Button } from '@/components/ui/button'
-import {
-  type GraphTreatment,
-  graphTreatmentVars,
-  readGraphTreatment,
-  writeGraphTreatment,
-} from '@/graph/appearance'
 import { authClient, useAdminCheck } from '@/hooks/useAdminCheck'
-import { deviceStorage } from '@/lib/device-storage'
 import {
   EMPTY_PROFILE_FORM,
   normalizeWebsite,
@@ -64,9 +58,7 @@ const Account = () => {
     'idle',
   )
   const [resendError, setResendError] = useState<string | null>(null)
-  const [treatment, setTreatment] = useState<GraphTreatment>(() =>
-    readGraphTreatment(deviceStorage()),
-  )
+  const { treatment, setTreatment } = useTreatment()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
@@ -138,11 +130,6 @@ const Account = () => {
     }
   }
 
-  const handleSelectTreatment = (next: GraphTreatment) => {
-    writeGraphTreatment(next, deviceStorage())
-    setTreatment(next)
-  }
-
   if (loading) {
     return (
       <PageShell>
@@ -174,7 +161,7 @@ const Account = () => {
   }
 
   return (
-    <PageShell treatment={treatment} style={graphTreatmentVars(treatment)}>
+    <PageShell>
       <PageMain
         innerClassName="flex flex-col gap-8 md:flex-row md:gap-10"
         innerStyle={{ fontFamily: 'var(--graph-font-family)' }}
@@ -206,7 +193,7 @@ const Account = () => {
               resendError={resendError}
               onResend={handleResend}
               treatment={treatment}
-              onSelectTreatment={handleSelectTreatment}
+              onSelectTreatment={setTreatment}
             />
           </div>
 

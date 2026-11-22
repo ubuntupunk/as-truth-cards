@@ -10,15 +10,12 @@
  *
  * ## How a treatment is applied
  *
- * `data-treatment` marks the shell, and both light and dark chrome token sets
- * ride the element as inline `--graph-<surface>-light` / `--graph-<surface>-dark`
- * custom properties (plus the theme-neutral `--graph-font-family`) straight
- * from `graphTreatmentVars` in `appearance.ts` — that module is the single
- * source of truth. `index.css` maps the active pair onto the bare `--graph-*`
- * properties consumed by the Tailwind `graph-*` color classes, so the `.dark`
- * class on `<html>` selects the dark set without any JS class toggling.
- * Switching a treatment therefore repaints chrome without touching a single
- * semantic value.
+ * The shell no longer owns a treatment zone. `TreatmentProvider` mounts the one
+ * `data-treatment` wrapper above the router with the light/dark token pairs from
+ * `appearance.ts`; `index.css` maps the active pair onto the bare `--graph-*`
+ * properties consumed by the Tailwind `graph-*` classes. The shell only consumes
+ * `--graph-font-family` for its workspace typography, so switching a treatment
+ * repaints chrome without touching a single semantic value.
  */
 
 import type { ComponentChildren, JSX } from 'preact'
@@ -30,7 +27,6 @@ import {
   PAGE_WIDTH_CLASS,
 } from '../lib/page-layout'
 import { cn } from '../lib/utils'
-import { type GraphTreatment, graphTreatmentVars } from './appearance'
 
 /** Shared copy defaults; both graph-backed pages use the same shell. */
 const DEFAULT_CONTEXT_LABEL = 'Graph Explorer'
@@ -44,7 +40,6 @@ const DEFAULT_SUBTITLE =
  * verbatim; the Research Workspace overrides only the copy, so the two pages
  * cannot drift in disclaimer, spacing, or variable wiring.
  *
- * @param props.treatment The active appearance treatment.
  * @param props.controls The control strip slot (`<GraphControls/>`); omitted on
  * surfaces that fix their view and have no controls.
  * @param props.workspace The workspace slot (graph + inspector grid).
@@ -58,7 +53,6 @@ const DEFAULT_SUBTITLE =
  * @returns The shell `<main>`.
  */
 export function GraphShell({
-  treatment,
   controls,
   workspace,
   status,
@@ -67,7 +61,6 @@ export function GraphShell({
   heading = DEFAULT_HEADING,
   subtitle = DEFAULT_SUBTITLE,
 }: {
-  treatment: GraphTreatment
   controls?: ComponentChildren
   workspace: ComponentChildren
   status?: ComponentChildren
@@ -77,13 +70,11 @@ export function GraphShell({
   subtitle?: string
 }) {
   const style: JSX.CSSProperties = {
-    ...graphTreatmentVars(treatment),
     fontFamily: 'var(--graph-font-family)',
   }
   return (
     <main
       data-testid="graph-shell"
-      data-treatment={treatment}
       style={style}
       className={cn(PAGE_MAIN_CLASS, PAGE_GUTTER_CLASS)}
     >
@@ -100,7 +91,7 @@ export function GraphShell({
         />
         {/* The disclaimer copy lives in `components/ResearchDisclaimer` so every
             research surface (Graph, Research, Sources, Decks) mounts identical
-            wording; this shell only supplies the treatment-driven chrome. */}
+            wording; this shell only supplies the shared chrome. */}
         <ResearchDisclaimer className="mt-5 border-graph-disclaimer-border bg-graph-disclaimer text-graph-muted-foreground" />
         {controls !== undefined && controls !== null ? (
           <div className="mt-6">{controls}</div>

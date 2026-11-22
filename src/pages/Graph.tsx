@@ -33,7 +33,6 @@ const Graph = () => {
   return (
     <PageShell>
       <GraphShell
-        treatment={page.treatment}
         controls={
           <GraphControls
             focusInput={page.focusInput}

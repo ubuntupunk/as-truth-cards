@@ -1,14 +1,25 @@
-import { useTheme } from 'next-themes'
+import type * as React from 'react'
 import { Toaster as Sonner } from 'sonner'
+import { useTheme } from '@/components/ThemeProvider'
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
+/**
+ * Sonner toaster wired to the app's single light/dark authority.
+ *
+ * @param props - Props forwarded to the underlying Sonner toaster.
+ * @returns A toaster whose theme follows the resolved app theme.
+ * @example
+ * ```tsx
+ * <Toaster />
+ * ```
+ */
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = 'system' } = useTheme()
+  const { resolvedTheme } = useTheme()
 
   return (
     <Sonner
-      theme={theme as ToasterProps['theme']}
+      theme={resolvedTheme}
       className="toaster group"
       toastOptions={{
         classNames: {

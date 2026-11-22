@@ -12,36 +12,25 @@
 
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import { useSearchParams } from 'react-router-dom'
+import { useTreatment } from '@/components/TreatmentProvider'
 import type { GraphNode } from '../../trope-cards/src/graph/types.ts'
 import {
   DEFAULT_DEPTH,
   DEFAULT_VIEW_NAME,
   HARD_MAX_DEPTH,
 } from '../../trope-cards/src/graph/views.ts'
-import {
-  GRAPH_TREATMENT_STORAGE_KEY,
-  type GraphTreatment,
-  readGraphTreatment,
-} from './appearance'
 import { type RefocusTarget, refocusView } from './entity-inspector'
 import { buildGraphStylesheet } from './graph-stylesheet'
 import { clampDepth, parseGraphParams } from './query-params'
 import { useCardSearch, useGraphProjection, useGraphViews } from './use-graph'
 import { useGraphFacetFilter } from './use-graph-facets'
 
-/** The persisted appearance treatment, or the default when storage is missing. */
-function initialTreatment(): GraphTreatment {
-  try {
-    return readGraphTreatment(
-      typeof localStorage !== 'undefined' ? localStorage : null,
-    )
-  } catch {
-    return 'atmospheric'
-  }
-}
-
 /**
  * The shared state of a graph-backed page.
+ *
+ * The appearance choice comes from the global {@link useTreatment} authority;
+ * this hook only consumes it to build the Cytoscape stylesheet and the selector
+ * props. It never changes projection, focus, view, depth or selection.
  *
  * @returns Params, reads, derived focus/descriptor, appearance, facets, and the
  * navigation handlers both pages render.
@@ -50,22 +39,12 @@ export function useGraphPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const params = parseGraphParams(searchParams.toString())
   const [focusInput, setFocusInput] = useState(params.focus ?? '')
-  const [treatment, setTreatment] = useState<GraphTreatment>(initialTreatment)
+  const { treatment, setTreatment } = useTreatment()
   const [searchOpen, setSearchOpen] = useState(false)
 
   useEffect(() => {
     setFocusInput(params.focus ?? '')
   }, [params.focus])
-
-  // Persist a treatment choice (best-effort: privacy mode just keeps it for
-  // the session). Persisting is presentation state and never touches the URL.
-  useEffect(() => {
-    try {
-      localStorage.setItem(GRAPH_TREATMENT_STORAGE_KEY, treatment)
-    } catch {
-      /* storage unavailable — the switcher still wins for this session */
-    }
-  }, [treatment])
 
   const viewsQuery = useGraphViews()
   const projectionQuery = useGraphProjection(params)

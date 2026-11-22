@@ -10,6 +10,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { SessionProvider } from '@/hooks/session-context'
 import { ThemeProvider } from './components/ThemeProvider'
+import { TreatmentProvider } from './components/TreatmentProvider'
 
 const queryClient = new QueryClient()
 
@@ -21,35 +22,39 @@ const queryClient = new QueryClient()
  * {@link withRouteBoundary}) so a single broken view shows that route's fallback
  * instead of blanking the app. The {@link Suspense} boundary supplies the
  * route-level loading state; it is the seam any future lazily-loaded route (or
- * a suspense-mode query) lands on without further wiring.
+ * a suspense-mode query) lands on without further wiring. The global
+ * {@link TreatmentProvider} sits above the router so the appearance tokens are
+ * mounted once, not rebuilt per route.
  *
  * @returns The provider stack and the routed application.
  */
 const App = () => (
   <ThemeProvider defaultTheme="system">
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <SessionProvider>
-          <BrowserRouter>
-            <ErrorBoundary label="application">
-              <Suspense fallback={<RouteLoading />}>
-                <Routes>
-                  {APP_ROUTES.map((route) => (
-                    <Route
-                      key={route.path}
-                      path={route.path}
-                      element={withRouteBoundary(route)}
-                    />
-                  ))}
-                </Routes>
-              </Suspense>
-            </ErrorBoundary>
-          </BrowserRouter>
-        </SessionProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <TreatmentProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <SessionProvider>
+            <BrowserRouter>
+              <ErrorBoundary label="application">
+                <Suspense fallback={<RouteLoading />}>
+                  <Routes>
+                    {APP_ROUTES.map((route) => (
+                      <Route
+                        key={route.path}
+                        path={route.path}
+                        element={withRouteBoundary(route)}
+                      />
+                    ))}
+                  </Routes>
+                </Suspense>
+              </ErrorBoundary>
+            </BrowserRouter>
+          </SessionProvider>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </TreatmentProvider>
   </ThemeProvider>
 )
 

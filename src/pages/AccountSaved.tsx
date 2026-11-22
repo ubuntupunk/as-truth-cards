@@ -29,13 +29,7 @@ import { SavedCardsPanel } from '@/components/account/saved-cards-panel'
 import { PageHeading, PageMain, PageShell } from '@/components/page-shell'
 import { Button } from '@/components/ui/button'
 import { useDeckCards } from '@/deck/use-deck'
-import {
-  type GraphTreatment,
-  graphTreatmentVars,
-  readGraphTreatment,
-} from '@/graph/appearance'
 import { useAdminCheck } from '@/hooks/useAdminCheck'
-import { deviceStorage } from '@/lib/device-storage'
 
 /** Best-effort error message extraction. */
 function messageOf(error: unknown, fallback: string): string {
@@ -53,9 +47,6 @@ const AccountSaved = () => {
   const navigate = useNavigate()
   const { isSignedIn, loading } = useAdminCheck()
   const cards = useDeckCards()
-  const [treatment] = useState<GraphTreatment>(() =>
-    readGraphTreatment(deviceStorage()),
-  )
 
   const [savedSlugs, setSavedSlugs] = useState<readonly string[] | null>(null)
   const [savedError, setSavedError] = useState<string | null>(null)
@@ -135,7 +126,7 @@ const AccountSaved = () => {
   })
 
   return (
-    <PageShell treatment={treatment} style={graphTreatmentVars(treatment)}>
+    <PageShell>
       <PageMain
         innerClassName="flex flex-col gap-8 md:flex-row md:gap-10"
         innerStyle={{ fontFamily: 'var(--graph-font-family)' }}

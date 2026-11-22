@@ -9,13 +9,9 @@ import { PreferencesStep } from '@/components/onboarding/preferences-step'
 import { ProfileStep } from '@/components/onboarding/profile-step'
 import { PageMain, PageShell } from '@/components/page-shell'
 import { ResearchPreferencesPanel } from '@/components/research-preferences-panel'
+import { useTreatment } from '@/components/TreatmentProvider'
 import { Button } from '@/components/ui/button'
-import {
-  type GraphTreatment,
-  graphTreatmentVars,
-  readGraphTreatment,
-  writeGraphTreatment,
-} from '@/graph/appearance'
+import type { GraphTreatment } from '@/graph/appearance'
 import { useAdminCheck } from '@/hooks/useAdminCheck'
 import { deviceStorage } from '@/lib/device-storage'
 import {
@@ -73,6 +69,10 @@ function messageOf(error: unknown, fallback: string): string {
  */ const Onboarding = () => {
   const { isSignedIn, user, loading, onboardingComplete, refetch } =
     useAdminCheck()
+  const { treatment: globalTreatment, setTreatment } = useTreatment()
+  // Seed the wizard once; a later cross-tab treatment change must not wipe
+  // in-progress answers by re-running the initialisation effect.
+  const initialTreatment = useRef(globalTreatment)
   const navigate = useNavigate()
   const [wizard, setWizard] = useState<WizardState | null>(null)
   const [busy, setBusy] = useState<'profile' | 'finish' | null>(null)
@@ -90,7 +90,7 @@ function messageOf(error: unknown, fallback: string): string {
   }, [reviewingSettings])
 
   // Seed the journey once from the three real sources: the session profile,
-  // the device's stored appearance, and the device's stored participation
+  // the global appearance choice, and the device's stored participation
   // answers. Server-owned completion decides whether it opens on step 1 or the
   // completion panel.
   useEffect(() => {
@@ -103,7 +103,7 @@ function messageOf(error: unknown, fallback: string): string {
           website: user.website ?? '',
           location: user.location ?? '',
         },
-        treatment: readGraphTreatment(deviceStorage()),
+        treatment: initialTreatment.current,
         preferences: readParticipationPreferences(deviceStorage()),
         completed: onboardingComplete,
       }),
@@ -171,7 +171,7 @@ function messageOf(error: unknown, fallback: string): string {
 
   const handleSelectTreatment = (treatment: GraphTreatment) => {
     if (wizard === null) return
-    writeGraphTreatment(treatment, deviceStorage())
+    setTreatment(treatment)
     setWizard(selectTreatment(wizard, treatment))
   }
 
@@ -194,7 +194,7 @@ function messageOf(error: unknown, fallback: string): string {
     treatment: GraphTreatment,
   ) => {
     saveParticipationPreferences(next, deviceStorage())
-    writeGraphTreatment(treatment, deviceStorage())
+    setTreatment(treatment)
     setWizard((previous) =>
       previous === null
         ? previous
@@ -210,16 +210,10 @@ function messageOf(error: unknown, fallback: string): string {
     navigate('/')
   }
 
-  const activeTreatment =
-    wizard?.treatment ?? readGraphTreatment(deviceStorage())
-
   const shell = (content: ComponentChildren) => (
-    <PageShell
-      treatment={activeTreatment}
-      style={graphTreatmentVars(activeTreatment)}
-    >
-      {/* The graph chrome tokens zone the setup panels; the header and footer
-          stay on the site stack because they sit outside it. */}
+    <PageShell>
+      {/* Treatment tokens come from the global zone; the header and footer stay
+          on the site stack outside it. */}
       <PageMain innerStyle={{ fontFamily: 'var(--graph-font-family)' }}>
         {content}
       </PageMain>

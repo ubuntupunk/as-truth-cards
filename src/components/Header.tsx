@@ -6,18 +6,13 @@ import {
   AccountMenuPanel,
   type MenuLinkProps,
 } from '@/components/header/account-menu'
-import {
-  type GraphTreatment,
-  readGraphTreatment,
-  writeGraphTreatment,
-} from '@/graph/appearance'
 import { useAccount } from '@/hooks/session-context'
 import { authClient, useAdminCheck } from '@/hooks/useAdminCheck'
-import { deviceStorage } from '@/lib/device-storage'
 import { PAGE_GUTTER_CLASS, PAGE_WIDTH_CLASS } from '@/lib/page-layout'
 import { cn } from '@/lib/utils'
 import { useDelayedVisibility } from '@/utils/animations'
 import { ThemeToggle } from './ThemeToggle'
+import { useTreatment } from './TreatmentProvider'
 
 /**
  * The global navigation, aligned to the approved product hierarchy:
@@ -131,9 +126,7 @@ const Header = () => {
   const [menuOpen, setMenuOpen] = useState(false)
   const [accountOpen, setAccountOpen] = useState(false)
   const [signingOut, setSigningOut] = useState(false)
-  const [treatment, setTreatment] = useState<GraphTreatment>(() =>
-    readGraphTreatment(deviceStorage()),
-  )
+  const { treatment, setTreatment } = useTreatment()
   const lastPathname = useRef(location.pathname)
   const accountRef = useRef<HTMLDivElement>(null)
   const accountTriggerRef = useRef<HTMLButtonElement>(null)
@@ -186,11 +179,6 @@ const Header = () => {
     document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [accountOpen])
-
-  const handleSelectTreatment = (next: GraphTreatment) => {
-    setTreatment(next)
-    writeGraphTreatment(next, deviceStorage())
-  }
 
   const handleSignOut = async () => {
     setSigningOut(true)
@@ -304,7 +292,7 @@ const Header = () => {
                     imageUrl={user?.image ?? null}
                     accountRole={role}
                     treatment={treatment}
-                    onSelectTreatment={handleSelectTreatment}
+                    onSelectTreatment={setTreatment}
                     onSignOut={handleSignOut}
                     signingOut={signingOut}
                     onNavigate={() => setAccountOpen(false)}

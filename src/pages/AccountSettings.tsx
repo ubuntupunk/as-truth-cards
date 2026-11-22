@@ -7,14 +7,9 @@ import { AvatarPanel } from '@/components/account/avatar-panel'
 import { EmailPanel } from '@/components/account/email-panel'
 import { PageHeading, PageMain, PageShell } from '@/components/page-shell'
 import { ResearchPreferencesPanel } from '@/components/research-preferences-panel'
+import { useTreatment } from '@/components/TreatmentProvider'
 import { Button } from '@/components/ui/button'
-import {
-  GRAPH_TREATMENT_LABELS,
-  type GraphTreatment,
-  graphTreatmentVars,
-  readGraphTreatment,
-  writeGraphTreatment,
-} from '@/graph/appearance'
+import { GRAPH_TREATMENT_LABELS, type GraphTreatment } from '@/graph/appearance'
 import { useAdminCheck } from '@/hooks/useAdminCheck'
 import { deviceStorage } from '@/lib/device-storage'
 import {
@@ -25,7 +20,7 @@ import {
 
 /**
  * The account settings page — parity with the other account surfaces:
- * the same sidebar, the same treatment zone, and the research-preferences panel
+ * the same sidebar, the global treatment zone, and the research-preferences panel
  * the onboarding completion panel's "Review Settings" opens.
  *
  * The panel is where the answers collected in guided setup are actually
@@ -45,9 +40,7 @@ const AccountSettings = () => {
   const [preferences, setPreferences] = useState<ParticipationPreferences>(() =>
     readParticipationPreferences(deviceStorage()),
   )
-  const [treatment, setTreatment] = useState<GraphTreatment>(() =>
-    readGraphTreatment(deviceStorage()),
-  )
+  const { treatment, setTreatment } = useTreatment()
   const [pendingExit, setPendingExit] = useState<'activity' | 'profile' | null>(
     null,
   )
@@ -87,7 +80,6 @@ const AccountSettings = () => {
     nextTreatment: GraphTreatment,
   ) => {
     saveParticipationPreferences(next, deviceStorage())
-    writeGraphTreatment(nextTreatment, deviceStorage())
     setPreferences(next)
     setTreatment(nextTreatment)
   }
@@ -239,7 +231,7 @@ const AccountSettings = () => {
   }
 
   return (
-    <PageShell treatment={treatment} style={graphTreatmentVars(treatment)}>
+    <PageShell>
       <PageMain
         innerClassName="flex flex-col gap-8 md:flex-row md:gap-10"
         innerStyle={{ fontFamily: 'var(--graph-font-family)' }}

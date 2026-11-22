@@ -33,13 +33,11 @@ import {
   PageShell,
 } from '@/components/page-shell'
 import { ResearchDisclaimer } from '@/components/ResearchDisclaimer'
+import { useTreatment } from '@/components/TreatmentProvider'
 import { BrowseRail } from '@/deck/browse-rail'
 import { CardDiscovery } from '@/deck/card-discovery'
 import { type CardStage, DEFAULT_CARD_STAGE } from '@/deck/card-stage'
-import {
-  DECK_TREATMENT_QUERY_KEY,
-  parseDeckTreatment,
-} from '@/deck/deck-appearance'
+import { DECK_TREATMENT_QUERY_KEY } from '@/deck/deck-appearance'
 import { DeckAppearanceControl } from '@/deck/deck-appearance-control'
 import {
   applyScope,
@@ -65,11 +63,7 @@ import {
   useDeckSession,
 } from '@/deck/use-deck'
 import { useSuiteSession } from '@/deck/use-suite-session'
-import {
-  GRAPH_TREATMENT_STORAGE_KEY,
-  type GraphTreatment,
-  graphTreatmentVars,
-} from '@/graph/appearance'
+import { type GraphTreatment, isGraphTreatment } from '@/graph/appearance'
 import { ApiErrorState, LoadingState } from '@/graph/graph-states'
 import { EMPTY_GRAPH_PARAMS, serializeGraphParams } from '@/graph/query-params'
 import { useGraphProjection, useGraphViews } from '@/graph/use-graph'
@@ -93,15 +87,6 @@ function isDeckEmpty(cards: readonly CardListingRow[]): boolean {
 /** The identity label `Card / ID-XX`, padded from the card's deck position. */
 function idLabelFor(position: number): string {
   return `Card / ID-${String(position + 1).padStart(2, '0')}`
-}
-
-/** The appearance storage reader, or `null` when unavailable. */
-function deckStorage(): Pick<Storage, 'getItem'> | null {
-  try {
-    return typeof localStorage !== 'undefined' ? localStorage : null
-  } catch {
-    return null
-  }
 }
 
 /**
@@ -228,27 +213,24 @@ const Deck = () => {
     setOpenStage({ id: featuredId, stage: next })
   }
 
-  // The page owns the appearance decision (SPEC §4.5): the URL is canonical —
-  // a shared `?treatment=` link reproduces the treatment exactly — and the
-  // stored choice is only the default when no parameter names one. Changing it
-  // rewrites the parameter (preserving any `?focus=` handoff) and remembers it.
-  const treatment = useMemo(
-    () =>
-      parseDeckTreatment(
-        searchParams.get(DECK_TREATMENT_QUERY_KEY),
-        deckStorage(),
-      ),
-    [searchParams],
-  )
-  const setTreatment = (next: GraphTreatment) => {
+  const { treatment, setTreatment } = useTreatment()
+  const queryTreatment = searchParams.get(DECK_TREATMENT_QUERY_KEY)
+
+  // SPEC §4.5: a shared `?treatment=` link is canonical. Applying it to the
+  // global authority means every page — not just the deck — reproduces it. An
+  // invalid parameter is ignored so it cannot overwrite a valid stored choice.
+  useEffect(() => {
+    if (queryTreatment === null || !isGraphTreatment(queryTreatment)) return
+    if (queryTreatment === treatment) return
+    setTreatment(queryTreatment)
+  }, [queryTreatment, treatment, setTreatment])
+
+  /** Select a treatment, keeping the shareable URL and global storage in step. */
+  const handleTreatmentChange = (next: GraphTreatment) => {
     const params = new URLSearchParams(searchParams)
     params.set(DECK_TREATMENT_QUERY_KEY, next)
     setSearchParams(params, { replace: true })
-    try {
-      localStorage.setItem(GRAPH_TREATMENT_STORAGE_KEY, next)
-    } catch {
-      // Storage unavailable — the URL keeps the state shareable on its own.
-    }
+    setTreatment(next)
   }
 
   // The workspace rails collapse to drawers below `xl`; the page owns which
@@ -400,9 +382,9 @@ const Deck = () => {
   }
 
   return (
-    <PageShell treatment={treatment} style={graphTreatmentVars(treatment)}>
-      {/* The graph chrome tokens zone the deck + Rails; the header and footer
-          stay on the site stack because they sit outside it. */}
+    <PageShell>
+      {/* Treatment tokens come from the global zone; this page only consumes
+          the workspace font variable for the deck and rails. */}
       <PageMain innerStyle={{ fontFamily: 'var(--graph-font-family)' }}>
         <PageBreadcrumb contextLabel="Decks" testId="deck-context-bar" />
         <PageHeading
@@ -413,7 +395,7 @@ const Deck = () => {
           actions={
             <DeckAppearanceControl
               treatment={treatment}
-              onChange={setTreatment}
+              onChange={handleTreatmentChange}
             />
           }
         />
