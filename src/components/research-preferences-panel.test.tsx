@@ -90,10 +90,10 @@ describe('ResearchPreferencesPanel', () => {
   it('paints accents with the readable token, never the near-white primary background token', () => {
     const html = render(<ResearchPreferencesPanel {...baseProps} />)
     assert.ok(html.includes('bg-graph-surface'))
-    // The Button's solid `bg-primary`/`text-primary-foreground` inverse fill is
-    // legitimate; what must never appear is a whole `text-primary` class token
-    // — `--primary` is a near-white surface token, so text painted with it is
-    // invisible on a card in both modes.
+    // The Button's solid `bg-graph-accent`/`text-graph-accent-foreground`
+    // inverse fill is legitimate; what must never appear is a whole
+    // `text-primary` class token — `--primary` stays a near-white surface
+    // token, so text painted with it is invisible on a card in both modes.
     assert.equal(
       /(?<![-\w])text-primary(?![\w-])/.test(html),
       false,
