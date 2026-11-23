@@ -30,7 +30,7 @@ Detailed reconciliation: [Milestone Review — 2026-11-23](docs/MILESTONE-REVIEW
 - The global mobile navigation and drawer interaction work must be accepted against the tracked criteria, not inferred from Deck screenshots alone.
 - Explore, Compose, Research, and Sources still require surface-by-surface acceptance of their complete data, interaction, state, accessibility, and navigation contracts.
 - Account onboarding/profile/sign-in/saved-card surfaces are substantially implemented per Issue #13; audit remaining account-required actions, avatar lifecycle and safe return context rather than repeating the original first-slice implementation. Feedback/academic-participation delivery is separately blocked on product definition in Issue #15.
-- The CORS, trusted-proxy/IP, and cookie-policy review is tracked separately in Issue #10 (closed). The distinct public Git-history credential exposure documented in Issue #9 remains pending explicit maintainer approval for any rewrite; the plan-only decision package is in [docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md](docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md).
+- The CORS, trusted-proxy/IP, and cookie-policy review is tracked separately in Issue #10 (closed). The distinct public Git-history credential exposure documented in Issue #9 was rewritten with maintainer approval on 2026-11-23: both remotes now point at `c7a40dc1890b80f79db4d108e4bd5011f7173ee4` and scans report 0 token hits. Provider-cache purge and stale-clone inventory remain open follow-ups. Evidence and execution record: [docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md](docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md) §11.
 - `pnpm run trope-graph:check` has previously been reported blocked by database/environment or migration conditions. Re-run and document the current outcome; do not call verification fully green while a required gate is blocked.
 - Previously reported lint/typecheck failures must be checked against the current baseline and separated from regressions.
 
@@ -54,7 +54,7 @@ For every milestone, report each criterion as **implemented**, **verified**, **p
 | Sources | Backend discovery foundation substantially implemented; UI gaps remain | Issue [#12](https://github.com/ubuntupunk/as-truth-cards/issues/12): review UI, metrics UI, pagination and provider decisions |
 | Account/onboarding | Most major panels and flows reported implemented and tested | Issue [#13]: audit remaining account gates, avatar lifecycle and safe return context; avoid reimplementation |
 | Feedback/academic participation | Product/delivery definition outstanding | Issue [#15]: define actual capability and consent lifecycle before account-side persistence |
-| Security/operations | Issue #10 review closed; separate public-history decision remains | Issue [#9]: history rewrite plan is pending explicit maintainer approval; no rewrite authorized |
+| Security/operations | Issue #10 closed; history rewrite EXECUTED 2026-11-23, cache/clone follow-ups open | Issue [#9]: both remotes at `c7a40dc`; GitHub Support purge + Codeberg cache + clone inventory outstanding |
 | Release readiness | Not established | Milestone 9: integrated tests, graph gate, deployed checks and accessibility/Figma acceptance |
 
 #### Evidence and coordination rules
@@ -63,7 +63,7 @@ For every milestone, report each criterion as **implemented**, **verified**, **p
 - Issue #9's reported local E2E results must not be represented as deployed/production verification. The graph integrity check, Render verification, Figma reconciliation and identified malformed-state browser case remain unverified or blocked in the latest report.
 - Issue #14's narrative implementation and Issue #13's avatar/account work are reported landed; verify current code and tests before changing them.
 - Source discovery APIs/adapters and review-history controls are substantially implemented, but the user-facing discovery-review and metrics surfaces remain outstanding.
-- Issue #10 being closed does not resolve the separately documented public Git-history exposure. No history rewrite or force-push is authorized without explicit maintainer approval.
+- Issue #10 being closed did not resolve the separately documented public Git-history exposure; that exposure was rewritten with maintainer approval on 2026-11-23 (both remotes at `c7a40dc`, 0 token hits). Do not treat a force-push as clearing provider caches — GitHub Support purge, Codeberg cache confirmation, and downstream clone/CI inventory remain open. See [docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md](docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md) §11.
 - Do not persist onboarding feedback/academic-participation preferences as account consent until Issue #15 defines a real delivery/participation capability, withdrawal and suppression path.
 - The full issue-by-issue assessment and next-step sequence are in [docs/MILESTONE-REVIEW-2026-11-23.md](docs/MILESTONE-REVIEW-2026-11-23.md).
 

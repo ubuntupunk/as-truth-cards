@@ -21,35 +21,26 @@ Issue #9 remains open per reviewer instruction until this consolidated report is
 
 ## ⚠️ Security remediation — credential exposure (commit `28e8775`)
 
-Commit `28e8775` inadvertently included a live E2E test account's email address and password, and stated the account was escalated to ADMIN. These credentials were pushed to `origin/main` and are publicly reachable in git history.
+Commit `28e8775` inadvertently included a live E2E test account's email address and password, and stated the account was escalated to ADMIN. The text was pushed to `origin/main` but has since been redacted from public history; the account-level containment and the executed rewrite are recorded below.
 
 **Remediation taken:**
 1. The test account has been **disabled and its password rotated**. Active sessions revoked.
 2. The credential line has been **removed from this report** (see §Environment, item above).
 3. The ADMIN role escalation on the test account has been **reverted**.
 4. E2E-created records (saved cards, discovery candidates/events) created under this account have been **purged** from the Neon `trope_graph` database where safe.
-5. Commit `28e8775` remains in history with the credential. **History rewriting is pending maintainer approval** (plan in §History-cleanup below) — do not attempt `git filter-branch` or `filter-repo` without the maintainer's approval, as it would invalidate all downstream clones.
+5. The credential text was redacted from public history on 2026-11-23 with maintainer approval (`git filter-repo` on an offline mirror, then coordinated force-push of GitHub and Codeberg to `c7a40dc`). No source, schema, or product contract changed. Details in §History-cleanup below.
 
 **Assessment:** The credential was in a development/E2E test account only, not a production user account. The account has no production data access beyond what any E2E test would create. The risk is limited to the test account itself and any E2E-generated test records, both of which have been cleaned up.
 
-### History-cleanup — PENDING MAINTAINER APPROVAL (plan only, not executed)
+### History-cleanup — EXECUTED 2026-11-23
 
-The full maintainer decision package — affected refs/remotes, redacted scan findings, downstream inventory, recovery/rollback, coordinated rewrite sequence, GitHub cache/support steps and post-rewrite verification — is in [SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md](SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md). No rewrite has been performed.
+The full maintainer decision package — affected refs/remotes, redacted scan findings, downstream inventory, recovery/rollback, coordinated rewrite sequence, GitHub cache/support steps and post-rewrite verification — is in [SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md](SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md), including its §11 execution record.
 
-Commit `28e8775` remains in public git history on both `origin` (GitHub) and `codeberg`, including the credential line and the statement that the test account was escalated to ADMIN. The password has been rotated and the account disabled, so the credential value itself is unusable, but the text remains reachable in clone history and GitHub's cached views. A redacted scan on 2026-11-23 found one remaining email reference in this report's remediation section; that reference has been removed from the current tree, while the historical blobs remain untouched pending the maintainer's decision.
+After explicit maintainer approval (`rewrite approved, proceed`), the credential email, password, and ADMIN-escalation phrases were redacted from all reachable history with `git filter-repo` on an offline mirror. Both public remotes were force-pushed to the rewritten tip `c7a40dc1890b80f79db4d108e4bd5011f7173ee4` (GitHub: `8349059...c7a40dc`; Codeberg: `38a24d8...c7a40dc`). The old commit `28e8775` is no longer reachable from any branch on either remote, and redacted scans report **0** token hits (also with `GIT_NO_REPLACE_OBJECTS=1`). Source, schema, and product contracts were unchanged.
 
-**Status: pending maintainer approval.** The agent has documented the exposure and prepared the plan below. It has **not** been approved, and nothing has been rewritten. The agent does not treat the exposure as an accepted risk on the maintainer's behalf.
+**Status: rewrite executed; provider-cache follow-ups open.** GitHub Support cache/search purge, Codeberg cache confirmation, and downstream clone/CI-cache inventory remain maintainer actions (tracked in [SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md](SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md) §11). The exposure is not treated as fully closed until those are resolved or explicitly accepted.
 
-**Proposed cleanup plan (for approval, do not execute before sign-off):**
-
-1. **Pre-flight:** freeze merges; `bd sync`; confirm both remotes point at the same commit; notify all contributors and record clone count.
-2. **Rewrite (local, single operator):** `git filter-repo --replace-text <redactions.txt>` on a fresh mirror clone, redacting the credential email, password, and ADMIN-escalation line across all history. Verify with `git log -S` / `git grep` over all revs.
-3. **Force-push both remotes:** `origin` (GitHub) and `codeberg`, with the maintainer performing or explicitly delegating the push. GitHub may need branch protection temporarily relaxed.
-4. **Downstream coordination:** every clone must re-fetch or re-clone (stale clones will re-push the secret); CI caches and any forks/branches need re-basing or deletion.
-5. **GitHub cached views:** request secret-scanning/history purge via GitHub Support for the affected commit, since force-push does not immediately clear cached views, search indexes, or already-fetched API responses.
-6. **Post-checks:** re-scan with `git log -S` and a secret scanner; confirm the rotated password was never reused; close out the incident note in this report.
-
-**Residual risk while pending:** the exposed text (email + password + ADMIN escalation statement) remains publicly reachable at commit `28e8775` and its ancestors on both remotes. Immediate risk is contained (account disabled, password rotated, sessions revoked, ADMIN reverted, E2E records purged) and no production user data or production credentials were involved. This risk is **open and pending maintainer disposition** — it is not accepted.
+**Residual risk after the rewrite:** no credential token remains in current refs or the working tree. Remaining risk is limited to provider-side cached HTML/API/search views and stale downstream clones or CI caches. Immediate account risk stays contained (account disabled, password rotated, sessions revoked, ADMIN reverted, E2E records purged); no production user data or production credentials were involved.
 
 
 ## Environment
@@ -351,4 +342,4 @@ Issue #9's remaining acceptance criteria are now evidenced:
 
 **Verification boundary:** the implemented feature paths above were **verified locally** (localhost only) where noted. None are **release-verified**. Still unverified/open: graph integrity (`trope-graph:check`, environment-blocked), deployed Render behavior/migrations (none run), Figma frame reconciliation (open), and the in-card `MalformedState` live-browser test (incomplete). These are explicit blockers/follow-ups, not passed gates — see §Release verification boundary.
 
-The history-cleanup decision is **pending maintainer approval** (plan in §History-cleanup, not executed). Issue #9 should remain open until the reviewer signs off on this report, the maintainer approves or rejects the history-cleanup plan, and each of the open verification items above is either completed with evidence or explicitly accepted as an open follow-up.
+The history-cleanup rewrite was **executed 2026-11-23 with maintainer approval** (both remotes at `c7a40dc`, 0 token hits; execution record in §History-cleanup and in [SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md](SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md) §11). Provider-cache purge, Codeberg cache confirmation, and downstream clone/CI inventory remain open follow-ups. Issue #9 stays open until those and each of the verification items above are completed with evidence or explicitly accepted as open follow-ups.

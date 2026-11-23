@@ -1,6 +1,6 @@
 # Public Git history credential exposure — maintainer decision package
 
-**Status: PLAN ONLY — PENDING MAINTAINER APPROVAL. No history rewrite, force-push, branch-protection change, or remote mutation has been performed.** This package exists so the maintainer can decide the disposition of an already-contained exposure. It does not accept risk on the maintainer's behalf.
+**Status: EXECUTED 2026-11-23 — maintainer approval received; public history rewritten and both remotes force-pushed.** Provider-side cache views and stale downstream clones remain open follow-ups (§11). No credential value is reproduced in this package.
 
 Prepared 2026-11-23 for [Issue #9](https://github.com/ubuntupunk/as-truth-cards/issues/9) and the [Milestone Review — 2026-11-23](MILESTONE-REVIEW-2026-11-23.md).
 
@@ -8,13 +8,7 @@ Prepared 2026-11-23 for [Issue #9](https://github.com/ubuntupunk/as-truth-cards/
 
 Commit `28e8775` introduced a test account's email address, password, and an ADMIN-escalation statement into `docs/ISSUE_9_E2E_REPORT.md`. The account has been disabled, its password rotated, active sessions revoked, the ADMIN escalation reverted, and E2E-created records purged where safe (reported by the maintainer in Issue #9; those environment actions are not re-verified here). The credential text remains reachable in public Git history on GitHub and Codeberg.
 
-The maintainer must choose one disposition:
-
-1. **Approve the coordinated rewrite** in §6, including force-push to both remotes and downstream coordination.
-2. **Reject/defer the rewrite** and keep the exposure as an explicitly open follow-up with an owner and review date.
-3. **Retain history with explicitly accepted residual risk** — an explicit maintainer statement, not an agent assumption.
-
-Until a decision is recorded, the exposure is **open, not accepted**.
+**Disposition recorded:** the maintainer approved the coordinated rewrite in §6 on 2026-11-23 and instructed the agent to proceed. Execution evidence is in §11. The rewrite was limited to the credential text; no source, schema, or product contract was changed.
 
 ## 2. Affected refs and remotes
 
@@ -99,20 +93,56 @@ If a rewrite is approved:
 
 ## 8. Post-rewrite verification checklist
 
-- [ ] `git rev-list --objects --all` blob scan (redacted, as in §3) reports **0** credential-token hits locally and after fetching both remotes.
-- [ ] `git log --all -S<token>` reports **0** commits for both tokens.
-- [ ] `git grep` over all revisions, or equivalent full-ref scan, reports **0** hits.
-- [ ] Current working tree of `docs/ISSUE_9_E2E_REPORT.md` contains no credential token.
-- [ ] `origin/main`, `origin/HEAD`, and `codeberg/main` point at the rewritten commits, with no old tip reachable from a branch.
-- [ ] Fork count re-checked; no fork still advertises the old tip.
-- [ ] CI re-run on the rewritten history is green under the repository's documented checks.
-- [ ] GitHub Support ticket resolved or explicitly accepted as an open follow-up.
-- [ ] Issue #9 and `ROADMAP.md` updated with new tip SHAs, verification evidence, and the maintainer's disposition.
+- [x] `git rev-list --objects --all` blob scan (redacted, as in §3) reports **0** credential-token hits locally and after fetching both remotes — also verified with `GIT_NO_REPLACE_OBJECTS=1`.
+- [x] `git log --all -S<token>` reports **0** commits for both tokens.
+- [x] Full-ref blob scan (equivalent to `git grep` over all revisions) reports **0** hits.
+- [x] Current working tree of `docs/ISSUE_9_E2E_REPORT.md` contains no credential token.
+- [x] `origin/main`, `origin/HEAD`, and `codeberg/main` point at `c7a40dc1890b80f79db4d108e4bd5011f7173ee4`; no old tip is reachable from a branch.
+- [x] Fork count re-checked after the rewrite: **0** forks. GitHub branch protection remains disabled.
+- [x] Local checks re-run on the rewritten history: typecheck pass, 803/803 UI tests, 189/189 server tests, build pass, lint with one pre-existing warning. `pnpm run trope-graph:check` remains environment-blocked (no database connection string in this session).
+- [ ] GitHub Support ticket resolved or explicitly accepted as an open follow-up — **not filed; maintainer action**.
+- [x] Issue #9 and `ROADMAP.md` updated with new tip SHAs, verification evidence, and the maintainer's disposition.
 
-## 9. Residual risk while pending
+## 9. Residual risk after the rewrite
 
-The exposed text remains publicly reachable at `28e8775` and its descendants on GitHub and Codeberg, including cached views. Immediate account risk is contained by the reported rotation/disable/revocation, but the historical exposure is **open and not accepted**. This package must not be read as permission to rewrite or as a claim that release readiness is established.
+Credential tokens are absent from every current ref on both remotes and from the local working tree/reflogs (old commit `28e8775` is no longer present locally). Residual risk is limited to provider-side cached HTML/API/search views, previously fetched forks or clones, and CI caches; those are explicit open follow-ups in §11. Immediate account risk remains contained by the reported rotation/disable/revocation. This rewrite does not establish release readiness.
 
 ## 10. Separate open verification boundaries (not resolved by this package)
 
 Per the maintainer direction and the 2026-11-23 review, these remain open and require their own evidence or explicit acceptance: `trope-graph:check` environment blocker, deployed Render checks, Figma frame reconciliation, the in-card `MalformedState` live-browser case, and remaining responsive/keyboard/accessibility acceptance. Issue #9 stays open.
+
+## 11. Execution record — 2026-11-23
+
+**Approval:** maintainer replied `rewrite approved, proceed` on 2026-11-23. Coordination notice posted to Issue #9 (comment `7092364653`).
+
+**Pre-flight (before any mutation):**
+- Working tree clean apart from two untracked user files (`.opencode-agent-profile.md`, `note.md`), left untouched.
+- GitHub `main` tip `834905929249404fa76912fe0259f6f9b4e058b0`; Codeberg `main` tip `38a24d8fb3efb1b90569c5aa46d20c49d880f317`.
+- GitHub API: **0 forks**, **0 open PRs**, branch protection disabled (404). `git-filter-repo` installed (`ed61b4050b71`).
+- Codeberg fork inventory remains unverifiable with configured credentials (open follow-up).
+
+**Rewrite (fresh offline mirror only; never in the working clone):**
+- `git clone --mirror` of GitHub into a restricted `/tmp` path; mirror included `refs/pull/1/head`.
+- Four local redaction rules generated in memory (email, password, and two ADMIN-escalation phrases), written to an untracked `/tmp` file, never committed.
+- `git filter-repo --replace-text <redactions.txt> --force` — parse/write/repack completed cleanly in ~8 s.
+- Commit count preserved: **251** before and after; source/schema/product contracts unchanged.
+
+**Verification (all passed before pushing):**
+- Redacted blob scan over `rev-list --objects --all`: **0** token hits.
+- Pickaxe (`git log --all -S<token>`): **0** commits for both tokens.
+- Re-run with `GIT_NO_REPLACE_OBJECTS=1`: **0** hits; old commit `28e8775` not an ancestor of any branch, including `refs/pull/1/head`.
+- Rewritten report contains no credential token; only a `[REDACTED]` marker.
+
+**Remote update (coordinated, GitHub first then Codeberg):**
+- First push attempt with `origin` failed (`fatal: --mirror can't be combined with refspecs`); no remote was changed. Retried with the explicit remote URL.
+- GitHub: `+ 8349059...c7a40dc main -> main (forced update)`.
+- Codeberg: `+ 38a24d8...c7a40dc main -> main (forced update)`.
+- `git ls-remote` confirms both remotes at `c7a40dc1890b80f79db4d108e4bd5011f7173ee4`.
+- Working clone fetched with `--prune`, reset hard to the new tip, reflogs expired (`git reflog expire --expire=now --all`), and `git gc --prune=now` run. Post-gc scan: **0** blob/worktree hits, old commit absent locally, both pickaxes **0**.
+
+**Checks re-run on rewritten history:** typecheck pass; UI tests **803/803**; server tests **189/189**; build pass; lint one pre-existing warning; `pnpm run trope-graph:check` environment-blocked (no database connection string in this session). Fork count re-checked: **0**.
+
+**Open follow-ups (not performed by this rewrite):**
+- File a GitHub Support request to purge cached HTML/API/search views for old commit `28e8775` (commit + file path only, never credential values); record the ticket ID in Issue #9.
+- Confirm Codeberg cache behaviour with its operators; inventory downstream clones, forks, and CI caches for stale history.
+- These are tracked in a dedicated bead; Issue #9 and release readiness remain open until resolved or explicitly accepted.
