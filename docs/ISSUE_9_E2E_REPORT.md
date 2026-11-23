@@ -24,7 +24,7 @@ Issue #9 remains open per reviewer instruction until this consolidated report is
 Commit `28e8775` inadvertently included a live E2E test account's email address and password, and stated the account was escalated to ADMIN. These credentials were pushed to `origin/main` and are publicly reachable in git history.
 
 **Remediation taken:**
-1. The test account (`[REDACTED]`) has been **disabled and its password rotated**. Active sessions revoked.
+1. The test account has been **disabled and its password rotated**. Active sessions revoked.
 2. The credential line has been **removed from this report** (see §Environment, item above).
 3. The ADMIN role escalation on the test account has been **reverted**.
 4. E2E-created records (saved cards, discovery candidates/events) created under this account have been **purged** from the Neon `trope_graph` database where safe.
@@ -34,7 +34,9 @@ Commit `28e8775` inadvertently included a live E2E test account's email address 
 
 ### History-cleanup — PENDING MAINTAINER APPROVAL (plan only, not executed)
 
-Commit `28e8775` remains in public git history on both `origin` (GitHub) and `codeberg`, including the credential line and the statement that the test account was escalated to ADMIN. The password has been rotated and the account disabled, so the credential value itself is unusable, but the text remains reachable in clone history and GitHub's cached views.
+The full maintainer decision package — affected refs/remotes, redacted scan findings, downstream inventory, recovery/rollback, coordinated rewrite sequence, GitHub cache/support steps and post-rewrite verification — is in [SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md](SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md). No rewrite has been performed.
+
+Commit `28e8775` remains in public git history on both `origin` (GitHub) and `codeberg`, including the credential line and the statement that the test account was escalated to ADMIN. The password has been rotated and the account disabled, so the credential value itself is unusable, but the text remains reachable in clone history and GitHub's cached views. A redacted scan on 2026-11-23 found one remaining email reference in this report's remediation section; that reference has been removed from the current tree, while the historical blobs remain untouched pending the maintainer's decision.
 
 **Status: pending maintainer approval.** The agent has documented the exposure and prepared the plan below. It has **not** been approved, and nothing has been rewritten. The agent does not treat the exposure as an accepted risk on the maintainer's behalf.
 

@@ -30,7 +30,7 @@ Detailed reconciliation: [Milestone Review — 2026-11-23](docs/MILESTONE-REVIEW
 - The global mobile navigation and drawer interaction work must be accepted against the tracked criteria, not inferred from Deck screenshots alone.
 - Explore, Compose, Research, and Sources still require surface-by-surface acceptance of their complete data, interaction, state, accessibility, and navigation contracts.
 - Account onboarding/profile/sign-in/saved-card surfaces are substantially implemented per Issue #13; audit remaining account-required actions, avatar lifecycle and safe return context rather than repeating the original first-slice implementation. Feedback/academic-participation delivery is separately blocked on product definition in Issue #15.
-- The CORS, trusted-proxy/IP, and cookie-policy review is tracked separately in Issue #10 (closed). The distinct public Git-history credential exposure documented in Issue #9 remains pending explicit maintainer approval for any rewrite.
+- The CORS, trusted-proxy/IP, and cookie-policy review is tracked separately in Issue #10 (closed). The distinct public Git-history credential exposure documented in Issue #9 remains pending explicit maintainer approval for any rewrite; the plan-only decision package is in [docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md](docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md).
 - `pnpm run trope-graph:check` has previously been reported blocked by database/environment or migration conditions. Re-run and document the current outcome; do not call verification fully green while a required gate is blocked.
 - Previously reported lint/typecheck failures must be checked against the current baseline and separated from regressions.
 
