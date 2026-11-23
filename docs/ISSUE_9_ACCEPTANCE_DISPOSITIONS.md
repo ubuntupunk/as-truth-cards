@@ -120,6 +120,13 @@ Per `ROADMAP.md`, "visual differences are not automatically defects." These are 
 as divergences requiring a maintainer design decision (align, adapt, or accept), **not**
 as bugs found by this slice. No design sign-off is claimed.
 
+The maintainer has accepted the `1 / 8` vs 47-card count as illustrative (no action).
+Detailed Deck and Card differences, divergence classifications and concrete
+align/adapt/accept options are in
+[docs/ISSUE_9_FIGMA_DIVERGENCE_DESIGN_NOTE.md](ISSUE_9_FIGMA_DIVERGENCE_DESIGN_NOTE.md);
+Deck and Card decisions remain pending. The 375px heading overlap seen in October
+screenshots is resolved by `pt-24` and is not an open defect.
+
 ## Disposition 4 — in-card `MalformedState` live-browser case
 
 **Status: blocked (tooling) with code + unit evidence.** A query-string projection URL
