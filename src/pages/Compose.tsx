@@ -19,10 +19,15 @@
  * *is* the signed-out state, an in-flight GET is the "checking" state, and a success is
  * signed-in. The authoring surface is what those three states gate. Switching cards remounts
  * that surface (`key={slug}`), so an author never carries one card's draft into another's.
+ *
+ * A signed-out author signs in through a same-origin `returnTo` that preserves the card
+ * and any research context supplied by the Research Workspace. That context is also offered
+ * back as a link once the author is done.
  */
 
 import { useEffect, useMemo, useState } from 'preact/hooks'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { safeReturnTo } from '@/auth/journey'
 import {
   PageBreadcrumb,
   PageHeading,
@@ -48,6 +53,7 @@ import type {
 } from '@/compose/compose-projector'
 import { claimPool, selectComposeProjection } from '@/compose/compose-projector'
 import type { DraftPayload, DraftVocabulary } from '@/compose/draft-types'
+import { composeSignInHref } from '@/compose/sign-in-return'
 import {
   useCanonicalProjection,
   useComposeDraft,
@@ -193,8 +199,13 @@ function ComposeWorkspace({
  */
 const Compose = () => {
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedSlug = searchParams.get('card')
+  // An explicit, safe returnTo is the research context the author came from.
+  // An absent value shows no link; an unsafe value is silently ignored.
+  const rawReturnTo = searchParams.get('returnTo')
+  const returnHref = rawReturnTo === null ? '' : safeReturnTo(rawReturnTo, '')
 
   const cardsQuery = useDeckCards()
   const cards = cardsQuery.data?.items ?? []
@@ -234,9 +245,22 @@ const Compose = () => {
       aria-label="Choose a card"
       className="rounded-lg border border-graph-border/70 bg-graph-muted/30 p-4"
     >
-      <span className="block text-xs font-medium text-muted-foreground">
-        Card
-      </span>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-xs font-medium text-muted-foreground">Card</span>
+        {returnHref !== '' && (
+          <a
+            data-testid="compose-return-link"
+            href={returnHref}
+            onClick={(event) => {
+              event.preventDefault()
+              navigate(returnHref)
+            }}
+            className="text-xs font-medium text-graph-muted-foreground hover:underline"
+          >
+            Back to research
+          </a>
+        )}
+      </div>
       {cardsQuery.isLoading ? (
         <p className="mt-1 text-sm text-muted-foreground">
           Loading the card list…
@@ -328,7 +352,9 @@ const Compose = () => {
         vocab={vocabQuery.data.vocabularies}
         projection={projection}
         pool={pool}
-        onSignIn={() => navigate('/admin')}
+        onSignIn={() =>
+          navigate(composeSignInHref(`${location.pathname}${location.search}`))
+        }
       />
     )
   }

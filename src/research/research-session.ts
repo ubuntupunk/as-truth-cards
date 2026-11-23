@@ -68,6 +68,8 @@ export type ResearchEntry = {
   readonly view: string | null
   /** The depth in force when focused, or `null` for the server default. */
   readonly depth: number | null
+  /** Corpus slug, present only for card entries so they can open in Compose. */
+  readonly slug?: string
   /** Epoch milliseconds the entry was added, for ordering the roster. */
   readonly addedAt: number
 }
@@ -100,6 +102,8 @@ export function isResearchEntry(value: unknown): value is ResearchEntry {
     (entry.view === null || typeof entry.view === 'string') &&
     (entry.depth === null ||
       (typeof entry.depth === 'number' && Number.isFinite(entry.depth))) &&
+    (entry.slug === undefined ||
+      (typeof entry.slug === 'string' && entry.slug.length > 0)) &&
     typeof entry.addedAt === 'number' &&
     Number.isFinite(entry.addedAt)
   )
@@ -108,7 +112,7 @@ export function isResearchEntry(value: unknown): value is ResearchEntry {
 /**
  * Build a session entry from a projection node and the projection parameters.
  *
- * @param node The focused node (its `id` is the canonical uuid).
+ * @param node The focused node (its `id` is the canonical uuid); cards carry a slug.
  * @param params The params the projection was requested with.
  * @param now Epoch milliseconds; injectable so tests are deterministic.
  * @returns The entry to store.
@@ -118,16 +122,28 @@ export function entryFromNode(
     readonly id: string
     readonly type: GraphNodeType
     readonly label: string
+    readonly metadata?: unknown
   },
   params: GraphParams,
   now: number = Date.now(),
 ): ResearchEntry {
+  const metadata = node.metadata
+  const slug =
+    node.type === 'card' &&
+    typeof metadata === 'object' &&
+    metadata !== null &&
+    'slug' in metadata &&
+    typeof metadata.slug === 'string' &&
+    metadata.slug !== ''
+      ? metadata.slug
+      : undefined
   return {
     id: node.id,
     type: node.type,
     label: node.label,
     view: params.view,
     depth: params.depth,
+    ...(slug !== undefined && slug !== '' ? { slug } : {}),
     addedAt: now,
   }
 }

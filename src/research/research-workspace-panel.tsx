@@ -31,6 +31,8 @@ function projectionLabel(entry: ResearchEntry): string {
  * @param props.onAddFocus Called to add the current focus; omitted disables
  * the add affordance entirely.
  * @param props.onOpen Called with an entry to re-open its projection.
+ * @param props.onCompose Called with a card entry to author its decomposition;
+ * omitted disables the Compose affordance entirely.
  * @param props.onRemove Called with a canonical id to drop one entry.
  * @param props.onClear Called to empty the session.
  * @returns The roster section.
@@ -40,6 +42,7 @@ export function ResearchWorkspacePanel({
   focus,
   onAddFocus,
   onOpen,
+  onCompose,
   onRemove,
   onClear,
 }: {
@@ -47,6 +50,7 @@ export function ResearchWorkspacePanel({
   focus: { readonly id: string; readonly label: string } | null
   onAddFocus?: () => void
   onOpen: (entry: ResearchEntry) => void
+  onCompose?: (entry: ResearchEntry) => void
   onRemove: (id: string) => void
   onClear: () => void
 }) {
@@ -139,6 +143,19 @@ export function ResearchWorkspacePanel({
                   >
                     Open
                   </button>
+                  {entry.type === 'card' &&
+                    entry.slug !== undefined &&
+                    onCompose !== undefined && (
+                      <button
+                        type="button"
+                        data-testid="research-session-compose"
+                        data-entry-id={entry.id}
+                        onClick={() => onCompose(entry)}
+                        className="rounded border border-input px-2 py-1 text-xs hover:bg-muted"
+                      >
+                        Compose
+                      </button>
+                    )}
                   <button
                     type="button"
                     data-testid="research-session-remove"

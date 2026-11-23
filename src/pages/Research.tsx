@@ -10,6 +10,7 @@
  * yet — the panel says so rather than implying persistence that does not exist.
  */
 
+import { useLocation, useNavigate } from 'react-router-dom'
 import { PageShell } from '@/components/page-shell'
 import { GRAPH_TREATMENT_TOKENS } from '../graph/appearance'
 import { GraphControls } from '../graph/graph-controls'
@@ -17,6 +18,7 @@ import { GraphShell } from '../graph/graph-shell'
 import { GraphStatusStrip } from '../graph/graph-status'
 import { GraphWorkspace } from '../graph/graph-workspace'
 import { useGraphPage } from '../graph/use-graph-page'
+import { composeHrefForEntry } from '../research/compose-link'
 import {
   entryFromNode,
   entryToGraphParams,
@@ -34,6 +36,8 @@ import { useResearchSession } from '../research/use-research-session'
 const Research = () => {
   const page = useGraphPage()
   const session = useResearchSession()
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const addFocus = () => {
     if (page.focusNode === null) return
@@ -47,6 +51,14 @@ const Research = () => {
       view: target.view,
       depth: target.depth,
     })
+  }
+
+  const composeEntry = (entry: ResearchEntry) => {
+    const href = composeHrefForEntry(
+      entry,
+      `${location.pathname}${location.search}`,
+    )
+    if (href !== null) navigate(href)
   }
 
   return (
@@ -96,6 +108,7 @@ const Research = () => {
                 }
                 onAddFocus={addFocus}
                 onOpen={openEntry}
+                onCompose={composeEntry}
                 onRemove={session.remove}
                 onClear={session.clear}
               />

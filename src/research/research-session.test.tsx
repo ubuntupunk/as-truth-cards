@@ -60,6 +60,32 @@ describe('entryFromNode', () => {
     )
     assert.equal(built.view, null)
     assert.equal(built.depth, null)
+    assert.equal(built.slug, undefined)
+  })
+
+  it('keeps a card slug so the focus can open in Compose', () => {
+    const built = entryFromNode(
+      {
+        id: 'node-3',
+        type: 'card',
+        label: 'Card',
+        metadata: { slug: 'id-01' },
+      },
+      { focus: null, view: null, depth: null },
+    )
+    assert.equal(built.slug, 'id-01')
+    assert.equal(
+      parseResearchSession(serializeResearchSession([built]))[0]?.slug,
+      'id-01',
+    )
+  })
+
+  it('discards a stored entry with a malformed slug', () => {
+    const raw = JSON.stringify({
+      version: RESEARCH_SESSION_VERSION,
+      entries: [{ ...entry('uuid-1'), slug: 42 }],
+    })
+    assert.deepEqual(parseResearchSession(raw), [])
   })
 })
 

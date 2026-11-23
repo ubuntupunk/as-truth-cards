@@ -32,7 +32,7 @@ function renderPanel(options: {
   focus?: { id: string; label: string } | null
   onAddFocus?: () => void
 }) {
-  const calls = { open: 0, remove: 0, clear: 0 }
+  const calls = { open: 0, compose: 0, remove: 0, clear: 0 }
   const html = render(
     <ResearchWorkspacePanel
       entries={options.entries ?? []}
@@ -40,6 +40,9 @@ function renderPanel(options: {
       onAddFocus={options.onAddFocus}
       onOpen={() => {
         calls.open += 1
+      }}
+      onCompose={() => {
+        calls.compose += 1
       }}
       onRemove={() => {
         calls.remove += 1
@@ -139,5 +142,33 @@ describe('research-workspace-panel roster', () => {
       ],
     })
     assert.ok(html.includes('default view · default depth'))
+    assert.ok(!html.includes('data-testid="research-session-compose"'))
+  })
+})
+
+describe('research-workspace-panel compose handoff', () => {
+  it('offers Compose only for a card with a known slug', () => {
+    const card: ResearchEntry = {
+      id: 'uuid-1',
+      type: 'card',
+      label: 'A card',
+      view: null,
+      depth: null,
+      slug: 'id-01',
+      addedAt: 0,
+    }
+    const { html } = renderPanel({ entries: [card] })
+    assert.ok(html.includes('data-testid="research-session-compose"'))
+    assert.ok(html.includes('data-entry-id="uuid-1"'))
+    assert.ok(
+      !renderPanel({ entries: [{ ...card, slug: undefined }] }).html.includes(
+        'data-testid="research-session-compose"',
+      ),
+    )
+    assert.ok(
+      !renderPanel({ entries: [{ ...card, type: 'source' }] }).html.includes(
+        'data-testid="research-session-compose"',
+      ),
+    )
   })
 })

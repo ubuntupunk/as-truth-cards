@@ -167,9 +167,14 @@ Research, Sources and Graph remain open. No gate is signed off.
 
 **Status: blocked (acceptance); foundations implemented and unit-tested.**
 
-Unit-test files exist: `src/compose` (5), `src/research` (2), `src/sources` (2),
+Unit-test files exist: `src/compose` (6), `src/research` (3), `src/sources` (2),
 `src/explore` (4), `src/graph` (12). `src/graph/graph-states.test.tsx` covers
 `MalformedState`. These pin contracts, not end-to-end workflows.
+
+A locally verified slice now links a focused card in the research session to Compose
+and carries a safe `returnTo` through the sign-in handoff and back to the research
+workspace (`src/research/compose-link.ts`, `src/compose/sign-in-return.ts`). This closes
+the context-preservation gap in code, not the live acceptance run.
 
 **Boundary:** no live accepted run of Compose draft persistence/permissions, Research
 context integration, or Sources discovery-review/metrics UI. Issue #12 remains the
