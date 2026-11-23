@@ -145,4 +145,63 @@ Per the maintainer direction and the 2026-11-23 review, these remain open and re
 **Open follow-ups (not performed by this rewrite):**
 - File a GitHub Support request to purge cached HTML/API/search views for old commit `28e8775` (commit + file path only, never credential values); record the ticket ID in Issue #9.
 - Confirm Codeberg cache behaviour with its operators; inventory downstream clones, forks, and CI caches for stale history.
-- These are tracked in a dedicated bead; Issue #9 and release readiness remain open until resolved or explicitly accepted.
+- These are tracked in a dedicated bead; Issue #9 and release readiness remain open until resolved or explicitly accepted. The inventory portion was completed on 2026-11-23; see §12.
+
+## 12. Provider/cache inventory — 2026-11-23 (bead `as-truth-cards-zs3`)
+
+**Scope:** determine what stale history is still reachable after the approved rewrite, and separate what can be checked from here from what needs a provider ticket or operator reply. No credential values were fetched into this record, reproduced, or sent to any provider; only commit SHA `28e87757fb858df6d97bea89a345ab731dbef36b` and the path `docs/ISSUE_9_E2E_REPORT.md` are used.
+
+### 12.1 Refs, forks, PRs and CI caches
+
+| Surface | Command / endpoint | Result | Interpretation |
+|---|---|---|---|
+| GitHub repo | `gh api repos/ubuntupunk/as-truth-cards` | `default_branch: main`, `forks: 0`, `open_issues: 6` | No known GitHub forks. |
+| GitHub forks | `gh api repos/ubuntupunk/as-truth-cards/forks` | empty list | Confirms 0 forks. |
+| GitHub branches | `gh api .../branches` | `main`, `dev`, `deno` | Branch names only; reachability checked below. |
+| GitHub PRs | `gh api .../pulls?state=all` | single PR `#1`, closed; head `refs/pull/1/head` at `1aafe8134a3402878fe572210fe1e3b97bf1e7b2` | No open PR holding stale history. |
+| GitHub Actions caches | `gh api .../actions/caches` | `total_count: 0` | No GitHub-hosted build cache to purge. |
+| Codeberg repo | `GET /api/v1/repos/ubuntupunk/as-truth-cards` (unauthenticated, HTTP 200) | `forks_count: 0`, `open_pr_counter: 0`, `has_actions: false`, `default_branch: main` | Unauthenticated API access is sufficient; the earlier "unverifiable with configured credentials" note is resolved. No Codeberg Actions caches exist. |
+| Codeberg forks | `GET /api/v1/repos/.../forks` | `[]` | Confirms 0 forks. |
+| Codeberg branches / tags | `GET /api/v1/repos/.../branches`, `/tags` | only `main` at `f843ffaf0e27ad862ffc818100c0c50d4301072b`; no tags | No alternate Codeberg ref carrying the old commit. |
+| Old SHA reachability | `gh api .../compare/<ref>...28e8775…` for `main`, `dev`, `deno` and PR head | `merge_base: null`, `status: diverged` in every case | The old commit is not an ancestor of any live GitHub ref. |
+| Local clone | `git for-each-ref --contains 28e8775…`, `git cat-file -t 28e8775…`, `git reflog --all \| grep 28e8775`, grep under `.git` | no refs, no object, no reflog entry, no file hit | Working clone is clean; no leftover mirror found under `/tmp` or `/tmp/opencode`. |
+| Local clones / CI config | scan of local `.git/config` files and repository workflow files | only this working clone references `as-truth-cards`; no workflow/CI cache config in the repository | No other local clone or repo-defined CI cache identified. |
+
+Both remotes and the local clone remain at `f843ffaf0e27ad862ffc818100c0c50d4301072b` (the pushed tip after the later #13/#14/#9 documentation slices). The rewrite tip `c7a40dc1890b80f79db4d108e4bd5011f7173ee4` is an ancestor of that tip.
+
+### 12.2 Provider-side cached views — still present
+
+Status-only probes (response bodies discarded, commit content never read or stored):
+
+| URL form | GitHub | Codeberg |
+|---|---|---|
+| HTML commit view for `28e8775…` | HTTP 200 | HTTP 200 |
+| API commit view for `28e8775…` | HTTP 200 | HTTP 404 |
+
+The direct-SHA HTML views still resolve on both providers. This is the residual exposure a force-push cannot clear. It does **not** mean a live branch points at the old commit (§12.1), and no credential value was read back during these probes.
+
+### 12.3 Ready-to-submit GitHub Support request — NOT YET FILED
+
+GitHub Support is a signed-in portal workflow with no public REST endpoint; no ticket can be created from `gh api`. No ticket ID exists yet, and Issue #9 must not claim one. Proposed text (copy verbatim; do not add credential values or commit content):
+
+> **Subject:** Request to purge cached views of old commit 28e8775 in ubuntupunk/as-truth-cards
+>
+> Repository: `https://github.com/ubuntupunk/as-truth-cards`
+> Old commit SHA: `28e87757fb858df6d97bea89a345ab731dbef36b`
+> Context file: `docs/ISSUE_9_E2E_REPORT.md`
+>
+> This repository underwent an approved history rewrite on 2026-11-23. The old commit above is no longer reachable from any branch, tag, fork, pull request, or Actions cache. However, the direct commit HTML view and API view still return HTTP 200 when addressed by SHA. Please purge cached HTML, API and search-index views for that SHA and confirm when the purge is complete. Do not include or request the older commit contents; only the SHA and file path are needed to locate it.
+
+**Status:** blocked on maintainer submission through the GitHub Support portal; ticket ID and provider confirmation remain outstanding.
+
+### 12.4 Codeberg operator question — NOT YET ANSWERED
+
+Question for Codeberg operators: for repository `ubuntupunk/as-truth-cards`, the direct-SHA HTML commit view for `28e87757fb858df6d97bea89a345ab731dbef36b` returns HTTP 200 while the corresponding API view returns HTTP 404 after the rewrite. Please confirm whether this is a cached view, whether it can be purged, and what the expected expiry is. Reply with status only; do not paste commit contents. No response has been received.
+
+### 12.5 Residual external inventory
+
+There are 0 GitHub forks, 0 Codeberg forks, 0 GitHub Actions caches, and no Codeberg Actions. Arbitrary third-party clones and their local caches cannot be enumerated from this repository; they remain a provider/operator/maintainer awareness item. Any clone that still holds the pre-rewrite history must be re-cloned or force-updated and must never push the old history back. Treat any new fork, mirror, CI cache, or stale clone as a fresh exposure requiring the same disposition.
+
+### 12.6 Disposition
+
+Completed here: ref/fork/PR/cache/clone inventory and cached-view detection; drafts for both provider contacts. Outstanding: GitHub Support purge ticket and confirmation, Codeberg operator response, and any third-party clone cleanup. `as-truth-cards-zs3` therefore remains open (external action), Issue #9 remains open (comment `7093630086` records this disposition), and 0/11 release criteria are release-verified. No product code was changed in this slice.

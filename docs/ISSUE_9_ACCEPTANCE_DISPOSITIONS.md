@@ -170,11 +170,21 @@ owner of the Sources discovery/metrics work. Milestones 4–6 are not accepted.
 
 ## Disposition 7 — history-rewrite external follow-ups
 
-**Status: blocked (external), tracked in `as-truth-cards-zs3`.**
+**Status: inventory completed 2026-11-23; provider purge and operator replies blocked
+(external), tracked in `as-truth-cards-zs3`.**
 
-Provider-cache purge, Codeberg cache confirmation and stale-clone/CI inventory cannot be
-completed from this repository and are unchanged by this slice. They are a security
-follow-up, not a product criterion, but still block a clean close of #9.
+The stale-history inventory was completed from this repository: GitHub forks=0, GitHub
+Actions caches=0, one closed PR, no live branch reaches the old commit; Codeberg
+forks=0, only `main`, no Actions; only the working local clone references this repo and
+it contains no object/ref/reflog entry for the old commit. Status-only probes show the
+old SHA's HTML view still returns HTTP 200 on both providers (GitHub API 200, Codeberg
+API 404), so cached views remain. See
+[docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md](SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md)
+§12 for the command/result table and ready-to-submit contact drafts.
+
+Still blocked: filing the GitHub Support purge ticket (portal-only, no REST endpoint;
+no ticket ID exists), Codeberg operator confirmation, and any third-party clone cleanup.
+These are security follow-ups, not product criteria, but still block a clean close of #9. Disposition posted to Issue #9 as comment `7093630086`.
 
 ## Roll-up after this slice
 
@@ -186,7 +196,7 @@ follow-up, not a product criterion, but still block a clean close of #9.
 | 4 | MalformedState live case | blocked (tooling); code + unit evidence |
 | 5 | Responsive / keyboard / a11y | Deck fresh visual check clean (stale defect resolved); other surfaces open |
 | 6 | Compose / Research / Sources E2E | blocked (acceptance); unit contracts exist |
-| 7 | Cache purge / stale clones | blocked (external), `as-truth-cards-zs3` |
+| 7 | Cache purge / stale clones | inventory completed; purge/operator replies blocked (external), `as-truth-cards-zs3` |
 
 **Release-verified criteria: still 0 / 11.** No milestone is accepted, Issue #9 remains
 open, and nothing here establishes release readiness. Items requiring maintainer action or
