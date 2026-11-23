@@ -53,9 +53,9 @@ export type CardActionsProps = {
   readonly isSignedIn?: boolean
 }
 
-/** The save note id, referenced by the disabled button via `aria-describedby`. */
+/** The primary action style: the global accent pair, so it repaints with the treatment. */
 const PRIMARY =
-  'min-h-[44px] rounded-lg border border-transparent bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
+  'min-h-[44px] rounded-lg border border-transparent bg-graph-accent px-4 py-2.5 text-sm font-medium text-graph-accent-foreground transition-colors hover:bg-graph-accent/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
 const SECONDARY =
   'min-h-[44px] rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
 

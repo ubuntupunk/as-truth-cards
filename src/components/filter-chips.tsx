@@ -55,7 +55,8 @@ export type ToggleBadgeProps = {
 }
 
 /**
- * One toggle badge. Active state is carried by `aria-pressed` and text weight.
+ * One toggle badge. Active state is carried by `aria-pressed` and the theme's
+ * accent fill, so a selection repaints with the active treatment.
  *
  * @param props See {@link ToggleBadgeProps}.
  * @returns A toggle `<button>` with the shared chip treatment.
@@ -69,7 +70,7 @@ export function ToggleBadge({ active, onSelect, children }: ToggleBadgeProps) {
       className={cn(
         CHIP_BADGE,
         active
-          ? 'border-foreground/30 bg-foreground text-background'
+          ? 'border-graph-accent bg-graph-accent text-graph-accent-foreground hover:bg-graph-accent/90'
           : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground',
       )}
     >

@@ -39,12 +39,12 @@ export type BrowseRailProps = {
   readonly graphHref: string
 }
 
-/** The row treatment: active rows are filled, inactive rows are quiet. */
+/** The row treatment: active rows fill with the theme accent, inactive rows stay quiet. */
 function axisRowClasses(active: boolean): string {
   return cn(
     'flex w-full items-center rounded-md px-2 py-1.5 text-left text-xs font-medium transition-colors',
     active
-      ? 'bg-graph-muted text-foreground'
+      ? 'bg-graph-accent text-graph-accent-foreground hover:bg-graph-accent/90'
       : 'text-graph-muted-foreground hover:bg-graph-muted/60 hover:text-foreground',
   )
 }

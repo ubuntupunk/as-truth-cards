@@ -106,7 +106,7 @@ export function DeckScopeBadges({
           className={cn(
             CHIP_BADGE,
             scope.withoutRepeats
-              ? 'border-foreground/30 bg-foreground text-background'
+              ? 'border-graph-accent bg-graph-accent text-graph-accent-foreground hover:bg-graph-accent/90'
               : 'border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground',
           )}
         >
