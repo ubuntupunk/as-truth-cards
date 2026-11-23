@@ -11,7 +11,9 @@ This roadmap sequences implementation of Trope Deck's product surfaces, research
 
 This document is a plan and status framework, not a claim that every listed check has already passed. Statuses must be supported by linked commits, issues, test reports, or explicit manual verification.
 
-## Current position — reviewed 2026-10-12
+## Current position — reviewed 2026-11-23
+
+Detailed reconciliation: [Milestone Review — 2026-11-23](docs/MILESTONE-REVIEW-2026-11-23.md). This snapshot supersedes the date of the earlier position statement; milestone acceptance criteria below remain authoritative.
 
 ### Established foundation
 
@@ -33,6 +35,37 @@ This document is a plan and status framework, not a claim that every listed chec
 - Previously reported lint/typecheck failures must be checked against the current baseline and separated from regressions.
 
 For every milestone, report each criterion as **implemented**, **verified**, **partially implemented**, **blocked**, or **deferred**. “Implemented” is not synonymous with “verified.”
+
+
+
+### Status reconciliation — 2026-11-23
+
+**Overall:** the architecture and substantial backend/application foundations are in place. The project is not release-ready and the core research workflow is not yet accepted end-to-end. Treat implementation, verification, milestone acceptance and release verification as distinct states.
+
+| Area | Current status | Tracking / next action |
+|---|---|---|
+| Canonical ontology and graph | Foundation established | Preserve semantic boundaries; rerun graph integrity gate in the correct DB environment |
+| Graph Explorer | Core implementation exists | Complete interaction, responsive, keyboard and accessibility acceptance |
+| Deck / card reading | Narrative Analysis reported implemented | Issue [#14](https://github.com/ubuntupunk/as-truth-cards/issues/14): acceptance audit only; do not duplicate implementation |
+| Shared shell/navigation | Substantial implementation; acceptance open | Issue [#9](https://github.com/ubuntupunk/as-truth-cards/issues/9): reconcile every criterion and release-verification boundary |
+| Explore / Browse | Surface acceptance outstanding | Complete canonical discovery, search/filter and context-preservation workflow |
+| Compose / Decompose | Partial foundation; full workflow outstanding | Complete explicit draft workflow without writing drafts into canonical ontology |
+| Research Workspace | Partial foundation; full workflow outstanding | Integrate graph/card/source/composition context; keep research and auth sessions distinct |
+| Sources | Backend discovery foundation substantially implemented; UI gaps remain | Issue [#12](https://github.com/ubuntupunk/as-truth-cards/issues/12): review UI, metrics UI, pagination and provider decisions |
+| Account/onboarding | Most major panels and flows reported implemented and tested | Issue [#13]: audit remaining account gates, avatar lifecycle and safe return context; avoid reimplementation |
+| Feedback/academic participation | Product/delivery definition outstanding | Issue [#15]: define actual capability and consent lifecycle before account-side persistence |
+| Security/operations | Issue #10 review closed; separate public-history decision remains | Issue [#9]: history rewrite plan is pending explicit maintainer approval; no rewrite authorized |
+| Release readiness | Not established | Milestone 9: integrated tests, graph gate, deployed checks and accessibility/Figma acceptance |
+
+#### Evidence and coordination rules
+
+- The 2026-11-23 review is a repository/issue reconciliation, not a fresh execution of all tests or a production audit.
+- Issue #9's reported local E2E results must not be represented as deployed/production verification. The graph integrity check, Render verification, Figma reconciliation and identified malformed-state browser case remain unverified or blocked in the latest report.
+- Issue #14's narrative implementation and Issue #13's avatar/account work are reported landed; verify current code and tests before changing them.
+- Source discovery APIs/adapters and review-history controls are substantially implemented, but the user-facing discovery-review and metrics surfaces remain outstanding.
+- Issue #10 being closed does not resolve the separately documented public Git-history exposure. No history rewrite or force-push is authorized without explicit maintainer approval.
+- Do not persist onboarding feedback/academic-participation preferences as account consent until Issue #15 defines a real delivery/participation capability, withdrawal and suppression path.
+- The full issue-by-issue assessment and next-step sequence are in [docs/MILESTONE-REVIEW-2026-11-23.md](docs/MILESTONE-REVIEW-2026-11-23.md).
 
 ---
 
