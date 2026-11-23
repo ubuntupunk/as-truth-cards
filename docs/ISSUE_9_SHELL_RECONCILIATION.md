@@ -1,5 +1,12 @@
 # Issue #9 — product-shell criterion reconciliation
 
+> **Later-slice update (2026-11-23):** the dispositions in §6 were advanced in
+> [docs/ISSUE_9_ACCEPTANCE_DISPOSITIONS.md](ISSUE_9_ACCEPTANCE_DISPOSITIONS.md) on
+> `207bc9e`. The graph DB gate is now locally verified via `just graph-check` against a
+> local database; deployed health/runtime/auth probes passed; Figma access is restored
+> and frames were inventoried and reviewed. This document is retained as the baseline
+> reconciliation and is not rewritten. Issue #9 stays open.
+
 Prepared 2026-11-23 for [Issue #9](https://github.com/ubuntupunk/as-truth-cards/issues/9) per the maintainer's P1 direction in [Milestone Review — 2026-11-23](MILESTONE-REVIEW-2026-11-23.md) §Recommended execution sequence. This is an evidence-led status report on current `main`, **not** an acceptance sign-off, a fresh implementation pass, or a production audit.
 
 ## 1. Evidence standard and status vocabulary

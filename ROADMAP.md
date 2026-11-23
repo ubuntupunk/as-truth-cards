@@ -44,10 +44,10 @@ For every milestone, report each criterion as **implemented**, **verified**, **p
 
 | Area | Current status | Tracking / next action |
 |---|---|---|
-| Canonical ontology and graph | Foundation established | Preserve semantic boundaries; rerun graph integrity gate in the correct DB environment |
+| Canonical ontology and graph | Foundation established; full graph gate locally verified on a local DB (2026-11-23) | Preserve semantic boundaries; deployed Neon migration state still unverified — see [docs/ISSUE_9_ACCEPTANCE_DISPOSITIONS.md](docs/ISSUE_9_ACCEPTANCE_DISPOSITIONS.md) |
 | Graph Explorer | Core implementation exists | Complete interaction, responsive, keyboard and accessibility acceptance |
 | Deck / card reading | Narrative Analysis implemented; locally verified by the 2026-11-23 audit; browser/DB acceptance open | Issue [#14](https://github.com/ubuntupunk/as-truth-cards/issues/14): see [docs/ISSUE_14_AUDIT_REPORT.md](docs/ISSUE_14_AUDIT_REPORT.md); no reimplementation |
-| Shared shell/navigation | Substantial implementation; acceptance open | Issue [#9](https://github.com/ubuntupunk/as-truth-cards/issues/9): reconcile every criterion and release-verification boundary |
+| Shared shell/navigation | Substantial implementation; dispositions advanced 2026-11-23; acceptance open | Issue [#9](https://github.com/ubuntupunk/as-truth-cards/issues/9): see [docs/ISSUE_9_ACCEPTANCE_DISPOSITIONS.md](docs/ISSUE_9_ACCEPTANCE_DISPOSITIONS.md); 0/11 release-verified |
 | Explore / Browse | Surface acceptance outstanding | Complete canonical discovery, search/filter and context-preservation workflow |
 | Compose / Decompose | Partial foundation; full workflow outstanding | Complete explicit draft workflow without writing drafts into canonical ontology |
 | Research Workspace | Partial foundation; full workflow outstanding | Integrate graph/card/source/composition context; keep research and auth sessions distinct |
@@ -60,7 +60,7 @@ For every milestone, report each criterion as **implemented**, **verified**, **p
 #### Evidence and coordination rules
 
 - The 2026-11-23 review is a repository/issue reconciliation, not a fresh execution of all tests or a production audit.
-- Issue #9's reported local E2E results must not be represented as deployed/production verification. The graph integrity check, Render verification, Figma reconciliation and identified malformed-state browser case remain unverified or blocked in the latest report.
+- Issue #9's reported local E2E results must not be represented as deployed/production verification. Seven acceptance dispositions were advanced on 2026-11-23 in [docs/ISSUE_9_ACCEPTANCE_DISPOSITIONS.md](docs/ISSUE_9_ACCEPTANCE_DISPOSITIONS.md): the full graph gate passes locally via `just graph-check` on a local DB; deployed health/runtime/public-graph/401-auth probes passed; Figma access is restored and five surface frames were inventoried and reviewed, with divergences recorded for maintainer decision. Still open: deployed migration verification, Figma design sign-off, live `MalformedState` injection, non-Deck responsive/keyboard/a11y sign-off, Compose/Research/Sources E2E acceptance, and the external cache/clone follow-ups. 0/11 criteria are release-verified.
 - Issue #14's narrative implementation was audited on 2026-11-23: data contract, long-form rendering, honest empty/error states, three-face navigation, hidden-face handling and links are locally verified; 375px/desktop browser acceptance, reduced-motion/no-3D emulation and Figma reconciliation remain open. See [docs/ISSUE_14_AUDIT_REPORT.md](docs/ISSUE_14_AUDIT_REPORT.md).
 - Issue #13's avatar/account work was audited on 2026-11-23: account-owned avatar bytes, versioned `user.image`, public reads, initials fallback, device-local preferences, Save Card gate and open-redirect-safe `returnTo` are locally verified; real Neon persistence, cross-device/browser acceptance and Figma parity remain open. See [docs/ISSUE_13_AUDIT_REPORT.md](docs/ISSUE_13_AUDIT_REPORT.md).
 - Source discovery APIs/adapters and review-history controls are substantially implemented, but the user-facing discovery-review and metrics surfaces remain outstanding.
