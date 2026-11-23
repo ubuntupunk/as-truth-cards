@@ -180,6 +180,14 @@ the context-preservation gap in code, not the live acceptance run.
 context integration, or Sources discovery-review/metrics UI. Issue #12 remains the
 owner of the Sources discovery/metrics work. Milestones 4–6 are not accepted.
 
+Issue #16 now owns the Compose research-method redesign (corpus/projection audit,
+working-claim contract, MAIN/COUNTER validation, and Figma decision record). Its
+audit and proposal are in
+[docs/COMPOSE_RESEARCH_METHOD_PROPOSAL.md](COMPOSE_RESEARCH_METHOD_PROPOSAL.md) and
+are **pending maintainer review**; they do not change this disposition's acceptance
+boundary. The Figma recommendations in that proposal also depend on the still-open
+decision in disposition 3.
+
 ## Disposition 7 — history-rewrite external follow-ups
 
 **Status: inventory completed 2026-11-23; provider purge and operator replies blocked
