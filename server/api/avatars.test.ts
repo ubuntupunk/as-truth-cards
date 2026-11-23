@@ -233,6 +233,30 @@ describe('POST /api/me/avatar', () => {
     })
   })
 
+  it('writes only the session actor’s row, never another account’s', async () => {
+    // Issue #13: avatar bytes are account-scoped. A signed-in upload addresses
+    // the session's own id; a different account's stored photo and user.image
+    // must be untouched.
+    const store = new MemoryAvatarStore()
+    const otherImage = publicAvatarUrl('user-2', etagOf(JPEG_BYTES))
+    await store.save('user-2', 'image/jpeg', JPEG_BYTES)
+    await store.setUserImage('user-2', otherImage)
+
+    await withServer({ userId: 'user-1', store }, async ({ request }) => {
+      const response = await request('POST', '/api/me/avatar', {
+        body: PNG_BYTES,
+        contentType: 'image/png',
+      })
+      assert.equal(response.status, 200)
+      assert.equal((await store.read('user-2'))?.mimeType, 'image/jpeg')
+      assert.deepEqual(
+        store.userImages.filter((write) => write.userId === 'user-2'),
+        [{ userId: 'user-2', image: otherImage }],
+      )
+      assert.equal((await store.read('user-1'))?.mimeType, 'image/png')
+    })
+  })
+
   it('decides the type from the magic bytes, not the declared header', async () => {
     const store = new MemoryAvatarStore()
     await withServer({ userId: 'user-1', store }, async ({ request }) => {

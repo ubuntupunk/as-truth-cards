@@ -316,6 +316,19 @@ describe('AvatarPanel', () => {
     assert.ok(html.includes('class="sr-only"'), 'focusable, not display-none')
   })
 
+  it('says the photo is public profile presentation, not a credential', () => {
+    // Issue #13: the avatar is a public account field (`user.image` -> the
+    // public avatar route), not device-local and not research standing. The
+    // panel must say that in words so a reader does not mistake it for either.
+    const html = renderPanel()
+    assert.ok(
+      html.includes('Your photo is public alongside your display name.'),
+    )
+    assert.ok(
+      html.includes('It is profile presentation, not a research credential.'),
+    )
+  })
+
   it('names the chosen file with its size and offers Upload and Cancel', () => {
     const tree = AvatarPanel({ ...base, draftFile: file })
     const html = render(<AvatarPanel {...base} draftFile={file} />)
