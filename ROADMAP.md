@@ -46,7 +46,7 @@ For every milestone, report each criterion as **implemented**, **verified**, **p
 |---|---|---|
 | Canonical ontology and graph | Foundation established | Preserve semantic boundaries; rerun graph integrity gate in the correct DB environment |
 | Graph Explorer | Core implementation exists | Complete interaction, responsive, keyboard and accessibility acceptance |
-| Deck / card reading | Narrative Analysis reported implemented | Issue [#14](https://github.com/ubuntupunk/as-truth-cards/issues/14): acceptance audit only; do not duplicate implementation |
+| Deck / card reading | Narrative Analysis implemented; locally verified by the 2026-11-23 audit; browser/DB acceptance open | Issue [#14](https://github.com/ubuntupunk/as-truth-cards/issues/14): see [docs/ISSUE_14_AUDIT_REPORT.md](docs/ISSUE_14_AUDIT_REPORT.md); no reimplementation |
 | Shared shell/navigation | Substantial implementation; acceptance open | Issue [#9](https://github.com/ubuntupunk/as-truth-cards/issues/9): reconcile every criterion and release-verification boundary |
 | Explore / Browse | Surface acceptance outstanding | Complete canonical discovery, search/filter and context-preservation workflow |
 | Compose / Decompose | Partial foundation; full workflow outstanding | Complete explicit draft workflow without writing drafts into canonical ontology |
@@ -61,7 +61,7 @@ For every milestone, report each criterion as **implemented**, **verified**, **p
 
 - The 2026-11-23 review is a repository/issue reconciliation, not a fresh execution of all tests or a production audit.
 - Issue #9's reported local E2E results must not be represented as deployed/production verification. The graph integrity check, Render verification, Figma reconciliation and identified malformed-state browser case remain unverified or blocked in the latest report.
-- Issue #14's narrative implementation and Issue #13's avatar/account work are reported landed; verify current code and tests before changing them.
+- Issue #14's narrative implementation was audited on 2026-11-23: data contract, long-form rendering, honest empty/error states, three-face navigation, hidden-face handling and links are locally verified; 375px/desktop browser acceptance, reduced-motion/no-3D emulation and Figma reconciliation remain open. See [docs/ISSUE_14_AUDIT_REPORT.md](docs/ISSUE_14_AUDIT_REPORT.md). Issue #13's avatar/account work is still reported landed and awaits its own audit.
 - Source discovery APIs/adapters and review-history controls are substantially implemented, but the user-facing discovery-review and metrics surfaces remain outstanding.
 - Issue #10 being closed did not resolve the separately documented public Git-history exposure; that exposure was rewritten with maintainer approval on 2026-11-23 (both remotes at `c7a40dc`, 0 token hits). Do not treat a force-push as clearing provider caches — GitHub Support purge, Codeberg cache confirmation, and downstream clone/CI inventory remain open. See [docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md](docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md) §11.
 - Do not persist onboarding feedback/academic-participation preferences as account consent until Issue #15 defines a real delivery/participation capability, withdrawal and suppression path.

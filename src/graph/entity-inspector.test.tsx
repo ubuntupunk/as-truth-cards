@@ -130,6 +130,41 @@ describe('entity-inspector card node', () => {
     assert.ok(html.includes('data-status="ESTABLISHED"'))
     assert.ok(html.includes('data-status-source="epistemic_status"'))
   })
+
+  it('reports authored editorial notes as narrative, never as evidence', () => {
+    // Issue #14: the inspector surfaces the same `editorial_notes` field the
+    // deck's Analysis face renders. The row must say what the prose is, and
+    // adding it must not fabricate an evidence row or a claim.
+    const narrative = 'Separate the periods before comparing their actors.'
+    const withNarrative = {
+      ...CARD_PROJECTION,
+      nodes: CARD_PROJECTION.nodes.map((node) =>
+        node.id === ID.focusCard && node.type === 'card'
+          ? {
+              ...node,
+              metadata: { ...node.metadata, editorialNotes: narrative },
+            }
+          : node,
+      ),
+    }
+    const annotated = render(
+      <EntityInspector
+        projection={withNarrative}
+        selection={{ kind: 'node', id: ID.focusCard }}
+        onNavigateCard={() => {}}
+        onRefocus={() => {}}
+      />,
+    )
+    assert.ok(
+      annotated.includes('Editorial analysis (narrative, not evidence)'),
+    )
+    assert.ok(annotated.includes(narrative))
+    assert.ok(!annotated.includes('data-node-type="evidence_item"'))
+    // Absent prose is reported by the absence of the row, never by an invented
+    // zero or placeholder. The shared fixture has no editorialNotes.
+    assert.ok(!html.includes('Editorial analysis (narrative, not evidence)'))
+    assert.ok(!html.includes('No editorial analysis recorded'))
+  })
 })
 
 describe('entity-inspector card-front fold', () => {

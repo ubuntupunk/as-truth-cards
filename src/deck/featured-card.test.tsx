@@ -553,6 +553,23 @@ describe('FeaturedCard — Analysis face', () => {
     assert.ok(html.includes('data-testid="card-face-announcement"'))
     assert.ok(html.includes('Current face: Analysis.'))
   })
+
+  it('names every face and the active one on each stage', () => {
+    // Issue #14: the announcement is how a screen reader learns that a third
+    // face exists. It must list all three faces and follow the stage on every
+    // transition, not just when the reader happens to land on Analysis.
+    for (const [stage, label] of [
+      ['cover', 'Cover'],
+      ['claim', 'Claim'],
+      ['analysis', 'Analysis'],
+    ] as const) {
+      const html = render(<FeaturedCard {...fixture({ stage }).props} />)
+      assert.ok(
+        html.includes(`Current face: ${label}. Faces: Cover, Claim, Analysis.`),
+        `missing or stale announcement on ${stage}`,
+      )
+    }
+  })
 })
 
 describe('FeaturedCard — independent actions', () => {
