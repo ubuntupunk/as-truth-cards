@@ -244,6 +244,55 @@ describe('ComposeEditor', () => {
     assert.ok(html.includes('Add chain'))
   })
 
+  it('uses the approved plain-language questions with formal terms on disclosure', () => {
+    const html = render(treeFor(EMPTY_DRAFT))
+    for (const label of [
+      'What is the assertion?',
+      'What reasons are offered?',
+      'How does the reasoning work?',
+      'What challenges or qualifies it?',
+      'Construct an argument',
+    ]) {
+      assert.ok(html.includes(label), `missing label: ${label}`)
+    }
+    assert.ok(html.includes('formal term: working claim'))
+    assert.ok(html.includes('formal term: argument chain'))
+  })
+
+  it('says canonical claims are not recorded when the pool is empty, and offers a working start', () => {
+    const html = render(
+      ComposeEditor({
+        draft: EMPTY_DRAFT,
+        vocab: VOCAB,
+        pool: new Map(),
+        issues: [],
+        onChange: () => {},
+      }),
+    )
+    assert.ok(html.includes('Canonical claims are not currently recorded'))
+    assert.ok(html.includes('begin with a working assertion'))
+    assert.ok(!html.includes('Loading'))
+  })
+
+  it('lets the researcher add a working assertion from an empty draft', () => {
+    let next: DraftPayload | null = null
+    const tree = ComposeEditor({
+      draft: EMPTY_DRAFT,
+      vocab: VOCAB,
+      pool: new Map(),
+      issues: [],
+      onChange: (value) => {
+        next = value
+      },
+    })
+    const add = buttonByText(tree, 'Add working assertion')
+    assert.ok(add !== undefined)
+    ;(add?.props?.onClick as () => void)()
+    assert.ok(next !== null)
+    assert.equal(next.workingClaims.length, 1)
+    assert.equal(next.workingClaims[0].epistemicStatus, 'WORKING')
+  })
+
   it('Add step produces an editable, blank row over the served vocabulary', () => {
     let next: DraftPayload | null = null
     const tree = ComposeEditor({
@@ -265,10 +314,31 @@ describe('ComposeEditor', () => {
     assert.ok(html.includes('Unlabelled step'))
   })
 
-  it('Add chain opens an empty chain card', () => {
-    let next: DraftPayload | null = null
+  it('cannot create an empty chain before a step exists', () => {
     const tree = ComposeEditor({
       draft: EMPTY_DRAFT,
+      vocab: VOCAB,
+      pool: POOL,
+      issues: [],
+      onChange: () => {},
+    })
+    const add = buttonByText(tree, 'Add chain')
+    assert.equal(add?.props?.disabled, true)
+  })
+
+  it('Add chain starts with the draft’s first step as MAIN, never empty', () => {
+    const withStep = addStep(EMPTY_DRAFT, {
+      label: 'First move',
+      description: '',
+      inferenceType: 'DEDUCTIVE',
+      epistemicStatus: '',
+      notes: null,
+      premises: [],
+      conclusions: [],
+    })
+    let next: DraftPayload | null = null
+    const tree = ComposeEditor({
+      draft: withStep,
       vocab: VOCAB,
       pool: POOL,
       issues: [],
@@ -277,11 +347,15 @@ describe('ComposeEditor', () => {
       },
     })
     const add = buttonByText(tree, 'Add chain')
+    assert.equal(add?.props?.disabled, false)
     ;(add?.props?.onClick as () => void)()
     assert.ok(next !== null)
     assert.equal(next.chains.length, 1)
-    assert.equal(next.chains[0].kind, 'PRIMARY_ARGUMENT')
+    assert.equal(next.chains[0].kind, VOCAB.chainKinds[0])
     assert.equal(next.chains[0].label, '')
+    assert.deepEqual(next.chains[0].steps, [
+      { stepKey: 'step-0', role: 'MAIN', ordinal: 0 },
+    ])
   })
 
   it('lists every blocker with its own words and shows no banner when clear', () => {
@@ -380,9 +454,12 @@ describe('ComposeEditor', () => {
           epistemicStatus: 'ESTABLISHED',
           premises: [
             ...premises,
-            { claimId: 'c-1', role: 'PRIMARY', ordinal: 0 },
+            { kind: 'canonical', claimId: 'c-1', role: 'PRIMARY', ordinal: 0 },
           ],
-          conclusions: [...conclusions, { claimId: 'c-2', ordinal: 0 }],
+          conclusions: [
+            ...conclusions,
+            { kind: 'canonical', claimId: 'c-2', ordinal: 0 },
+          ],
         },
       ],
     }

@@ -3,11 +3,13 @@
  *
  * Everything in this panel comes from the `trope_graph` projection and nothing the author
  * types can reach it. It exists so the composer studies the corpus's own reasoning while
- * authoring non-canonical work, and so the two are visibly different surfaces: canonical
+ * authoring non-canonical work, and so the two are visibly different surfaces: recorded
  * steps and chains are rendered here with their kinds and inference types; the editor's
- * draft below renders the author's own. Status is never colour alone — free-text status is
- * rendered as text, and claim status reuses {@link StatusBadge} (which always says the
- * status in words).
+ * draft below renders the author's own. Section wording deliberately says *recorded*, not
+ * *canonical*: a step row carries its own `is_canonical` flag, which is disclosed per row.
+ * Empty states say claims are not currently recorded and point to working authoring, rather
+ * than implying the projection or loader failed. Status is never colour alone — free-text
+ * status is rendered as text, and claim status reuses {@link StatusBadge}.
  */
 
 import type { ComponentChildren } from 'preact'
@@ -96,7 +98,8 @@ export function CanonicalDecomposition({ data }: CanonicalDecompositionProps) {
       >
         {data.claims.length === 0 ? (
           <p className="mt-1 text-sm text-muted-foreground">
-            No claims in this projection.
+            Canonical claims are not currently recorded for this card. You can
+            begin with a working assertion below; it stays in your draft.
           </p>
         ) : (
           <ul className="mt-1.5 space-y-1.5">
@@ -108,12 +111,12 @@ export function CanonicalDecomposition({ data }: CanonicalDecompositionProps) {
       </ListSection>
 
       <ListSection
-        title="Canonical reasoning steps"
-        note="The corpus's own decomposition. A step stores its status as free text, not a badge."
+        title="Reasoning steps recorded for this card"
+        note="Published corpus records. Each row discloses its own is_canonical flag — recorded steps can be marked non-canonical, so the flag is shown per row rather than assumed for the section."
       >
         {data.steps.length === 0 ? (
           <p className="mt-1 text-sm text-muted-foreground">
-            No canonical steps in this projection.
+            No reasoning steps are currently recorded for this card.
           </p>
         ) : (
           <ul className="mt-1.5 space-y-1.5">
@@ -134,8 +137,8 @@ export function CanonicalDecomposition({ data }: CanonicalDecompositionProps) {
                   {step.description}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Status: {step.epistemicStatus}
-                  {step.isCanonical ? '' : ' · not canonical'}
+                  Status: {step.epistemicStatus} · is_canonical:{' '}
+                  {step.isCanonical ? 'true' : 'false'}
                 </p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   <div>
@@ -175,11 +178,12 @@ export function CanonicalDecomposition({ data }: CanonicalDecompositionProps) {
 
       <ListSection
         title="Argument chains"
-        note="Named paths through the canonical steps. Whatever you draft below is yours, never one of these."
+        note="Named paths through the recorded steps. Whatever you draft below is yours, never one of these."
       >
         {data.chains.length === 0 ? (
           <p className="mt-1 text-sm text-muted-foreground">
-            No argument chains in this projection.
+            No argument chains are currently recorded for this card. You can
+            construct your own below; it stays in your draft.
           </p>
         ) : (
           <ul className="mt-1.5 space-y-1.5">

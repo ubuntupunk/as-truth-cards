@@ -10,8 +10,38 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import { NEIGHBOUR_PROJECTION } from '../deck/test-fixtures'
-import { CARD_PROJECTION, ID } from '../graph/test-fixtures'
-import { claimPool, selectComposeProjection } from './compose-projector'
+import { CARD_PROJECTION, FOCUS_CARD_NODE, ID } from '../graph/test-fixtures'
+import {
+  claimPool,
+  composeCardId,
+  selectComposeProjection,
+} from './compose-projector'
+
+describe('composeCardId', () => {
+  it('uses the declared focus even when a neighbour card node comes first', () => {
+    const reordered = {
+      ...CARD_PROJECTION,
+      nodes: [
+        { ...FOCUS_CARD_NODE, id: ID.cardTwo, label: 'Neighbour card' },
+        ...CARD_PROJECTION.nodes,
+      ],
+    }
+    assert.equal(reordered.nodes[0].id, ID.cardTwo)
+    assert.equal(composeCardId(reordered), ID.focusCard)
+  })
+
+  it('refuses to scope Compose to a non-card focus', () => {
+    const claimFocus = {
+      ...CARD_PROJECTION,
+      focus: {
+        id: ID.claimOne,
+        type: 'claim' as const,
+        slug: null,
+      },
+    }
+    assert.equal(composeCardId(claimFocus), null)
+  })
+})
 
 describe('selectComposeProjection', () => {
   it('collects the featured card’s own claims, steps and chains in order', () => {

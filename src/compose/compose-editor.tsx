@@ -22,26 +22,39 @@ import {
   addConclusion,
   addPremise,
   addStep,
+  addWorkingClaim,
+  addWorkingConclusion,
+  addWorkingPremise,
   type ChainPatch,
   type ComposeAuthState,
   type ComposeIssue,
+  nextWorkingLocalId,
   removeChain,
   removeChainStep,
   removeConclusion,
   removePremise,
   removeStep,
+  removeWorkingClaim,
+  removeWorkingConclusion,
+  removeWorkingPremise,
   type StepPatch,
   setChainStepRole,
   setPremiseRole,
+  setWorkingPremiseRole,
   updateChain,
   updateStep,
+  updateWorkingClaim,
+  type WorkingClaimInput,
 } from './compose-model'
 import type { CanonicalClaim } from './compose-projector'
-import type {
-  DraftChain,
-  DraftPayload,
-  DraftStep,
-  DraftVocabulary,
+import {
+  claimRefIdentity,
+  type DraftChain,
+  type DraftClaimRef,
+  type DraftPayload,
+  type DraftStep,
+  type DraftVocabulary,
+  type DraftWorkingClaim,
 } from './draft-types'
 
 /** Props for {@link PermissionGate}. */
@@ -305,6 +318,32 @@ function ClaimSelect({
   )
 }
 
+/** Pick one of this draft's working claims. */
+function WorkingClaimSelect({
+  claims,
+  label,
+  onSelect,
+}: {
+  claims: readonly DraftWorkingClaim[]
+  label: string
+  onSelect: (localId: string) => void
+}) {
+  return (
+    <select
+      value={claims[0].localId}
+      onChange={(event) => onSelect((event.target as HTMLSelectElement).value)}
+      aria-label={label}
+      className="rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+    >
+      {claims.map((claim) => (
+        <option key={claim.localId} value={claim.localId}>
+          {claim.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 /** The card frame every step and chain shares: title, badge, Remove. */
 function CardFrame({
   title,
@@ -344,51 +383,83 @@ function CardFrame({
   )
 }
 
-/** The claims of the pool a step does not use yet, for its "add" selects. */
-function unusedPoolClaims(
+/** A human label for either kind of claim ref; working claims are named from this draft. */
+function refLabel(
+  ref: DraftClaimRef,
   pool: ReadonlyMap<string, CanonicalClaim>,
-  used: readonly string[],
-): CanonicalClaim[] {
-  const usedSet = new Set(used)
-  return [...pool.values()].filter((claim) => !usedSet.has(claim.id))
+  workingClaims: readonly DraftWorkingClaim[],
+): string {
+  if (ref.kind === 'canonical') {
+    return (
+      pool.get(ref.claimId)?.statement ?? `Claim ${ref.claimId.slice(0, 8)}…`
+    )
+  }
+  return (
+    workingClaims.find((claim) => claim.localId === ref.localId)?.label ??
+    `Working ${ref.localId}`
+  )
 }
 
 /**
  * One step card.
  *
- * @param props The step plus pool/vocab and the model callbacks it mutates.
+ * @param props The step plus pool/vocab/working claims and the model callbacks it mutates.
  * @returns A step card.
  */
 function StepCard({
   step,
   pool,
+  workingClaims,
   vocab,
   onPatch,
   onRemove,
   onAddPremise,
   onRemovePremise,
   onSetPremiseRole,
+  onAddWorkingPremise,
+  onRemoveWorkingPremise,
+  onSetWorkingPremiseRole,
   onAddConclusion,
   onRemoveConclusion,
+  onAddWorkingConclusion,
+  onRemoveWorkingConclusion,
 }: {
   step: DraftStep
   pool: ReadonlyMap<string, CanonicalClaim>
+  workingClaims: readonly DraftWorkingClaim[]
   vocab: DraftVocabulary
   onPatch: (patch: StepPatch) => void
   onRemove: () => void
   onAddPremise: (claimId: string, role: InferencePremiseRoleValue) => void
   onRemovePremise: (claimId: string) => void
   onSetPremiseRole: (claimId: string, role: InferencePremiseRoleValue) => void
+  onAddWorkingPremise: (
+    localId: string,
+    role: InferencePremiseRoleValue,
+  ) => void
+  onRemoveWorkingPremise: (localId: string) => void
+  onSetWorkingPremiseRole: (
+    localId: string,
+    role: InferencePremiseRoleValue,
+  ) => void
   onAddConclusion: (claimId: string) => void
   onRemoveConclusion: (claimId: string) => void
+  onAddWorkingConclusion: (localId: string) => void
+  onRemoveWorkingConclusion: (localId: string) => void
 }) {
-  const statement = (claimId: string): string =>
-    pool.get(claimId)?.statement ?? `Claim ${claimId.slice(0, 8)}…`
+  const label = (ref: DraftClaimRef): string =>
+    refLabel(ref, pool, workingClaims)
 
-  const addable = unusedPoolClaims(pool, [
-    ...step.premises.map((premise) => premise.claimId),
-    ...step.conclusions.map((conclusion) => conclusion.claimId),
+  const used = new Set([
+    ...step.premises.map(claimRefIdentity),
+    ...step.conclusions.map(claimRefIdentity),
   ])
+  const addable = [...pool.values()].filter(
+    (claim) => !used.has(`canonical:${claim.id}`),
+  )
+  const addableWorking = workingClaims.filter(
+    (claim) => !used.has(`working:${claim.localId}`),
+  )
 
   return (
     <CardFrame
@@ -464,27 +535,43 @@ function StepCard({
           ) : (
             <ul className="mt-1 space-y-1">
               {step.premises.map((premise) => (
-                <li key={premise.claimId} className="flex items-center gap-2">
+                <li
+                  key={claimRefIdentity(premise)}
+                  className="flex items-center gap-2"
+                >
                   <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                    {statement(premise.claimId)}
+                    {label(premise)}
+                    {premise.kind === 'working' ? (
+                      <span className="ml-1 text-[10px] uppercase text-muted-foreground">
+                        working
+                      </span>
+                    ) : null}
                   </span>
                   <span className="w-36 shrink-0">
                     <VocabSelect
                       value={premise.role}
                       options={vocab.premiseRoles}
                       label=""
-                      onSelect={(value) =>
-                        onSetPremiseRole(
-                          premise.claimId,
-                          value as InferencePremiseRoleValue,
-                        )
-                      }
+                      onSelect={(value) => {
+                        const role = value as InferencePremiseRoleValue
+                        if (premise.kind === 'working') {
+                          onSetWorkingPremiseRole(premise.localId, role)
+                        } else {
+                          onSetPremiseRole(premise.claimId, role)
+                        }
+                      }}
                     />
                   </span>
                   <button
                     type="button"
                     aria-label="Remove premise"
-                    onClick={() => onRemovePremise(premise.claimId)}
+                    onClick={() => {
+                      if (premise.kind === 'working') {
+                        onRemoveWorkingPremise(premise.localId)
+                      } else {
+                        onRemovePremise(premise.claimId)
+                      }
+                    }}
                     className="shrink-0 rounded border border-border px-1.5 text-xs text-muted-foreground hover:bg-muted"
                   >
                     ×
@@ -500,6 +587,15 @@ function StepCard({
                 value={addable[0].id}
                 label="Add a premise claim"
                 onSelect={(claimId) => onAddPremise(claimId, 'PRIMARY')}
+              />
+            </div>
+          ) : null}
+          {addableWorking.length > 0 ? (
+            <div className="mt-2">
+              <WorkingClaimSelect
+                claims={addableWorking}
+                label="Add a working premise"
+                onSelect={(localId) => onAddWorkingPremise(localId, 'PRIMARY')}
               />
             </div>
           ) : null}
@@ -520,16 +616,27 @@ function StepCard({
             <ul className="mt-1 space-y-1">
               {step.conclusions.map((conclusion) => (
                 <li
-                  key={conclusion.claimId}
+                  key={claimRefIdentity(conclusion)}
                   className="flex items-center gap-2"
                 >
                   <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                    {statement(conclusion.claimId)}
+                    {label(conclusion)}
+                    {conclusion.kind === 'working' ? (
+                      <span className="ml-1 text-[10px] uppercase text-muted-foreground">
+                        working
+                      </span>
+                    ) : null}
                   </span>
                   <button
                     type="button"
                     aria-label="Remove conclusion"
-                    onClick={() => onRemoveConclusion(conclusion.claimId)}
+                    onClick={() => {
+                      if (conclusion.kind === 'working') {
+                        onRemoveWorkingConclusion(conclusion.localId)
+                      } else {
+                        onRemoveConclusion(conclusion.claimId)
+                      }
+                    }}
                     className="shrink-0 rounded border border-border px-1.5 text-xs text-muted-foreground hover:bg-muted"
                   >
                     ×
@@ -545,6 +652,15 @@ function StepCard({
               label="Add a conclusion claim"
               onSelect={onAddConclusion}
             />
+          ) : null}
+          {addableWorking.length > 0 ? (
+            <div className="mt-2">
+              <WorkingClaimSelect
+                claims={addableWorking}
+                label="Add a working conclusion"
+                onSelect={onAddWorkingConclusion}
+              />
+            </div>
           ) : null}
         </div>
       </div>
@@ -715,6 +831,124 @@ function ChainCard({
 /** The default vocabulary members a brand-new step/chain falls back to before the fetch lands. */
 const FALLBACK_INFERENCE_TYPE = 'UNSPECIFIED'
 const FALLBACK_CHAIN_KIND = 'EDITORIAL_RECONSTRUCTION'
+/** A working assertion is never assumed established: the author must name its standing. */
+const FALLBACK_WORKING_STATUS = 'WORKING'
+
+/**
+ * One researcher-authored working claim. Never a canonical claim, source or fact.
+ *
+ * @param props The claim and its model callbacks.
+ * @returns A working-claim card.
+ */
+function WorkingClaimCard({
+  claim,
+  onPatch,
+  onRemove,
+}: {
+  claim: DraftWorkingClaim
+  onPatch: (input: WorkingClaimInput) => void
+  onRemove: () => void
+}) {
+  return (
+    <CardFrame
+      title={
+        claim.label.trim() === '' ? 'Unlabelled working assertion' : claim.label
+      }
+      badge="working"
+      onRemove={onRemove}
+      removeLabel={`Remove working assertion ${claim.label || claim.localId}`}
+    >
+      <label className="block">
+        <span className="text-xs font-medium text-muted-foreground">
+          Assertion
+        </span>
+        <input
+          type="text"
+          value={claim.label}
+          onInput={(event) =>
+            onPatch({
+              ...claim,
+              label: (event.target as HTMLInputElement).value,
+            })
+          }
+          className="mt-0.5 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+        />
+      </label>
+      <label className="mt-3 block">
+        <span className="text-xs font-medium text-muted-foreground">
+          Notes (not evidence)
+        </span>
+        <textarea
+          value={claim.description ?? ''}
+          onInput={(event) =>
+            onPatch({
+              ...claim,
+              description: (event.target as HTMLTextAreaElement).value,
+            })
+          }
+          rows={2}
+          className="mt-0.5 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+        />
+      </label>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="text-xs font-medium text-muted-foreground">
+            Epistemic status (free text)
+          </span>
+          <input
+            type="text"
+            value={claim.epistemicStatus}
+            onInput={(event) =>
+              onPatch({
+                ...claim,
+                epistemicStatus: (event.target as HTMLInputElement).value,
+              })
+            }
+            className="mt-0.5 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium text-muted-foreground">
+            Source pointer (optional; not evidence)
+          </span>
+          <input
+            type="text"
+            value={claim.source ?? ''}
+            onInput={(event) =>
+              onPatch({
+                ...claim,
+                source: (event.target as HTMLInputElement).value,
+              })
+            }
+            className="mt-0.5 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm text-foreground"
+          />
+        </label>
+      </div>
+    </CardFrame>
+  )
+}
+
+/**
+ * The five plain-language questions, with the formal term shown only on request.
+ *
+ * @param label The researcher-facing question.
+ * @param formal The ontology term behind it.
+ * @returns A labelled heading with progressive disclosure.
+ */
+function QuestionHeading({ label, formal }: { label: string; formal: string }) {
+  return (
+    <div className="flex flex-wrap items-baseline gap-2">
+      <h3 className="text-base font-semibold text-foreground">{label}</h3>
+      <details className="text-xs text-muted-foreground">
+        <summary className="cursor-pointer">formal term: {formal}</summary>
+        <p className="mt-1">
+          Used only in the draft vocabulary; it never changes the canonical
+          ontology.
+        </p>
+      </details>
+    </div>
+  )
+}
 
 /**
  * The authoring surface.
@@ -732,133 +966,235 @@ export function ComposeEditor({
   const apply = (next: DraftPayload) => onChange(next)
 
   return (
-    <div data-testid="compose-editor" className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h3 className="text-base font-semibold text-foreground">
-            Your decomposition
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            A draft for you, on this card only. It can never become canonical.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() =>
-            apply(
-              addStep(draft, {
-                label: '',
-                description: '',
-                inferenceType:
-                  vocab.inferenceTypes[0] ?? FALLBACK_INFERENCE_TYPE,
-                epistemicStatus: '',
-                notes: null,
-                premises: [],
-                conclusions: [],
-              }),
-            )
-          }
-          className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
-        >
-          Add step
-        </button>
-      </div>
+    <div data-testid="compose-editor" className="space-y-6">
+      <p className="text-sm text-muted-foreground">
+        A draft for you, on this card only. It can never become canonical.
+      </p>
 
-      {draft.steps.length === 0 ? (
+      {pool.size === 0 && draft.workingClaims.length === 0 ? (
         <p
           className="rounded-lg border border-dashed border-graph-border/70 bg-graph-muted/30 p-4 text-sm text-muted-foreground"
-          data-testid="no-steps"
+          data-testid="no-canonical-claims"
         >
-          Start by adding a reasoning step over the card's claims.
+          Canonical claims are not currently recorded for this card. You can
+          begin with a working assertion below; it stays in your draft and is
+          not added to the corpus.
         </p>
-      ) : (
-        <ul className="space-y-3">
-          {draft.steps.map((step) => (
-            <StepCard
-              key={step.key}
-              step={step}
-              pool={pool}
-              vocab={vocab}
-              onPatch={(patch) => apply(updateStep(draft, step.key, patch))}
-              onRemove={() => apply(removeStep(draft, step.key))}
-              onAddPremise={(claimId, role) =>
-                apply(addPremise(draft, step.key, claimId, role))
-              }
-              onRemovePremise={(claimId) =>
-                apply(removePremise(draft, step.key, claimId))
-              }
-              onSetPremiseRole={(claimId, role) =>
-                apply(setPremiseRole(draft, step.key, claimId, role))
-              }
-              onAddConclusion={(claimId) =>
-                apply(addConclusion(draft, step.key, claimId))
-              }
-              onRemoveConclusion={(claimId) =>
-                apply(removeConclusion(draft, step.key, claimId))
-              }
-            />
-          ))}
-        </ul>
-      )}
+      ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
-        <div>
-          <h3 className="text-base font-semibold text-foreground">
-            Argument chains
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Named paths through your own steps. A chain surfaces a MAIN and a
-            COUNTER.
-          </p>
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <QuestionHeading
+              label="What is the assertion?"
+              formal="working claim"
+            />
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Write the claim you are examining, and state its status. A source
+              pointer is optional and is not evidence.
+            </p>
+          </div>
+          <button
+            type="button"
+            data-testid="add-working-claim"
+            onClick={() =>
+              apply(
+                addWorkingClaim(draft, nextWorkingLocalId(draft), {
+                  label: '',
+                  description: null,
+                  epistemicStatus: FALLBACK_WORKING_STATUS,
+                  source: null,
+                }),
+              )
+            }
+            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            Add working assertion
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() =>
-            apply(
-              addChain(draft, {
+        {draft.workingClaims.length === 0 ? (
+          <p
+            className="rounded-lg border border-dashed border-graph-border/70 bg-graph-muted/30 p-4 text-sm text-muted-foreground"
+            data-testid="no-working-claims"
+          >
+            No working assertion yet. Add one if the card has no recorded claim
+            to start from, or if your reading differs from them.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {draft.workingClaims.map((claim) => (
+              <WorkingClaimCard
+                key={claim.localId}
+                claim={claim}
+                onPatch={(input) =>
+                  apply(updateWorkingClaim(draft, claim.localId, input))
+                }
+                onRemove={() => apply(removeWorkingClaim(draft, claim.localId))}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <QuestionHeading
+              label="What reasons are offered?"
+              formal="premises"
+            />
+            <QuestionHeading
+              label="How does the reasoning work?"
+              formal="inference step"
+            />
+            <QuestionHeading
+              label="What challenges or qualifies it?"
+              formal="counterpremise / challenge"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() =>
+              apply(
+                addStep(draft, {
+                  label: '',
+                  description: '',
+                  inferenceType:
+                    vocab.inferenceTypes[0] ?? FALLBACK_INFERENCE_TYPE,
+                  epistemicStatus: '',
+                  notes: null,
+                  premises: [],
+                  conclusions: [],
+                }),
+              )
+            }
+            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            Add step
+          </button>
+        </div>
+
+        {draft.steps.length === 0 ? (
+          <p
+            className="rounded-lg border border-dashed border-graph-border/70 bg-graph-muted/30 p-4 text-sm text-muted-foreground"
+            data-testid="no-steps"
+          >
+            No reasoning step yet. Add one to connect reasons to a conclusion —
+            a working assertion on its own is enough to save a partial draft.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {draft.steps.map((step) => (
+              <StepCard
+                key={step.key}
+                step={step}
+                pool={pool}
+                workingClaims={draft.workingClaims}
+                vocab={vocab}
+                onPatch={(patch) => apply(updateStep(draft, step.key, patch))}
+                onRemove={() => apply(removeStep(draft, step.key))}
+                onAddPremise={(claimId, role) =>
+                  apply(addPremise(draft, step.key, claimId, role))
+                }
+                onRemovePremise={(claimId) =>
+                  apply(removePremise(draft, step.key, claimId))
+                }
+                onSetPremiseRole={(claimId, role) =>
+                  apply(setPremiseRole(draft, step.key, claimId, role))
+                }
+                onAddWorkingPremise={(localId, role) =>
+                  apply(addWorkingPremise(draft, step.key, localId, role))
+                }
+                onRemoveWorkingPremise={(localId) =>
+                  apply(removeWorkingPremise(draft, step.key, localId))
+                }
+                onSetWorkingPremiseRole={(localId, role) =>
+                  apply(setWorkingPremiseRole(draft, step.key, localId, role))
+                }
+                onAddConclusion={(claimId) =>
+                  apply(addConclusion(draft, step.key, claimId))
+                }
+                onRemoveConclusion={(claimId) =>
+                  apply(removeConclusion(draft, step.key, claimId))
+                }
+                onAddWorkingConclusion={(localId) =>
+                  apply(addWorkingConclusion(draft, step.key, localId))
+                }
+                onRemoveWorkingConclusion={(localId) =>
+                  apply(removeWorkingConclusion(draft, step.key, localId))
+                }
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+          <div>
+            <QuestionHeading
+              label="Construct an argument"
+              formal="argument chain"
+            />
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Name a path through your own steps. A chain needs at least one
+              actual step and a MAIN step; a COUNTER or CHALLENGE is optional in
+              a draft. Paths and names are yours to confirm.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={draft.steps.length === 0}
+            data-testid="add-chain"
+            onClick={() => {
+              if (draft.steps.length === 0) return
+              const withChain = addChain(draft, {
                 label: '',
                 description: '',
                 kind: vocab.chainKinds[0] ?? FALLBACK_CHAIN_KIND,
                 epistemicStatus: '',
-              }),
-            )
-          }
-          className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
-        >
-          Add chain
-        </button>
-      </div>
+              })
+              const newKey = withChain.chains[withChain.chains.length - 1].key
+              apply(addChainStep(withChain, newKey, draft.steps[0].key, 'MAIN'))
+            }}
+            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Add chain
+          </button>
+        </div>
 
-      {draft.chains.length === 0 ? (
-        <p
-          className="rounded-lg border border-dashed border-graph-border/70 bg-graph-muted/30 p-4 text-sm text-muted-foreground"
-          data-testid="no-chains"
-        >
-          Chains are optional. A card needs at least one step to exist.
-        </p>
-      ) : (
-        <ul className="space-y-3">
-          {draft.chains.map((chain) => (
-            <ChainCard
-              key={chain.key}
-              chain={chain}
-              steps={draft.steps}
-              vocab={vocab}
-              onPatch={(patch) => apply(updateChain(draft, chain.key, patch))}
-              onRemove={() => apply(removeChain(draft, chain.key))}
-              onAttachStep={(stepKey, role) =>
-                apply(addChainStep(draft, chain.key, stepKey, role))
-              }
-              onRemoveStep={(stepKey) =>
-                apply(removeChainStep(draft, chain.key, stepKey))
-              }
-              onSetRole={(stepKey, role) =>
-                apply(setChainStepRole(draft, chain.key, stepKey, role))
-              }
-            />
-          ))}
-        </ul>
-      )}
+        {draft.chains.length === 0 ? (
+          <p
+            className="rounded-lg border border-dashed border-graph-border/70 bg-graph-muted/30 p-4 text-sm text-muted-foreground"
+            data-testid="no-chains"
+          >
+            Chains are optional. Add a reasoning step first; a new chain starts
+            with that step so it is never empty.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {draft.chains.map((chain) => (
+              <ChainCard
+                key={chain.key}
+                chain={chain}
+                steps={draft.steps}
+                vocab={vocab}
+                onPatch={(patch) => apply(updateChain(draft, chain.key, patch))}
+                onRemove={() => apply(removeChain(draft, chain.key))}
+                onAttachStep={(stepKey, role) =>
+                  apply(addChainStep(draft, chain.key, stepKey, role))
+                }
+                onRemoveStep={(stepKey) =>
+                  apply(removeChainStep(draft, chain.key, stepKey))
+                }
+                onSetRole={(stepKey, role) =>
+                  apply(setChainStepRole(draft, chain.key, stepKey, role))
+                }
+              />
+            ))}
+          </ul>
+        )}
+      </section>
 
       {issues.length > 0 ? (
         <div

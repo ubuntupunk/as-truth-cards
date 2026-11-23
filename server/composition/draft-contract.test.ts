@@ -12,6 +12,7 @@ import {
 import {
   DECOMPOSITION_VOCABULARIES,
   draftPayloadSchema,
+  type DraftPayload,
   referencedClaimIds,
 } from './draft-contract.js'
 
@@ -221,9 +222,16 @@ describe('draftPayloadSchema', () => {
     assert.equal(result.success, false)
   })
 
-  it('rejects a chain that shows only one side of the argument', () => {
+  it('accepts a MAIN-only chain: COUNTER is advisory for drafts, not required', () => {
     const result = parse((draft) => {
       firstChain(draft).steps = [{ stepKey: 'step-1', role: 'MAIN', ordinal: 0 }]
+    })
+    assert.equal(result.success, true)
+  })
+
+  it('rejects an empty chain: a valid chain needs at least one actual step', () => {
+    const result = parse((draft) => {
+      firstChain(draft).steps = []
     })
     assert.equal(result.success, false)
   })
@@ -261,5 +269,185 @@ describe('referencedClaimIds', () => {
     const parsed = draftPayloadSchema.parse(validPayload())
     const ids = referencedClaimIds(parsed)
     assert.deepEqual([...ids].sort(), [CLAIM_A, CLAIM_B, CLAIM_C, CLAIM_D].sort())
+  })
+
+  it('never returns working local ids: only canonical claims reach the graph', () => {
+    const parsed = draftPayloadSchema.parse({
+      ...workingOnlyPayload(),
+      steps: [
+        {
+          key: 'step-1',
+          label: 'A working inference',
+          description: 'Entirely non-canonical.',
+          inferenceType: 'UNSPECIFIED',
+          epistemicStatus: 'WORKING',
+          notes: null,
+          premises: [
+            { kind: 'working', localId: WC_ASSERTION, role: 'PRIMARY', ordinal: 0 },
+          ],
+          conclusions: [{ kind: 'working', localId: WC_REASON, ordinal: 0 }],
+        },
+      ],
+      workingClaims: [workingClaim(WC_ASSERTION), workingClaim(WC_REASON)],
+    })
+    assert.deepEqual(referencedClaimIds(parsed), [])
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Working claims (S1): tagged refs inside the existing draft JSON
+// ---------------------------------------------------------------------------
+
+const WC_ASSERTION = 'wc-assertion'
+const WC_REASON = 'wc-reason'
+
+/** A working claim: researcher-authored, owned by this draft, never canonical. */
+function workingClaim(localId = WC_ASSERTION) {
+  return {
+    localId,
+    label: 'The assertion under examination',
+    description: 'Written by the researcher; not a canonical claim.',
+    epistemicStatus: 'WORKING',
+    source: null,
+  }
+}
+
+/** A saveable partial draft: working claims, but no reasoning steps yet. */
+function workingOnlyPayload() {
+  return {
+    steps: [],
+    chains: [],
+    workingClaims: [workingClaim()],
+  }
+}
+
+/** A step whose premises and conclusions are working refs only. */
+function workingStep() {
+  return {
+    key: 'step-1',
+    label: 'What follows from the working assertion',
+    description: 'A working inference, not a canonical one.',
+    inferenceType: 'UNSPECIFIED',
+    epistemicStatus: 'WORKING',
+    notes: null,
+    premises: [
+      { kind: 'working', localId: WC_ASSERTION, role: 'PRIMARY', ordinal: 0 },
+    ],
+    conclusions: [{ kind: 'working', localId: WC_REASON, ordinal: 0 }],
+  }
+}
+
+describe('working claims', () => {
+  it('accepts a partial draft with only working claims (M3)', () => {
+    const result = draftPayloadSchema.safeParse(workingOnlyPayload())
+    assert.equal(result.success, true, result.success ? '' : result.error.message)
+    if (result.success) assert.equal(result.data.workingClaims.length, 1)
+  })
+
+  it('rejects an entirely empty payload', () => {
+    assert.equal(
+      draftPayloadSchema.safeParse({ steps: [], chains: [] }).success,
+      false,
+    )
+  })
+
+  it('defaults workingClaims to empty for legacy stored drafts', () => {
+    const result = draftPayloadSchema.safeParse(validPayload())
+    assert.equal(result.success, true)
+    if (result.success) assert.deepEqual(result.data.workingClaims, [])
+  })
+
+  it('normalizes legacy plain claimId refs to tagged canonical refs', () => {
+    const result = draftPayloadSchema.parse(validPayload())
+    assert.deepEqual(result.steps[0].premises[0], {
+      kind: 'canonical',
+      claimId: CLAIM_A,
+      role: 'PRIMARY',
+      ordinal: 0,
+    })
+    assert.deepEqual(result.steps[0].conclusions[0], {
+      kind: 'canonical',
+      claimId: CLAIM_B,
+      ordinal: 0,
+    })
+  })
+
+  it('accepts working refs that resolve to claims in the same draft', () => {
+    const result = draftPayloadSchema.safeParse({
+      ...workingOnlyPayload(),
+      workingClaims: [workingClaim(WC_ASSERTION), workingClaim(WC_REASON)],
+      steps: [workingStep()],
+    })
+    assert.equal(result.success, true, result.success ? '' : result.error.message)
+  })
+
+  it('rejects a working ref with no matching working claim in the draft', () => {
+    const result = draftPayloadSchema.safeParse({
+      ...workingOnlyPayload(),
+      steps: [workingStep()],
+    })
+    assert.equal(result.success, false)
+  })
+
+  it('rejects duplicate working local ids', () => {
+    const result = draftPayloadSchema.safeParse({
+      ...workingOnlyPayload(),
+      workingClaims: [workingClaim(), workingClaim()],
+    })
+    assert.equal(result.success, false)
+  })
+
+  it('rejects a working local id that is a canonical uuid', () => {
+    const result = draftPayloadSchema.safeParse({
+      ...workingOnlyPayload(),
+      workingClaims: [workingClaim(CLAIM_A)],
+    })
+    assert.equal(result.success, false)
+  })
+
+  it('rejects the same working ref twice in one premise list', () => {
+    const result = draftPayloadSchema.safeParse({
+      ...workingOnlyPayload(),
+      workingClaims: [workingClaim()],
+      steps: [
+        {
+          ...workingStep(),
+          premises: [
+            { kind: 'working', localId: WC_ASSERTION, role: 'PRIMARY', ordinal: 0 },
+            { kind: 'working', localId: WC_ASSERTION, role: 'CONTEXT', ordinal: 1 },
+          ],
+          conclusions: [
+            { kind: 'working', localId: WC_ASSERTION, ordinal: 0 },
+          ],
+        },
+      ],
+    })
+    assert.equal(result.success, false)
+  })
+
+  it('rejects a working claim with a blank label', () => {
+    const result = draftPayloadSchema.safeParse({
+      ...workingOnlyPayload(),
+      workingClaims: [{ ...workingClaim(), label: '   ' }],
+    })
+    assert.equal(result.success, false)
+  })
+
+  it('does not default a working claim to an established status', () => {
+    const result = draftPayloadSchema.parse(workingOnlyPayload())
+    assert.equal(result.workingClaims[0].epistemicStatus, 'WORKING')
+  })
+})
+
+describe('validated payload typing', () => {
+  it('exposes the tagged working ref shape to callers', () => {
+    const payload: DraftPayload = draftPayloadSchema.parse({
+      ...workingOnlyPayload(),
+      steps: [workingStep()],
+      workingClaims: [workingClaim(WC_ASSERTION), workingClaim(WC_REASON)],
+    })
+    const premise = payload.steps[0].premises[0]
+    assert.equal(premise.kind, 'working')
+    if (premise.kind === 'working') assert.equal(premise.localId, WC_ASSERTION)
   })
 })

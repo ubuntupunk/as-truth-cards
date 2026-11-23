@@ -51,7 +51,11 @@ import type {
   CanonicalClaim,
   ComposeProjection,
 } from '@/compose/compose-projector'
-import { claimPool, selectComposeProjection } from '@/compose/compose-projector'
+import {
+  claimPool,
+  composeCardId,
+  selectComposeProjection,
+} from '@/compose/compose-projector'
 import type { DraftPayload, DraftVocabulary } from '@/compose/draft-types'
 import { composeSignInHref } from '@/compose/sign-in-return'
 import {
@@ -220,8 +224,12 @@ const Compose = () => {
   const vocabQuery = useDraftVocabularies()
   const projectionQuery = useCanonicalProjection(activeSlug)
 
+  // Scope by the projection's declared focus, not by the first card node in a depth-3
+  // traversal: a neighbouring card may be emitted first, which would silently empty the pool.
   const cardId =
-    projectionQuery.data?.nodes.find((node) => node.type === 'card')?.id ?? null
+    projectionQuery.data !== undefined
+      ? composeCardId(projectionQuery.data)
+      : null
   const projection =
     projectionQuery.data !== undefined && cardId !== null
       ? selectComposeProjection(projectionQuery.data, cardId)

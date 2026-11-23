@@ -105,6 +105,7 @@ class FakeGraph {
 /** A structurally valid payload referencing this card's claims. */
 function validPayload(): DraftPayload {
   return {
+    workingClaims: [],
     steps: [
       {
         key: 'step-1',
@@ -113,8 +114,10 @@ function validPayload(): DraftPayload {
         inferenceType: 'INDUCTIVE',
         epistemicStatus: 'CONTESTED',
         notes: null,
-        premises: [{ claimId: CLAIM_A, role: 'PRIMARY', ordinal: 0 }],
-        conclusions: [{ claimId: CLAIM_B, ordinal: 0 }],
+        premises: [
+          { kind: 'canonical', claimId: CLAIM_A, role: 'PRIMARY', ordinal: 0 },
+        ],
+        conclusions: [{ kind: 'canonical', claimId: CLAIM_B, ordinal: 0 }],
       },
       {
         key: 'step-2',
@@ -123,10 +126,15 @@ function validPayload(): DraftPayload {
         inferenceType: 'DEDUCTIVE',
         epistemicStatus: 'CONTESTED',
         premises: [
-          { claimId: CLAIM_C, role: 'PRIMARY', ordinal: 0 },
-          { claimId: CLAIM_D, role: 'COUNTERPREMISE', ordinal: 1 },
+          { kind: 'canonical', claimId: CLAIM_C, role: 'PRIMARY', ordinal: 0 },
+          {
+            kind: 'canonical',
+            claimId: CLAIM_D,
+            role: 'COUNTERPREMISE',
+            ordinal: 1,
+          },
         ],
-        conclusions: [{ claimId: CLAIM_B, ordinal: 0 }],
+        conclusions: [{ kind: 'canonical', claimId: CLAIM_B, ordinal: 0 }],
       },
     ],
     chains: [
@@ -140,6 +148,23 @@ function validPayload(): DraftPayload {
           { stepKey: 'step-1', role: 'MAIN', ordinal: 0 },
           { stepKey: 'step-2', role: 'COUNTER', ordinal: 1 },
         ],
+      },
+    ],
+  }
+}
+
+/** A draft with only working claims: saveable even on a card with no canonical claims. */
+function workingOnlyPayload(): DraftPayload {
+  return {
+    steps: [],
+    chains: [],
+    workingClaims: [
+      {
+        localId: 'wc-assertion',
+        label: 'The assertion under examination',
+        description: 'Authored by the researcher, not a corpus claim.',
+        epistemicStatus: 'WORKING',
+        source: null,
       },
     ],
   }
@@ -309,7 +334,7 @@ describe('PUT /api/drafts/:cardSlug', () => {
     await withServer({ userId: 'user-1' }, async ({ request }) => {
       const payload = validPayload()
       payload.steps[0].premises = [
-        { claimId: FOREIGN_CLAIM, role: 'PRIMARY', ordinal: 0 },
+        { kind: 'canonical', claimId: FOREIGN_CLAIM, role: 'PRIMARY', ordinal: 0 },
       ]
       const response = await request('PUT', `/api/drafts/${SLUG}`, { payload })
       assert.equal(response.status, 400)
@@ -322,7 +347,11 @@ describe('PUT /api/drafts/:cardSlug', () => {
     await withServer({ userId: 'user-1' }, async ({ request }) => {
       const payload = validPayload()
       payload.steps[0].conclusions = [
-        { claimId: '00000000-0000-4000-8000-000000000000', ordinal: 0 },
+        {
+          kind: 'canonical',
+          claimId: '00000000-0000-4000-8000-000000000000',
+          ordinal: 0,
+        },
       ]
       const response = await request('PUT', `/api/drafts/${SLUG}`, { payload })
       assert.equal(response.status, 400)
@@ -354,6 +383,85 @@ describe('PUT /api/drafts/:cardSlug', () => {
       assert.deepEqual(response.body, { draft: null })
     })
   })
+
+  it('saves a working-only draft without any canonical claim lookup', async () => {
+    const store = new MemoryDraftStore()
+    let lookups = 0
+    const graph = {
+      findCardByRef: async (ref: string) => (ref === SLUG ? cardRow() : undefined),
+      findClaimByRef: async () => {
+        lookups += 1
+        return undefined
+      },
+    } as unknown as TropeGraphReader
+    await withServer({ userId: 'user-1', store, graph }, async ({ request }) => {
+      const saved = await request('PUT', `/api/drafts/${SLUG}`, {
+        payload: workingOnlyPayload(),
+      })
+      assert.equal(saved.status, 200)
+      assert.equal(lookups, 0)
+      const body = saved.body as { draft: StoredDraft }
+      assert.equal(body.draft.payload.workingClaims.length, 1)
+    })
+  })
+
+  it('rejects a working ref that does not resolve inside its own draft', async () => {
+    await withServer({ userId: 'user-1' }, async ({ request }) => {
+      const payload = workingOnlyPayload()
+      payload.steps = [
+        {
+          key: 'step-1',
+          label: 'A working inference',
+          description: 'References a claim that was never authored.',
+          inferenceType: 'UNSPECIFIED',
+          epistemicStatus: 'WORKING',
+          notes: null,
+          premises: [
+            { kind: 'working', localId: 'wc-ghost', role: 'PRIMARY', ordinal: 0 },
+          ],
+          conclusions: [{ kind: 'working', localId: 'wc-assertion', ordinal: 0 }],
+        },
+      ]
+      const response = await request('PUT', `/api/drafts/${SLUG}`, { payload })
+      assert.equal(response.status, 400)
+    })
+  })
+
+  it('rejects a canonical uuid disguised as a working local id', async () => {
+    await withServer({ userId: 'user-1' }, async ({ request }) => {
+      const payload = workingOnlyPayload()
+      payload.workingClaims = [
+        {
+          ...payload.workingClaims[0],
+          localId: FOREIGN_CLAIM,
+        },
+      ]
+      const response = await request('PUT', `/api/drafts/${SLUG}`, { payload })
+      assert.equal(response.status, 400)
+    })
+  })
+
+  it('does not let another user overwrite the saved draft on the same card', async () => {
+    const store = new MemoryDraftStore()
+    await withServer({ userId: 'user-1', store }, async ({ request }) => {
+      const response = await request('PUT', `/api/drafts/${SLUG}`, {
+        payload: workingOnlyPayload(),
+      })
+      assert.equal(response.status, 200)
+    })
+    await withServer({ userId: 'user-2', store }, async ({ request }) => {
+      const payload = validPayload()
+      payload.steps[0].label = 'Another researcher work'
+      const response = await request('PUT', `/api/drafts/${SLUG}`, { payload })
+      assert.equal(response.status, 200)
+    })
+    await withServer({ userId: 'user-1', store }, async ({ request }) => {
+      const response = await request('GET', `/api/drafts/${SLUG}`)
+      const body = response.body as { draft: StoredDraft }
+      assert.equal(body.draft.payload.workingClaims.length, 1)
+      assert.equal(body.draft.payload.steps.length, 0)
+    })
+  })
 })
 
 describe('DELETE /api/drafts/:cardSlug', () => {
@@ -377,6 +485,31 @@ describe('DELETE /api/drafts/:cardSlug', () => {
 
       const read = await request('GET', `/api/drafts/${SLUG}`)
       assert.deepEqual(read.body, { draft: null })
+    })
+  })
+})
+
+describe('signed-out safety', () => {
+  it('never writes to the draft store without a session', async () => {
+    const writes: string[] = []
+    const store: DraftStore = {
+      find: async () => null,
+      upsert: async (userId, cardSlug, payload) => {
+        writes.push('upsert')
+        return { cardSlug, payload, createdAt: '', updatedAt: '' }
+      },
+      remove: async () => {
+        writes.push('remove')
+      },
+    }
+    await withServer({ userId: null, store }, async ({ request }) => {
+      assert.equal(
+        (await request('PUT', `/api/drafts/${SLUG}`, { payload: validPayload() }))
+          .status,
+        401,
+      )
+      assert.equal((await request('DELETE', `/api/drafts/${SLUG}`)).status, 401)
+      assert.deepEqual(writes, [])
     })
   })
 })

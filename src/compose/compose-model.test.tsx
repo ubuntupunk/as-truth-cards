@@ -16,19 +16,28 @@ import {
   addConclusion,
   addPremise,
   addStep,
+  addWorkingClaim,
+  addWorkingConclusion,
+  addWorkingPremise,
   canSaveDraft,
   draftIssues,
   draftsEqual,
   EMPTY_DRAFT,
+  isWorkingLocalId,
+  nextWorkingLocalId,
   removeChain,
   removeChainStep,
   removeConclusion,
   removePremise,
   removeStep,
+  removeWorkingClaim,
+  removeWorkingConclusion,
+  removeWorkingPremise,
   setChainStepRole,
   setPremiseRole,
   updateChain,
   updateStep,
+  updateWorkingClaim,
 } from './compose-model'
 import type {
   DraftChain,
@@ -185,7 +194,7 @@ describe('premises and conclusions', () => {
     assert.equal(once.steps[0].premises.length, 2)
     const twice = addPremise(once, step.key, 'c-3', 'BRIDGE')
     const roles = twice.steps[0].premises
-      .filter((p) => p.claimId === 'c-3')
+      .filter((p) => p.kind === 'canonical' && p.claimId === 'c-3')
       .map((p) => p.role)
     assert.deepEqual(roles, ['CONTEXT'])
   })
@@ -220,7 +229,11 @@ describe('premises and conclusions', () => {
       [0],
     )
     assert.deepEqual(
-      removed.steps[0].conclusions.map((conclusion) => conclusion.claimId),
+      removed.steps[0].conclusions.map((conclusion) =>
+        conclusion.kind === 'canonical'
+          ? conclusion.claimId
+          : conclusion.localId,
+      ),
       ['c-3'],
     )
   })
@@ -312,6 +325,7 @@ describe('draftsEqual', () => {
     const swapped: DraftPayload = {
       steps: [second.steps[1], second.steps[0]],
       chains: [],
+      workingClaims: [],
     }
     assert.equal(draftsEqual(second, swapped), false)
   })
@@ -346,7 +360,7 @@ describe('the save gate (draftIssues + canSaveDraft)', () => {
     assert.ok(messages.some((issue) => issue.message.includes('conclusion')))
   })
 
-  it('refuses a chain lacking a MAIN or a COUNTER step', () => {
+  it('refuses a chain lacking a MAIN step', () => {
     const draft = addChain(oneStepDraft(), {
       label: 'Chain',
       description: 'd',
@@ -357,7 +371,18 @@ describe('the save gate (draftIssues + canSaveDraft)', () => {
       (issue) => issue.subject === 'chain',
     )
     assert.ok(messages.some((issue) => issue.message.includes('MAIN')))
-    assert.ok(messages.some((issue) => issue.message.includes('COUNTER')))
+    assert.ok(!messages.some((issue) => issue.message.includes('COUNTER')))
+  })
+
+  it('accepts a MAIN-only chain: CHALLENGE is advisory for drafts', () => {
+    const withChain = addChain(oneStepDraft(), {
+      label: 'Chain',
+      description: 'd',
+      kind: 'PRIMARY_ARGUMENT',
+      epistemicStatus: 'reviewed',
+    })
+    const withMain = addChainStep(withChain, 'chain-0', 'step-0', 'MAIN')
+    assert.equal(canSaveDraft(withMain), true)
   })
 
   it('flags an orphaned chain step, so a payload from elsewhere cannot slip through', () => {
@@ -366,6 +391,7 @@ describe('the save gate (draftIssues + canSaveDraft)', () => {
     // contract that tightened), and an orphaned reference is exactly what it would reject.
     const orphan: DraftPayload = {
       steps: [],
+      workingClaims: [],
       chains: [
         {
           key: 'chain-0',
@@ -433,5 +459,182 @@ describe('shape transportability of the model output', () => {
         VOCAB.premiseRoles.includes(premise.role),
       ),
     )
+  })
+})
+
+describe('working claims', () => {
+  const claimInput = {
+    label: 'The assertion under examination',
+    description: 'Written by the researcher, not a corpus claim.',
+    epistemicStatus: 'WORKING',
+    source: null,
+  }
+  const UUID = '11111111-1111-4111-8111-111111111111'
+
+  /** A draft with two working claims and no steps — a saveable partial draft. */
+  function workingDraft() {
+    const first = addWorkingClaim(EMPTY_DRAFT, 'wc-assertion', claimInput)
+    return addWorkingClaim(first, 'wc-reason', {
+      ...claimInput,
+      label: 'The reason offered',
+    })
+  }
+
+  it('makes a working-only draft saveable (M3) without implying canonical status', () => {
+    const draft = workingDraft()
+    assert.equal(draft.workingClaims.length, 2)
+    assert.equal(draft.steps.length, 0)
+    assert.equal(canSaveDraft(draft), true)
+    assert.equal(draft.workingClaims[0].epistemicStatus, 'WORKING')
+  })
+
+  it('rejects a uuid-shaped local id so a working ref cannot masquerade as canonical', () => {
+    assert.equal(isWorkingLocalId(UUID), false)
+    assert.equal(isWorkingLocalId('wc-1'), true)
+    const draft = addWorkingClaim(EMPTY_DRAFT, UUID, claimInput)
+    assert.equal(draft.workingClaims.length, 0)
+  })
+
+  it('ignores a duplicate local id rather than creating two claims', () => {
+    const first = addWorkingClaim(EMPTY_DRAFT, 'wc-1', claimInput)
+    const second = addWorkingClaim(first, 'wc-1', claimInput)
+    assert.equal(second.workingClaims.length, 1)
+    assert.ok(
+      draftIssues(second).some((issue) => issue.message.includes('unique')) ===
+        false,
+    )
+  })
+
+  it('reuses a freed local id instead of silently ignoring Add', () => {
+    const first = addWorkingClaim(EMPTY_DRAFT, 'wc-1', claimInput)
+    const second = addWorkingClaim(first, 'wc-2', claimInput)
+    const withoutFirst = removeWorkingClaim(second, 'wc-1')
+    assert.equal(nextWorkingLocalId(withoutFirst), 'wc-1')
+    const added = addWorkingClaim(
+      withoutFirst,
+      nextWorkingLocalId(withoutFirst),
+      claimInput,
+    )
+    assert.deepEqual(
+      added.workingClaims.map((claim) => claim.localId),
+      ['wc-2', 'wc-1'],
+    )
+  })
+
+  it('flags duplicate local ids and blank statuses when a draft is hand-edited', () => {
+    const draft: DraftPayload = {
+      ...EMPTY_DRAFT,
+      workingClaims: [
+        { ...claimInput, localId: 'wc-1', label: '' },
+        { ...claimInput, localId: 'wc-1', epistemicStatus: '' },
+      ],
+    }
+    const messages = draftIssues(draft).map((issue) => issue.message)
+    assert.ok(messages.some((message) => message.includes('unique')))
+    assert.ok(messages.some((message) => message.includes('label')))
+    assert.ok(messages.some((message) => message.includes('status')))
+  })
+
+  it('adds and removes working refs that resolve inside the draft', () => {
+    const withClaim = workingDraft()
+    const withStep = addStep(withClaim, {
+      label: 'A working inference',
+      description: 'Reasons over the researcher’s own assertions.',
+      inferenceType: 'UNSPECIFIED',
+      epistemicStatus: 'WORKING',
+      notes: null,
+      premises: [],
+      conclusions: [],
+    })
+    const stepKey = withStep.steps[0].key
+    const withPremise = addWorkingPremise(
+      withStep,
+      stepKey,
+      'wc-assertion',
+      'CONTEXT',
+    )
+    const withConclusion = addWorkingConclusion(
+      withPremise,
+      stepKey,
+      'wc-reason',
+    )
+    assert.equal(withConclusion.steps[0].premises[0].kind, 'working')
+    assert.equal(withConclusion.steps[0].conclusions[0].kind, 'working')
+    assert.equal(canSaveDraft(withConclusion), true)
+
+    const without = removeWorkingClaim(withConclusion, 'wc-assertion')
+    assert.equal(without.workingClaims.length, 1)
+    assert.equal(without.steps[0].premises.length, 0)
+    assert.equal(without.steps[0].conclusions.length, 1)
+
+    const restored = addPremise(without, stepKey, 'c-1', 'PRIMARY')
+    assert.equal(canSaveDraft(restored), true)
+    assert.equal(
+      removeWorkingConclusion(restored, stepKey, 'wc-reason').steps[0]
+        .conclusions.length,
+      0,
+    )
+    assert.equal(
+      removeWorkingPremise(restored, stepKey, 'wc-assertion').steps[0].premises
+        .length,
+      1,
+    )
+  })
+
+  it('ignores a working ref whose claim was never authored', () => {
+    const draft = addStep(workingDraft(), {
+      label: 'A working inference',
+      description: 'A dangling reference must not be created.',
+      inferenceType: 'UNSPECIFIED',
+      epistemicStatus: 'WORKING',
+      notes: null,
+      premises: [],
+      conclusions: [],
+    })
+    const stepKey = draft.steps[0].key
+    const withGhost = addWorkingPremise(draft, stepKey, 'wc-ghost', 'PRIMARY')
+    assert.deepEqual(withGhost, draft)
+  })
+
+  it('flags a dangling working ref in a hand-edited draft', () => {
+    const draft = addStep(workingDraft(), {
+      label: 'A working inference',
+      description: 'Hand-edited into an invalid state.',
+      inferenceType: 'UNSPECIFIED',
+      epistemicStatus: 'WORKING',
+      notes: null,
+      premises: [{ claimId: 'c-1', role: 'PRIMARY' }],
+      conclusions: ['c-2'],
+    })
+    const edited: DraftPayload = {
+      ...draft,
+      steps: [
+        {
+          ...draft.steps[0],
+          premises: [
+            {
+              kind: 'working',
+              localId: 'wc-ghost',
+              role: 'PRIMARY',
+              ordinal: 0,
+            },
+          ],
+        },
+      ],
+    }
+    assert.ok(
+      draftIssues(edited).some((issue) =>
+        issue.message.includes('does not resolve'),
+      ),
+    )
+  })
+
+  it('patches a working claim without changing its local id', () => {
+    const draft = updateWorkingClaim(workingDraft(), 'wc-reason', {
+      ...claimInput,
+      label: 'Renamed reason',
+    })
+    assert.equal(draft.workingClaims[1].localId, 'wc-reason')
+    assert.equal(draft.workingClaims[1].label, 'Renamed reason')
   })
 })

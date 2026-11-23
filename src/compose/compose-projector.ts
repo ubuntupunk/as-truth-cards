@@ -73,6 +73,19 @@ export type ComposeProjection = {
 }
 
 /**
+ * The card a card-focused projection is actually about.
+ *
+ * `nodes` is a depth-limited traversal, so its first card node may be a neighbour. The
+ * projection's declared `focus` is the only authoritative scope for the Compose surface.
+ *
+ * @param projection The card-focused projection.
+ * @returns The focus card id, or `null` when the focus is not a card.
+ */
+export function composeCardId(projection: GraphProjection): string | null {
+  return projection.focus.type === 'card' ? projection.focus.id : null
+}
+
+/**
  * Select the featured card's own claims, steps and chains from its projection.
  *
  * @param projection The card-focused projection (`GET /api/graph?focus=…&view=argument&depth=3`).

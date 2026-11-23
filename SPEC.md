@@ -483,6 +483,21 @@ This table is a capability model, not an ontology classification.
 
 Account-required actions must return the user to the same research context after successful authentication whenever the route supports it. Authentication must not mutate graph focus, projection, depth, selection, or authored relationships.
 
+### 9.5 Compose / Decompose authoring state
+
+Compose keeps a read-only corpus view separate from an account-owned draft. Canonical claims, reasoning steps, chains, sources and evidence are read from the card-focused graph projection, scoped by `projection.focus.id` — never by the first card node emitted in a depth-limited traversal. When a card has no recorded claims, the empty state says so explicitly and offers a working assertion; it must not imply a loading or projection failure.
+
+A draft remains in the existing `decomposition_drafts.payload` JSON. No schema migration, second persistence model, canonical write, or promotion path is part of this contract. Premise and conclusion references are tagged:
+
+- `canonical` keeps UUID validation and the existing same-card ownership check.
+- `working` resolves only to a `localId` in that same draft's `workingClaims`. Duplicate or dangling local ids are rejected, and a local id may not be a UUID.
+
+Stored drafts without `workingClaims` remain valid and read back with an empty working-claim list. Working claims and reconstructed chains are researcher-authored: they are never corpus claims, evidence, established facts, or canonical argument chains. They carry an explicit epistemic status, are labelled as draft work in the editor, and are excluded from canonical reads, counts, coverage and read panels. A source pointer on a working claim is a research note, not evidence.
+
+A partial draft may be saved with at least one working claim or one reasoning step; an entirely empty draft may not. A chain must contain at least one actual step and a `MAIN` step; a `COUNTER` or challenge step is advisory for drafts and never fabricated to satisfy a validator. No canonical validation rule is relaxed by these draft-only allowances. Deriving or recommending argument paths from connected steps remains outside this contract.
+
+The researcher-facing prompts are “What is the assertion?”, “What reasons are offered?”, “How does the reasoning work?”, “What challenges or qualifies it?”, and “Construct an argument”. Formal ontology terms are available through progressive disclosure beneath those labels. These labels preserve the distinctions between source and evidence, source assertion and fact, claim and evidence, and reasoning step and claim.
+
 ## 10. Accessibility and responsive behavior
 
 - Minimum interactive target: 44px where practical; compact visual controls may use 32–38px but require adequate surrounding hit area.

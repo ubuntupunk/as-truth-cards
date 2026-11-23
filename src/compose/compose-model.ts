@@ -15,9 +15,9 @@
  * - A chain is built from the draft's own steps by key; it can never reach into the
  *   canonical corpus, which is what keeps the authoring surface non-canonical by
  *   construction.
- * - A chain surfaces a `MAIN` and a `COUNTER` step before it becomes saveable, mirroring
- *   `validate-argument-chains.mjs` — but the editor lets the author build toward that, and
- *   `draftIssues` reports it as a defect, not a crash.
+ * - A chain needs at least one `MAIN` step and at least one actual step. A `COUNTER` step
+ *   is advisory for drafts (M2), so a partial reconstruction can be saved honestly; no
+ *   canonical validator is relaxed by that choice.
  *
  * Vocabulary values enter only through the callers (which feed them from
  * `GET /api/drafts/vocabularies`); the model never invents one.
@@ -29,16 +29,25 @@ import type {
   InferenceStepRoleValue,
   InferenceTypeValue,
 } from '../../trope-cards/src/graph/types.ts'
-import type {
-  DraftChain,
-  DraftConclusion,
-  DraftPayload,
-  DraftPremise,
-  DraftStep,
+import {
+  canonicalRef,
+  claimRefIdentity,
+  type DraftChain,
+  type DraftClaimRef,
+  type DraftConclusion,
+  type DraftPayload,
+  type DraftPremise,
+  type DraftStep,
+  type DraftWorkingClaim,
+  workingRef,
 } from './draft-types'
 
 /** A draft with nothing authored yet. Never saveable; the entry point for a blank card. */
-export const EMPTY_DRAFT: DraftPayload = { steps: [], chains: [] }
+export const EMPTY_DRAFT: DraftPayload = {
+  steps: [],
+  chains: [],
+  workingClaims: [],
+}
 
 /** Field values the author may change on a step. */
 export type StepPatch = {
@@ -77,6 +86,19 @@ export type ChainInput = {
   readonly description: string
   readonly kind: ArgumentChainKindValue
   readonly epistemicStatus: string
+}
+
+/**
+ * Input for creating a working claim.
+ *
+ * `epistemicStatus` is required: a working assertion is never silently established. The UI
+ * seeds it with `WORKING`, which the author can change but must state explicitly.
+ */
+export type WorkingClaimInput = {
+  readonly label: string
+  readonly description?: string | null
+  readonly epistemicStatus: string
+  readonly source?: string | null
 }
 
 /** Keys are client-stable so chains and the save diff never renumber authorship. */
@@ -154,6 +176,127 @@ function chainKeys(draft: DraftPayload): ReadonlySet<string> {
   return new Set(draft.chains.map((chain) => chain.key))
 }
 
+/** The working local ids the draft holds today, for ref resolution and uniqueness. */
+function workingIds(draft: DraftPayload): ReadonlySet<string> {
+  return new Set(draft.workingClaims.map((claim) => claim.localId))
+}
+
+/**
+ * A draft-local id that cannot be mistaken for a canonical claim uuid.
+ *
+ * @param value The proposed id.
+ * @returns `true` when the value is non-empty and not uuid-shaped.
+ */
+export function isWorkingLocalId(value: string): boolean {
+  return (
+    value.trim().length > 0 &&
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      value,
+    )
+  )
+}
+
+/**
+ * The next free `wc-N` id, so removing a middle claim cannot make Add appear to do nothing.
+ *
+ * @param draft The current draft.
+ * @returns A non-uuid id not already used in this draft.
+ */
+export function nextWorkingLocalId(draft: DraftPayload): string {
+  const used = workingIds(draft)
+  let index = 1
+  while (used.has(`wc-${index}`)) index += 1
+  return `wc-${index}`
+}
+
+/**
+ * Add a working claim to the draft. The caller supplies a stable local id; duplicates are
+ * ignored so an accidental double-click cannot produce two claims with the same id.
+ *
+ * @param draft The current draft.
+ * @param localId The draft-local identifier, unique within this draft.
+ * @param input The authored fields.
+ * @returns The draft with the working claim appended.
+ */
+export function addWorkingClaim(
+  draft: DraftPayload,
+  localId: string,
+  input: WorkingClaimInput,
+): DraftPayload {
+  if (!isWorkingLocalId(localId) || workingIds(draft).has(localId)) return draft
+  const claim: DraftWorkingClaim = {
+    localId,
+    label: input.label,
+    description: input.description ?? null,
+    epistemicStatus: input.epistemicStatus,
+    source: input.source ?? null,
+  }
+  return { ...draft, workingClaims: [...draft.workingClaims, claim] }
+}
+
+/**
+ * Replace a working claim's authored fields, keeping its local id and refs intact.
+ *
+ * @param draft The current draft.
+ * @param localId The working claim to edit.
+ * @param input The replacement fields.
+ * @returns The draft with the claim patched.
+ */
+export function updateWorkingClaim(
+  draft: DraftPayload,
+  localId: string,
+  input: WorkingClaimInput,
+): DraftPayload {
+  return {
+    ...draft,
+    workingClaims: draft.workingClaims.map((claim) =>
+      claim.localId === localId
+        ? {
+            ...claim,
+            label: input.label,
+            description: input.description ?? null,
+            epistemicStatus: input.epistemicStatus,
+            source: input.source ?? null,
+          }
+        : claim,
+    ),
+  }
+}
+
+/**
+ * Remove a working claim and every reference to it from the draft's steps.
+ *
+ * Chains reference steps, not claims, so they need no cascade: a step that loses its last
+ * premise is reported by {@link draftIssues} rather than silently deleted.
+ *
+ * @param draft The current draft.
+ * @param localId The working claim to remove.
+ * @returns The draft without the claim and its refs.
+ */
+export function removeWorkingClaim(
+  draft: DraftPayload,
+  localId: string,
+): DraftPayload {
+  return {
+    ...draft,
+    workingClaims: draft.workingClaims.filter(
+      (claim) => claim.localId !== localId,
+    ),
+    steps: draft.steps.map((step) => ({
+      ...step,
+      premises: step.premises.filter((ref) => !isWorkingRefTo(ref, localId)),
+      conclusions: step.conclusions.filter(
+        (ref) => !isWorkingRefTo(ref, localId),
+      ),
+    })),
+  }
+}
+
+/** `true` when a ref is a working ref to `localId`. */
+function isWorkingRefTo(ref: DraftClaimRef, localId: string): boolean {
+  return ref.kind === 'working' && ref.localId === localId
+}
+
 /**
  * Build a step object from input, with dense ordinals already applied.
  *
@@ -170,12 +313,12 @@ export function buildStep(key: string, input: StepInput): DraftStep {
     epistemicStatus: input.epistemicStatus,
     notes: input.notes ?? null,
     premises: input.premises.map((premise, index) => ({
-      claimId: premise.claimId,
+      ...canonicalRef(premise.claimId),
       role: premise.role,
       ordinal: index,
     })),
     conclusions: input.conclusions.map((claimId, index) => ({
-      claimId,
+      ...canonicalRef(claimId),
       ordinal: index,
     })),
   }
@@ -223,6 +366,7 @@ export function updateStep(
  */
 export function removeStep(draft: DraftPayload, key: string): DraftPayload {
   return {
+    workingClaims: draft.workingClaims,
     steps: draft.steps.filter((step) => step.key !== key),
     chains: draft.chains
       .filter((chain) => !chain.steps.some((step) => step.stepKey === key))
@@ -230,52 +374,127 @@ export function removeStep(draft: DraftPayload, key: string): DraftPayload {
   }
 }
 
-/** Add a premise claim to a step. A claim already premised is ignored (once-only). */
+/** Add a canonical premise claim to a step. An already-used ref is ignored (once-only). */
 export function addPremise(
   draft: DraftPayload,
   stepKey: string,
   claimId: string,
   role: InferencePremiseRoleValue,
 ): DraftPayload {
+  return addPremiseRef(draft, stepKey, canonicalRef(claimId), role)
+}
+
+/**
+ * Add a working-claim premise to a step. Dangling or duplicate refs are ignored so the model
+ * never creates a ref the server would reject.
+ *
+ * @param draft The current draft.
+ * @param stepKey The step to change.
+ * @param localId A working claim in this draft.
+ * @param role The premise's epistemic role.
+ * @returns The draft with the premise appended when valid.
+ */
+export function addWorkingPremise(
+  draft: DraftPayload,
+  stepKey: string,
+  localId: string,
+  role: InferencePremiseRoleValue,
+): DraftPayload {
+  if (!workingIds(draft).has(localId)) return draft
+  return addPremiseRef(draft, stepKey, workingRef(localId), role)
+}
+
+/** Add a typed claim ref as a premise. */
+function addPremiseRef(
+  draft: DraftPayload,
+  stepKey: string,
+  ref: DraftClaimRef,
+  role: InferencePremiseRoleValue,
+): DraftPayload {
+  const identity = claimRefIdentity(ref)
   return {
     ...draft,
     steps: draft.steps.map((step) => {
       if (step.key !== stepKey) return step
-      if (step.premises.some((premise) => premise.claimId === claimId))
+      if (
+        step.premises.some((premise) => claimRefIdentity(premise) === identity)
+      )
         return step
       return withPremises(step, [
         ...step.premises,
-        { claimId, role, ordinal: 0 },
+        { ...ref, role, ordinal: 0 } as DraftPremise,
       ])
     }),
   }
 }
 
-/** Remove a premise claim from a step, reindexing the survivors. */
+/** Remove a canonical premise from a step, reindexing the survivors. */
 export function removePremise(
   draft: DraftPayload,
   stepKey: string,
   claimId: string,
 ): DraftPayload {
+  return removePremiseRef(draft, stepKey, canonicalRef(claimId))
+}
+
+/** Remove a working-claim premise from a step, reindexing the survivors. */
+export function removeWorkingPremise(
+  draft: DraftPayload,
+  stepKey: string,
+  localId: string,
+): DraftPayload {
+  return removePremiseRef(draft, stepKey, workingRef(localId))
+}
+
+/** Remove a typed claim ref from a step's premises. */
+function removePremiseRef(
+  draft: DraftPayload,
+  stepKey: string,
+  ref: DraftClaimRef,
+): DraftPayload {
+  const identity = claimRefIdentity(ref)
   return {
     ...draft,
     steps: draft.steps.map((step) => {
       if (step.key !== stepKey) return step
       return withPremises(
         step,
-        step.premises.filter((premise) => premise.claimId !== claimId),
+        step.premises.filter(
+          (premise) => claimRefIdentity(premise) !== identity,
+        ),
       )
     }),
   }
 }
 
-/** Change the role of a premise claim. */
+/** Change the role of a canonical premise claim. */
 export function setPremiseRole(
   draft: DraftPayload,
   stepKey: string,
   claimId: string,
   role: InferencePremiseRoleValue,
 ): DraftPayload {
+  return setPremiseRefRole(draft, stepKey, canonicalRef(claimId), role)
+}
+
+/** Change the role of a working-claim premise. */
+export function setWorkingPremiseRole(
+  draft: DraftPayload,
+  stepKey: string,
+  localId: string,
+  role: InferencePremiseRoleValue,
+): DraftPayload {
+  return setPremiseRefRole(draft, stepKey, workingRef(localId), role)
+}
+
+/** Change the role of a typed claim ref used as a premise. */
+function setPremiseRefRole(
+  draft: DraftPayload,
+  stepKey: string,
+  ref: DraftClaimRef,
+  role: InferencePremiseRoleValue,
+): DraftPayload {
+  const identity = claimRefIdentity(ref)
   return {
     ...draft,
     steps: draft.steps.map((step) => {
@@ -283,46 +502,93 @@ export function setPremiseRole(
       return withPremises(
         step,
         step.premises.map((premise) =>
-          premise.claimId === claimId ? { ...premise, role } : premise,
+          claimRefIdentity(premise) === identity
+            ? { ...premise, role }
+            : premise,
         ),
       )
     }),
   }
 }
 
-/** Add a conclusion claim to a step. A claim already concluded is ignored (once-only). */
+/** Add a canonical conclusion to a step. An already-used ref is ignored (once-only). */
 export function addConclusion(
   draft: DraftPayload,
   stepKey: string,
   claimId: string,
 ): DraftPayload {
+  return addConclusionRef(draft, stepKey, canonicalRef(claimId))
+}
+
+/** Add a working-claim conclusion to a step, when that claim exists in this draft. */
+export function addWorkingConclusion(
+  draft: DraftPayload,
+  stepKey: string,
+  localId: string,
+): DraftPayload {
+  if (!workingIds(draft).has(localId)) return draft
+  return addConclusionRef(draft, stepKey, workingRef(localId))
+}
+
+/** Add a typed claim ref as a conclusion. */
+function addConclusionRef(
+  draft: DraftPayload,
+  stepKey: string,
+  ref: DraftClaimRef,
+): DraftPayload {
+  const identity = claimRefIdentity(ref)
   return {
     ...draft,
     steps: draft.steps.map((step) => {
       if (step.key !== stepKey) return step
-      if (step.conclusions.some((conclusion) => conclusion.claimId === claimId))
+      if (
+        step.conclusions.some(
+          (conclusion) => claimRefIdentity(conclusion) === identity,
+        )
+      )
         return step
       return withConclusions(step, [
         ...step.conclusions,
-        { claimId, ordinal: 0 },
+        { ...ref, ordinal: 0 } as DraftConclusion,
       ])
     }),
   }
 }
 
-/** Remove a conclusion claim from a step, reindexing the survivors. */
+/** Remove a canonical conclusion from a step, reindexing the survivors. */
 export function removeConclusion(
   draft: DraftPayload,
   stepKey: string,
   claimId: string,
 ): DraftPayload {
+  return removeConclusionRef(draft, stepKey, canonicalRef(claimId))
+}
+
+/** Remove a working-claim conclusion from a step, reindexing the survivors. */
+export function removeWorkingConclusion(
+  draft: DraftPayload,
+  stepKey: string,
+  localId: string,
+): DraftPayload {
+  return removeConclusionRef(draft, stepKey, workingRef(localId))
+}
+
+/** Remove a typed claim ref from a step's conclusions. */
+function removeConclusionRef(
+  draft: DraftPayload,
+  stepKey: string,
+  ref: DraftClaimRef,
+): DraftPayload {
+  const identity = claimRefIdentity(ref)
   return {
     ...draft,
     steps: draft.steps.map((step) => {
       if (step.key !== stepKey) return step
       return withConclusions(
         step,
-        step.conclusions.filter((conclusion) => conclusion.claimId !== claimId),
+        step.conclusions.filter(
+          (conclusion) => claimRefIdentity(conclusion) !== identity,
+        ),
       )
     }),
   }
@@ -504,15 +770,53 @@ export type ComposeIssue = {
 export function draftIssues(draft: DraftPayload): readonly ComposeIssue[] {
   const issues: ComposeIssue[] = []
 
-  if (draft.steps.length === 0) {
+  if (draft.steps.length === 0 && draft.workingClaims.length === 0) {
     issues.push({
       subject: 'draft',
       key: null,
-      message: 'Create at least one reasoning step before you can save.',
+      message:
+        'Begin with a working assertion or a reasoning step before you can save.',
     })
   }
 
   const stepKeys = new Set(draft.steps.map((step) => step.key))
+  const knownWorkingIds = new Set(
+    draft.workingClaims.map((claim) => claim.localId),
+  )
+
+  for (const claim of draft.workingClaims) {
+    if (!isWorkingLocalId(claim.localId)) {
+      issues.push({
+        subject: 'draft',
+        key: claim.localId,
+        message: 'A working claim needs a unique, non-uuid local id.',
+      })
+    }
+    if (
+      !knownWorkingIds.has(claim.localId) ||
+      draft.workingClaims.filter((c) => c.localId === claim.localId).length > 1
+    ) {
+      issues.push({
+        subject: 'draft',
+        key: claim.localId,
+        message: 'Working claim local ids must be unique in this draft.',
+      })
+    }
+    if (claim.label.trim().length === 0) {
+      issues.push({
+        subject: 'draft',
+        key: claim.localId,
+        message: 'Give the working assertion a label.',
+      })
+    }
+    if (claim.epistemicStatus.trim().length === 0) {
+      issues.push({
+        subject: 'draft',
+        key: claim.localId,
+        message: 'State the working claim’s epistemic status.',
+      })
+    }
+  }
 
   for (const step of draft.steps) {
     if (step.label.trim().length === 0) {
@@ -536,7 +840,7 @@ export function draftIssues(draft: DraftPayload): readonly ComposeIssue[] {
         message: 'The step needs at least one premise claim.',
       })
     }
-    const premiseClaims = step.premises.map((premise) => premise.claimId)
+    const premiseClaims = step.premises.map(claimRefIdentity)
     if (new Set(premiseClaims).size !== premiseClaims.length) {
       issues.push({
         subject: 'step',
@@ -551,15 +855,22 @@ export function draftIssues(draft: DraftPayload): readonly ComposeIssue[] {
         message: 'The step needs at least one conclusion claim.',
       })
     }
-    const conclusionClaims = step.conclusions.map(
-      (conclusion) => conclusion.claimId,
-    )
+    const conclusionClaims = step.conclusions.map(claimRefIdentity)
     if (new Set(conclusionClaims).size !== conclusionClaims.length) {
       issues.push({
         subject: 'step',
         key: step.key,
         message: 'A step cannot reuse a conclusion claim twice.',
       })
+    }
+    for (const ref of [...step.premises, ...step.conclusions]) {
+      if (ref.kind === 'working' && !knownWorkingIds.has(ref.localId)) {
+        issues.push({
+          subject: 'step',
+          key: step.key,
+          message: 'A working claim reference does not resolve in this draft.',
+        })
+      }
     }
   }
 
@@ -602,13 +913,8 @@ export function draftIssues(draft: DraftPayload): readonly ComposeIssue[] {
         message: 'The chain needs a MAIN step.',
       })
     }
-    if (!chain.steps.some((step) => step.role === 'COUNTER')) {
-      issues.push({
-        subject: 'chain',
-        key: chain.key,
-        message: 'The chain needs a COUNTER step.',
-      })
-    }
+    // A COUNTER/CHALLENGE step is advisory for drafts (M2): the researcher may save a
+    // partial reconstruction. The canonical seed validators are unchanged.
   }
 
   return issues

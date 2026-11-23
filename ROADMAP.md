@@ -49,7 +49,7 @@ For every milestone, report each criterion as **implemented**, **verified**, **p
 | Deck / card reading | Narrative Analysis implemented; locally verified by the 2026-11-23 audit; browser/DB acceptance open | Issue [#14](https://github.com/ubuntupunk/as-truth-cards/issues/14): see [docs/ISSUE_14_AUDIT_REPORT.md](docs/ISSUE_14_AUDIT_REPORT.md); no reimplementation |
 | Shared shell/navigation | Substantial implementation; dispositions advanced 2026-11-23; acceptance open | Issue [#9](https://github.com/ubuntupunk/as-truth-cards/issues/9): see [docs/ISSUE_9_ACCEPTANCE_DISPOSITIONS.md](docs/ISSUE_9_ACCEPTANCE_DISPOSITIONS.md); 0/11 release-verified |
 | Explore / Browse | Surface acceptance outstanding | Complete canonical discovery, search/filter and context-preservation workflow |
-| Compose / Decompose | Partial foundation; full workflow outstanding | Complete explicit draft workflow without writing drafts into canonical ontology |
+| Compose / Decompose | S0/S1 implemented locally; full workflow and sign-off outstanding | Issue #16 S0/S1 report pending; S2–S4 remain gated |
 | Research Workspace | Partial foundation; full workflow outstanding | Integrate graph/card/source/composition context; keep research and auth sessions distinct |
 | Sources | Backend discovery foundation substantially implemented; UI gaps remain | Issue [#12](https://github.com/ubuntupunk/as-truth-cards/issues/12): review UI, metrics UI, pagination and provider decisions |
 | Account/onboarding | Onboarding/avatar/Save Card work implemented; locally verified by the 2026-11-23 audit; DB/browser/Figma acceptance open | Issue [#13]: see [docs/ISSUE_13_AUDIT_REPORT.md](docs/ISSUE_13_AUDIT_REPORT.md); no reimplementation |
@@ -64,7 +64,7 @@ For every milestone, report each criterion as **implemented**, **verified**, **p
 - Issue #14's narrative implementation was audited on 2026-11-23: data contract, long-form rendering, honest empty/error states, three-face navigation, hidden-face handling and links are locally verified; 375px/desktop browser acceptance, reduced-motion/no-3D emulation and Figma reconciliation remain open. See [docs/ISSUE_14_AUDIT_REPORT.md](docs/ISSUE_14_AUDIT_REPORT.md).
 - Issue #13's avatar/account work was audited on 2026-11-23: account-owned avatar bytes, versioned `user.image`, public reads, initials fallback, device-local preferences, Save Card gate and open-redirect-safe `returnTo` are locally verified; real Neon persistence, cross-device/browser acceptance and Figma parity remain open. See [docs/ISSUE_13_AUDIT_REPORT.md](docs/ISSUE_13_AUDIT_REPORT.md).
 - A 2026-11-23 research-workflow slice connects a focused research-session card to Compose and preserves a safe return context through sign-in and back to the workspace; locally verified by tests/build. Live Compose draft persistence and browser acceptance remain open.
-- Issue #16 Compose research-method / Figma redesign proposal is documented in `docs/COMPOSE_RESEARCH_METHOD_PROPOSAL.md` and is **pending maintainer review**; no design, contract, or schema decision from it is adopted here.
+- Issue #16's audit and proposal are documented in `docs/COMPOSE_RESEARCH_METHOD_PROPOSAL.md`. The maintainer decision record of 2026-11-23T10:27:07Z accepted M1–M6 as design decisions but authorised only the S0/S1 implementation slices. This change records that staged scope; S2–S4 remain gated until the S0/S1 result has been reviewed. The accepted M2/M3 guardrails needed to make S1 honest — a non-empty chain with a MAIN step, and a saveable working-only draft — are enforced in S1; the remaining advisory/challenge UX is not implemented.
 - Source discovery APIs/adapters and review-history controls are substantially implemented, but the user-facing discovery-review and metrics surfaces remain outstanding.
 - Issue #10 being closed did not resolve the separately documented public Git-history exposure; that exposure was rewritten with maintainer approval on 2026-11-23 (both remotes at `c7a40dc`, 0 token hits). Do not treat a force-push as clearing provider caches — direct-SHA HTML views still resolve on both providers. The stale-ref/fork/CI/clone inventory is complete; GitHub Support purge and Codeberg cache confirmation are still outstanding external actions. See [docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md](docs/SECURITY-HISTORY-CLEANUP-DECISION-PACKAGE.md) §§11–12.
 - Do not persist onboarding feedback/academic-participation preferences as account consent until Issue #15 defines a real delivery/participation capability, withdrawal and suppression path.
@@ -171,7 +171,17 @@ For every milestone, report each criterion as **implemented**, **verified**, **p
 - No path silently promotes a draft or inference to canonical ontology.
 - Research context is preserved appropriately across navigation and any account gate.
 
-**Status:** partial foundation has been reported; full workflow acceptance remains outstanding.
+**Status:** S0/S1 are implemented against the Issue #16 decision: researcher-facing labels and honest empty states, `focus.id` scoping, and tagged working claims/refs in the existing draft JSON. Local automated gates are recorded in the S0/S1 report; maintainer review, live Compose draft acceptance and full workflow acceptance remain outstanding.
+
+#### Staged scope from Issue #16
+
+| Slice | State | Gate / next action |
+|---|---|---|
+| S0 — wording, honest empty states, `focus.id` scoping | Implemented | Await maintainer review of the S0/S1 result |
+| S1 — working claims/refs in the existing draft JSON, plus the M2/M3 non-empty save/chain guardrails | Implemented | Await maintainer review of the S0/S1 result |
+| S2 — remaining partial-work and advisory challenge UX | Not implemented | Gated until S0/S1 review; no challenge path is fabricated |
+| S3 — derived argument-path suggestions | Not implemented | M4 is a design direction only; path derivation needs implementation authorisation |
+| S4 — Figma D1–D4 implementation | Not implemented | M5 is a design direction only; needs implementation authorisation and visual QA |
 
 ---
 

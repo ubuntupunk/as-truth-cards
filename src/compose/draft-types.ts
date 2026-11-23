@@ -23,17 +23,50 @@ export type DraftVocabulary = {
   readonly stepRoles: readonly InferenceStepRoleValue[]
 }
 
-/** One claim reference used as a premise, with its epistemic role in the step. */
-export type DraftPremise = {
+/**
+ * A reference to a canonical claim on the card.
+ *
+ * Only this ref kind is sent to the graph for existence/ownership checks. The `kind` tag is
+ * part of the wire contract; older drafts without it are normalised by the server on read.
+ */
+export type CanonicalClaimRef = {
+  readonly kind: 'canonical'
   readonly claimId: string
+}
+
+/** A reference to a claim owned by this draft, resolved only against `workingClaims`. */
+export type WorkingClaimRef = {
+  readonly kind: 'working'
+  readonly localId: string
+}
+
+/** The two kinds of claim a step may reason over. */
+export type DraftClaimRef = CanonicalClaimRef | WorkingClaimRef
+
+/** One claim reference used as a premise, with its epistemic role in the step. */
+export type DraftPremise = DraftClaimRef & {
   readonly role: InferencePremiseRoleValue
   readonly ordinal: number
 }
 
 /** One claim reference used as a conclusion. */
-export type DraftConclusion = {
-  readonly claimId: string
+export type DraftConclusion = DraftClaimRef & {
   readonly ordinal: number
+}
+
+/**
+ * A researcher-authored claim held only in the draft's JSON.
+ *
+ * A working claim is not a canonical claim, not evidence, and not an established fact. Its
+ * status is always explicit; `source` is a pointer for the researcher, never a source
+ * relation in the canonical graph.
+ */
+export type DraftWorkingClaim = {
+  readonly localId: string
+  readonly label: string
+  readonly description: string | null
+  readonly epistemicStatus: string
+  readonly source: string | null
 }
 
 /** One authored reasoning step: premises and conclusions over card claims. */
@@ -62,10 +95,11 @@ export type DraftChain = {
   }[]
 }
 
-/** A draft as the API transports it: exactly one step and chain family per card. */
+/** A draft as the API transports it: one step, chain and working-claim family per card. */
 export type DraftPayload = {
   readonly steps: readonly DraftStep[]
   readonly chains: readonly DraftChain[]
+  readonly workingClaims: readonly DraftWorkingClaim[]
 }
 
 /** A saved draft row. */
@@ -142,8 +176,15 @@ function isStoredDraft(value: unknown): value is StoredDraft {
   if (typeof value.createdAt !== 'string') return false
   if (typeof value.updatedAt !== 'string') return false
   if (!isRecord(value.payload)) return false
+  if (
+    !Array.isArray(value.payload.steps) ||
+    !Array.isArray(value.payload.chains)
+  )
+    return false
+  // Legacy drafts had no workingClaims; the server now defaults them to an empty array.
   return (
-    Array.isArray(value.payload.steps) && Array.isArray(value.payload.chains)
+    value.payload.workingClaims === undefined ||
+    Array.isArray(value.payload.workingClaims)
   )
 }
 
@@ -155,4 +196,36 @@ function isStoredDraft(value: unknown): value is StoredDraft {
  */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+/**
+ * Build a canonical claim ref.
+ *
+ * @param claimId The canonical claim uuid on the card.
+ * @returns A tagged canonical ref.
+ */
+export function canonicalRef(claimId: string): CanonicalClaimRef {
+  return { kind: 'canonical', claimId }
+}
+
+/**
+ * Build a draft-local working claim ref.
+ *
+ * @param localId The local id of a claim in this draft's `workingClaims`.
+ * @returns A tagged working ref.
+ */
+export function workingRef(localId: string): WorkingClaimRef {
+  return { kind: 'working', localId }
+}
+
+/**
+ * Stable identity of a claim ref, including its kind.
+ *
+ * @param ref A premise or conclusion ref.
+ * @returns An identity string safe for duplicate checks.
+ */
+export function claimRefIdentity(ref: DraftClaimRef): string {
+  return ref.kind === 'canonical'
+    ? `canonical:${ref.claimId}`
+    : `working:${ref.localId}`
 }
