@@ -244,7 +244,7 @@ describe('ComposeEditor', () => {
     assert.ok(html.includes('Add chain'))
   })
 
-  it('uses the approved plain-language questions with formal terms on disclosure', () => {
+  it('uses the approved questions with a concrete example under the assertion prompt', () => {
     const html = render(treeFor(EMPTY_DRAFT))
     for (const label of [
       'What is the assertion?',
@@ -255,7 +255,23 @@ describe('ComposeEditor', () => {
     ]) {
       assert.ok(html.includes(label), `missing label: ${label}`)
     }
-    assert.ok(html.includes('formal term: working claim'))
+
+    const assertionSection = html.slice(
+      html.indexOf('What is the assertion?'),
+      html.indexOf('What reasons are offered?'),
+    )
+    assert.ok(assertionSection.includes('data-testid="assertion-example"'))
+    assert.ok(assertionSection.includes('Example assertion'))
+    assert.ok(
+      assertionSection.includes(
+        'Example: “The new rule reduced waiting times because it made the application process simpler.”',
+      ),
+    )
+    assert.ok(assertionSection.includes('not an assertion about this card'))
+    assert.ok(!assertionSection.includes('formal term: working claim'))
+    assert.ok(!assertionSection.includes('canonical ontology'))
+
+    // Formal terms remain available for the other four questions.
     assert.ok(html.includes('formal term: argument chain'))
   })
 

@@ -929,23 +929,46 @@ function WorkingClaimCard({
 }
 
 /**
- * The five plain-language questions, with the formal term shown only on request.
+ * A plain-language question with progressive disclosure.
  *
  * @param label The researcher-facing question.
  * @param formal The ontology term behind it.
+ * @param example An illustrative assertion shown instead of the ontology note when provided.
  * @returns A labelled heading with progressive disclosure.
  */
-function QuestionHeading({ label, formal }: { label: string; formal: string }) {
+function QuestionHeading({
+  label,
+  formal,
+  example,
+}: {
+  label: string
+  formal: string
+  example?: string
+}) {
   return (
     <div className="flex flex-wrap items-baseline gap-2">
       <h3 className="text-base font-semibold text-foreground">{label}</h3>
-      <details className="text-xs text-muted-foreground">
-        <summary className="cursor-pointer">formal term: {formal}</summary>
-        <p className="mt-1">
-          Used only in the draft vocabulary; it never changes the canonical
-          ontology.
-        </p>
-      </details>
+      {example ? (
+        <details
+          className="text-xs text-muted-foreground"
+          data-testid="assertion-example"
+        >
+          <summary className="cursor-pointer">Example assertion</summary>
+          <p className="mt-1">Example: “{example}”</p>
+          <p className="mt-0.5">
+            Illustration only — not pre-filled, and not an assertion about this
+            card.
+          </p>
+        </details>
+      ) : (
+        <details className="text-xs text-muted-foreground">
+          <summary className="cursor-pointer">formal term: {formal}</summary>
+          <p className="mt-1">
+            Used only in the draft vocabulary; it never changes the canonical
+            ontology.
+          </p>
+        </details>
+      )}
     </div>
   )
 }
@@ -988,6 +1011,7 @@ export function ComposeEditor({
             <QuestionHeading
               label="What is the assertion?"
               formal="working claim"
+              example="The new rule reduced waiting times because it made the application process simpler."
             />
             <p className="mt-0.5 text-sm text-muted-foreground">
               Write the claim you are examining, and state its status. A source
