@@ -288,8 +288,9 @@ describe('SaveBar', () => {
     )
     assert.ok(html.includes('Saved at'))
     assert.ok(!html.includes('Unsaved changes'))
+    assert.ok(html.includes('Saved draft · 2 issues to fix'))
     assert.ok(
-      html.includes(
+      !html.includes(
         'This saved draft has 2 issues to fix before it can be saved again.',
       ),
     )

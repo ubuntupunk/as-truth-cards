@@ -200,7 +200,7 @@ export function SaveBar({
       : blocked
         ? `${issuesLabel} to fix before saving`
         : savedInvalid
-          ? `This saved draft has ${issuesLabel} to fix before it can be saved again.`
+          ? `Saved draft · ${issuesLabel} to fix`
           : dirty && canSave
             ? 'Ready to save.'
             : null
