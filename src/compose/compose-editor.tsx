@@ -194,15 +194,16 @@ export function SaveBar({
       : hasDraft && savedAt !== null
         ? `Saved at ${formatTime(savedAt)}`
         : 'No draft saved yet.'
-  const detail = saving
-    ? null
-    : blocked
-      ? `${issuesLabel} to fix before saving`
-      : savedInvalid
-        ? `This saved draft has ${issuesLabel} to fix before it can be saved again.`
-        : dirty && canSave
-          ? 'Ready to save.'
-          : null
+  const detail =
+    saving || savingError !== null
+      ? null
+      : blocked
+        ? `${issuesLabel} to fix before saving`
+        : savedInvalid
+          ? `This saved draft has ${issuesLabel} to fix before it can be saved again.`
+          : dirty && canSave
+            ? 'Ready to save.'
+            : null
   const saveInert = saving || !dirty || !canSave
   const describedBy =
     savingError !== null
@@ -211,7 +212,7 @@ export function SaveBar({
         ? 'compose-save-blocker'
         : undefined
   const barClass = [
-    'flex flex-wrap items-center justify-between gap-2 rounded-lg border border-graph-border/70 bg-background px-3 py-2 shadow-sm sm:gap-3 sm:px-4 sm:py-3',
+    'flex flex-wrap items-center justify-between gap-1 rounded-lg border border-graph-border/70 bg-background px-3 py-1.5 shadow-sm sm:gap-3 sm:px-4 sm:py-3',
     sticky ? 'compose-sticky-bar' : '',
   ]
     .filter(Boolean)
@@ -226,7 +227,7 @@ export function SaveBar({
         aria-atomic="true"
       >
         <p
-          className="text-xs text-foreground sm:text-sm"
+          className="text-xs leading-tight text-foreground sm:text-sm sm:leading-normal"
           data-testid="compose-save-status"
         >
           {status}
@@ -234,7 +235,7 @@ export function SaveBar({
         {detail !== null ? (
           <p
             id={showReview ? 'compose-save-blocker' : undefined}
-            className="mt-0.5 text-[11px] text-amber-700 dark:text-amber-300 sm:text-xs"
+            className="text-[11px] leading-tight text-amber-700 dark:text-amber-300 sm:mt-0.5 sm:text-xs sm:leading-normal"
             data-testid="compose-save-blocker"
           >
             {detail}
@@ -245,7 +246,7 @@ export function SaveBar({
         <p
           id="compose-save-error"
           role="alert"
-          className="mt-0.5 w-full text-xs text-red-600 dark:text-red-400 sm:text-sm"
+          className="w-full text-xs leading-tight text-red-600 dark:text-red-400 sm:mt-0.5 sm:text-sm sm:leading-normal"
           data-testid="compose-save-error"
         >
           {savingError}
@@ -258,7 +259,7 @@ export function SaveBar({
             type="button"
             data-testid="compose-save-review"
             onClick={onReviewIssues}
-            className="rounded-md border border-amber-600/40 bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-800 hover:bg-amber-500/20 dark:text-amber-200 sm:px-3 sm:py-1.5 sm:text-sm"
+            className="rounded-md border border-amber-600/40 bg-amber-500/10 px-2 py-[3px] text-xs font-medium text-amber-800 hover:bg-amber-500/20 dark:text-amber-200 sm:px-3 sm:py-1.5 sm:text-sm"
           >
             Review {issuesLabel}
           </button>
@@ -273,7 +274,7 @@ export function SaveBar({
             if (saveInert) return
             onSave()
           }}
-          className={`rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground sm:px-3 sm:py-1.5 sm:text-sm ${
+          className={`rounded-md border border-border bg-background px-2 py-[3px] text-xs font-medium text-foreground sm:px-3 sm:py-1.5 sm:text-sm ${
             saveInert ? 'cursor-not-allowed opacity-40' : 'hover:bg-muted'
           }`}
         >
@@ -283,7 +284,7 @@ export function SaveBar({
           type="button"
           disabled={!dirty || saving}
           onClick={onDiscard}
-          className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:py-1.5 sm:text-sm"
+          className="rounded-md border border-border bg-background px-2 py-[3px] text-xs font-medium text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:py-1.5 sm:text-sm"
         >
           Discard changes
         </button>
@@ -291,7 +292,7 @@ export function SaveBar({
           type="button"
           disabled={!hasDraft || saving}
           onClick={onDelete}
-          className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:py-1.5 sm:text-sm"
+          className="rounded-md border border-border bg-background px-2 py-[3px] text-xs font-medium text-red-600 dark:text-red-400 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:py-1.5 sm:text-sm"
         >
           Delete saved draft
         </button>

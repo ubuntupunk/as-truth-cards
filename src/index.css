@@ -155,7 +155,7 @@
   @media (max-width: 640px) {
     :root {
       --compose-sticky-top: 6.5rem;
-      --compose-scroll-margin-top: 15rem;
+      --compose-scroll-margin-top: 14.25rem;
     }
   }
 

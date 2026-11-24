@@ -268,7 +268,7 @@ Closing disclaimer: `This recorded reasoning comes from the corpus. It cannot be
 
 ### Step 3 — Save bar orientation
 
-The save bar lives **inside the draft workspace**, after the recorded panel in DOM order. For signed-in authors it uses CSS `position: sticky` and an opaque background so status and actions stay reachable without a viewport-bottom fixed bar. Measured in-browser: header bottom is 81.5px at 1440px and 95px at 375px; the bar sticks at 88px / 104px respectively, with scroll margins 168px / 240px so focus and review jumps clear both the header and the bar.
+The save bar lives **inside the draft workspace**, after the recorded panel in DOM order. For signed-in authors it uses CSS `position: sticky` and an opaque background so status and actions stay reachable without a viewport-bottom fixed bar. Measured in-browser: header bottom is 81.5px at 1440px and 95px at 375px; the bar sticks at 88px / 104px respectively, with scroll margins 168px / 228px so focus and review jumps clear both the header and the bar. Mobile bar heights after compaction: 85px clean, 99px blocked, 104px with a save-failure alert; the saved-but-now-invalid copy wraps to 113px, and the extra 9px is the second line of the proposal's full sentence. All controls and the exact alert remain visible. On a 375×420 keyboard-like viewport, `Review {n} issues` places the complete 186px banner at 231–417px, below the bar and inside the viewport.
 
 Status is a polite live region (`role="status" aria-live="polite"`). Blocker detail is guidance, not an error: the bar only summarizes counts and offers `Review {n} issues`; the full, single issue list lives in `#compose-issues`. A genuine save failure is an assertive `role="alert"` carrying the server's exact `error` text, and `aria-describedby` points Save at the active alert or blocker.
 
@@ -533,7 +533,7 @@ Server validation additionally resolves every canonical ref with `findClaimByRef
 - Headings are `Compose` (`h1`) → `Recorded reasoning` / `Your decomposition draft` (`h2`) → their sections (`h3`); there is no `h1 → h4` jump.
 - Status/blocker text is rendered as words, not colour alone. Status uses `role="status" aria-live="polite"`; a genuine failure uses `role="alert"` with the server's exact message.
 - `Review {n} issues` moves focus to `#compose-issues`; it does not mutate the draft or steal focus on save success. Focus restoration after a save was verified with `agent-browser`.
-- The sticky bar uses measured offsets (88px desktop / 104px mobile) and scroll margins (168px / 240px); browser checks covered top/bottom fields, keyboard-like 375×420 viewport, resize, and visible focus.
+- The sticky bar uses measured offsets (88px desktop / 104px mobile) and scroll margins (168px / 228px); browser checks covered top/bottom fields, the final actionable control, the full issue banner, a keyboard-like 375×420 viewport, resize, and visible focus. A genuine OS virtual-keyboard capture was not available: no Android device/emulator is attached, and headless Chrome's `navigator.virtualKeyboard.boundingRect` stays 0×0 even after `show()`.
 - Remove controls use explicit `aria-label`s rather than relying on the `×` glyph.
 - Shared page shell provides the `pt-24` header offset; the previously reported 375px heading/nav overlap is resolved.
 - At 375px the empty and zero-claim layouts stack into one column with no horizontal overflow (screenshot 06). A populated step/chain draft still has the filed horizontal-overflow follow-up `as-truth-cards-z6q`; that fix belongs to Stage 3, not Stage 1.

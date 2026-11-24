@@ -311,6 +311,7 @@ describe('SaveBar', () => {
     const html = render(tree)
     assert.ok(html.includes('role="alert"'))
     assert.ok(html.includes('Some claims are not on this card.'))
+    assert.ok(!html.includes('Ready to save.'))
     assert.equal(
       buttonByText(tree, 'Save draft')?.props?.['aria-disabled'],
       false,
