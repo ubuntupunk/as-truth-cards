@@ -261,11 +261,13 @@ Intro: `A draft for you, on this card only. It can never become canonical.`
 
 Empty editor invitation: `Start with an assertion. It stays in your draft.` The single `not currently recorded` explanation lives in the read panel (Step 2), not in every editor section.
 
-Prompt disclosure (approved refinement):
+Formal term help text: `formal term: working claim`, always visible beside the heading.
 
-- Summary: `Example assertion`
+Example disclosure (collapsed by default):
+
+- Summary: `Example`
 - Body: a muted, italic `<blockquote>` reading `Example: “The new rule reduced waiting times because it made the application process simpler.”`
-- Caveat: `Illustration only — not pre-filled, and not an assertion about this card.`
+- Caveat: `Illustration only — not pre-filled, and not drawn from this card.`
 
 Helper copy: `Write the claim you are examining, and state its status. A source pointer is optional and is not evidence.`
 
@@ -284,7 +286,12 @@ Remove button label: `Remove working assertion {label || localId}`. Removing a w
 
 ### Step 5 — What reasons are offered? / How does the reasoning work?
 
-Disclosures: `formal term: premises`, `formal term: inference step` with `Used only in the draft vocabulary; it never changes the canonical ontology.`
+Formal term help text: `formal term: premises`, `formal term: inference step`, always visible. Each has a collapsed `Example` disclosure:
+
+- Premises: `Applications now pass through two review stages instead of four.`
+- Inference step: `Fewer review stages mean faster decisions; this rule removed two stages, so waiting times should fall.`
+
+The redundant `Used only in the draft vocabulary; it never changes the canonical ontology.` note is removed.
 
 Primary action: `Add step`.
 
@@ -303,7 +310,7 @@ Primary action: `Add step`.
 
 ### Step 6 — What challenges or qualifies it?
 
-Disclosure: `formal term: counterpremise / challenge`. Guidance line: `A premise may be marked COUNTERPREMISE, or a COUNTER step may be attached in a chain. A challenge is optional in a draft.` This is **guidance only** in S1; there is no separate `Add challenge` button or challenge card.
+Formal term help text: `formal term: counterpremise / challenge`, always visible. Collapsed `Example` disclosure: `Longer waiting times may reflect staffing levels rather than the number of form stages.` Guidance line: `A premise may be marked COUNTERPREMISE, or a COUNTER step may be attached in a chain. A challenge is optional in a draft.` This is **guidance only** in S1; there is no separate `Add challenge` button or challenge card.
 
 Challenge semantics are expressed through:
 
@@ -314,7 +321,7 @@ A challenge is advisory: the save gate never fabricates one and never requires o
 
 ### Step 7 — Construct an argument
 
-Disclosure: `formal term: argument chain`.
+Formal term help text: `formal term: argument chain`, always visible. Collapsed `Example` disclosure: `Simplification → fewer review stages → faster decisions → shorter waiting times.`
 
 Helper: `Name a path through your own steps. A chain needs at least one actual step and a MAIN step; a COUNTER or CHALLENGE is optional in a draft. Paths and names are yours to confirm.`
 
@@ -489,7 +496,7 @@ Server validation additionally resolves every canonical ref with `findClaimByRef
 
 The UI/UX review answered the original eight questions. The maintainer-authorized Bucket A pass addressed Q2, Q4, Q7 and Q8, plus the a11y defect and disabled-action styling:
 
-- **Q2 — example placement:** the example is a muted, italic quote block, collapsed by default, with the “illustration only” caveat.
+- **Q2 — example placement:** every question keeps its `formal term:` help text visible and adds a collapsed `Example` disclosure with a muted, italic quote block and the “illustration only” caveat.
 - **Q4 — challenge guidance:** a one-line pointer names the existing `COUNTERPREMISE` premise role and `COUNTER` chain-step role; no new control was added and no challenge is required.
 - **Q7 — terminology:** the read panel is titled “Recorded reasoning”; step rows use `Canonical` / `Not yet canonical`, with the raw `is_canonical` boolean behind a disclosure.
 - **Q8 — empty-state tone:** one “not currently recorded” explanation remains in the read panel; editor sections use short invitations such as “Start with an assertion.”

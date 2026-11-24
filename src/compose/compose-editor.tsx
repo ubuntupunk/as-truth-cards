@@ -936,12 +936,12 @@ function WorkingClaimCard({
 }
 
 /**
- * A plain-language question with progressive disclosure.
+ * A plain-language question with its formal term visible and a concrete example on demand.
  *
  * @param label The researcher-facing question.
- * @param formal The ontology term behind it.
- * @param example An illustrative assertion shown instead of the ontology note when provided.
- * @returns A labelled heading with progressive disclosure.
+ * @param formal The ontology term behind it, always visible as help text.
+ * @param example A concrete illustration disclosed under "Example".
+ * @returns A labelled heading with visible help text and a collapsed example.
  */
 function QuestionHeading({
   label,
@@ -950,34 +950,26 @@ function QuestionHeading({
 }: {
   label: string
   formal: string
-  example?: string
+  example: string
 }) {
   return (
     <div className="flex flex-wrap items-baseline gap-2">
       <h3 className="text-base font-semibold text-foreground">{label}</h3>
-      {example ? (
-        <details
-          className="text-xs text-muted-foreground"
-          data-testid="assertion-example"
-        >
-          <summary className="cursor-pointer">Example assertion</summary>
-          <blockquote className="mt-1 border-l-2 border-muted-foreground/40 pl-3 italic text-muted-foreground">
-            Example: “{example}”
-          </blockquote>
-          <p className="mt-0.5">
-            Illustration only — not pre-filled, and not an assertion about this
-            card.
-          </p>
-        </details>
-      ) : (
-        <details className="text-xs text-muted-foreground">
-          <summary className="cursor-pointer">formal term: {formal}</summary>
-          <p className="mt-1">
-            Used only in the draft vocabulary; it never changes the canonical
-            ontology.
-          </p>
-        </details>
-      )}
+      <span className="text-xs text-muted-foreground">
+        formal term: {formal}
+      </span>
+      <details
+        className="text-xs text-muted-foreground"
+        data-testid="question-example"
+      >
+        <summary className="cursor-pointer">Example</summary>
+        <blockquote className="mt-1 border-l-2 border-muted-foreground/40 pl-3 italic text-muted-foreground">
+          Example: “{example}”
+        </blockquote>
+        <p className="mt-0.5">
+          Illustration only — not pre-filled, and not drawn from this card.
+        </p>
+      </details>
     </div>
   )
 }
@@ -1063,14 +1055,17 @@ export function ComposeEditor({
             <QuestionHeading
               label="What reasons are offered?"
               formal="premises"
+              example="Applications now pass through two review stages instead of four."
             />
             <QuestionHeading
               label="How does the reasoning work?"
               formal="inference step"
+              example="Fewer review stages mean faster decisions; this rule removed two stages, so waiting times should fall."
             />
             <QuestionHeading
               label="What challenges or qualifies it?"
               formal="counterpremise / challenge"
+              example="Longer waiting times may reflect staffing levels rather than the number of form stages."
             />
             <p
               className="mt-0.5 text-sm text-muted-foreground"
@@ -1162,6 +1157,7 @@ export function ComposeEditor({
             <QuestionHeading
               label="Construct an argument"
               formal="argument chain"
+              example="Simplification → fewer review stages → faster decisions → shorter waiting times."
             />
             <p className="mt-0.5 text-sm text-muted-foreground">
               Name a path through your own steps. A chain needs at least one

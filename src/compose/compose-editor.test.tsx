@@ -245,36 +245,61 @@ describe('ComposeEditor', () => {
     assert.ok(html.includes('Add chain'))
   })
 
-  it('uses the approved questions with a concrete example under the assertion prompt', () => {
+  it('keeps every formal term visible and offers an example disclosure for each question', () => {
     const html = render(treeFor(EMPTY_DRAFT))
-    for (const label of [
-      'What is the assertion?',
-      'What reasons are offered?',
-      'How does the reasoning work?',
-      'What challenges or qualifies it?',
-      'Construct an argument',
-    ]) {
-      assert.ok(html.includes(label), `missing label: ${label}`)
+    const questions = [
+      {
+        label: 'What is the assertion?',
+        formal: 'working claim',
+        example:
+          'The new rule reduced waiting times because it made the application process simpler.',
+      },
+      {
+        label: 'What reasons are offered?',
+        formal: 'premises',
+        example:
+          'Applications now pass through two review stages instead of four.',
+      },
+      {
+        label: 'How does the reasoning work?',
+        formal: 'inference step',
+        example:
+          'Fewer review stages mean faster decisions; this rule removed two stages, so waiting times should fall.',
+      },
+      {
+        label: 'What challenges or qualifies it?',
+        formal: 'counterpremise / challenge',
+        example:
+          'Longer waiting times may reflect staffing levels rather than the number of form stages.',
+      },
+      {
+        label: 'Construct an argument',
+        formal: 'argument chain',
+        example:
+          'Simplification → fewer review stages → faster decisions → shorter waiting times.',
+      },
+    ]
+
+    for (const [index, question] of questions.entries()) {
+      const start = html.indexOf(question.label)
+      const end =
+        index + 1 < questions.length
+          ? html.indexOf(questions[index + 1].label)
+          : html.length
+      assert.ok(start >= 0, `missing label: ${question.label}`)
+      assert.ok(end > start, `missing section end after: ${question.label}`)
+      const section = html.slice(start, end)
+      assert.ok(section.includes(`formal term: ${question.formal}`))
+      assert.ok(section.includes('data-testid="question-example"'))
+      assert.ok(section.includes('>Example</summary>'))
+      assert.ok(section.includes('<blockquote'))
+      assert.ok(section.includes(`Example: “${question.example}”`))
+      assert.ok(section.includes('Illustration only'))
+      assert.ok(!section.includes('Example assertion'))
     }
 
-    const assertionSection = html.slice(
-      html.indexOf('What is the assertion?'),
-      html.indexOf('What reasons are offered?'),
-    )
-    assert.ok(assertionSection.includes('data-testid="assertion-example"'))
-    assert.ok(assertionSection.includes('Example assertion'))
-    assert.ok(assertionSection.includes('<blockquote'))
-    assert.ok(
-      assertionSection.includes(
-        'Example: “The new rule reduced waiting times because it made the application process simpler.”',
-      ),
-    )
-    assert.ok(assertionSection.includes('not an assertion about this card'))
-    assert.ok(!assertionSection.includes('formal term: working claim'))
-    assert.ok(!assertionSection.includes('canonical ontology'))
-
-    // Formal terms remain available for the other four questions.
-    assert.ok(html.includes('formal term: argument chain'))
+    assert.ok(!html.includes('Used only in the draft vocabulary'))
+    assert.ok(!html.includes('never changes the canonical ontology'))
   })
 
   it('offers a short working start without repeating the read panel’s empty explanation', () => {
