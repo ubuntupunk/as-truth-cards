@@ -237,11 +237,13 @@ describe('ComposeEditor', () => {
     })
   }
 
-  it('starts with an empty canvas and the two add buttons', () => {
+  it('starts with an empty canvas and all four add buttons', () => {
     const html = render(treeFor(EMPTY_DRAFT))
     assert.ok(html.includes('data-testid="no-steps"'))
     assert.ok(html.includes('data-testid="no-chains"'))
     assert.ok(html.includes('Add step'))
+    assert.ok(html.includes('Add inference step'))
+    assert.ok(html.includes('Add challenge'))
     assert.ok(html.includes('Add chain'))
   })
 
@@ -318,7 +320,7 @@ describe('ComposeEditor', () => {
     assert.ok(!html.includes('Loading'))
   })
 
-  it('points to the existing challenge controls without implying a new one', () => {
+  it('describes the challenge preset without implying a challenge is required', () => {
     const html = render(treeFor(EMPTY_DRAFT))
     const guidance = html.slice(
       html.indexOf('What challenges or qualifies it?'),
@@ -327,8 +329,8 @@ describe('ComposeEditor', () => {
     assert.ok(guidance.includes('data-testid="challenge-guidance"'))
     assert.ok(guidance.includes('A premise may be marked COUNTERPREMISE'))
     assert.ok(guidance.includes('a COUNTER step may be attached in a chain'))
+    assert.ok(guidance.includes('Add challenge seeds a labelled step'))
     assert.ok(guidance.includes('A challenge is optional in a draft.'))
-    assert.ok(!html.includes('Add challenge'))
   })
 
   it('gives premise-role and chain-step-role selects accessible names', () => {
@@ -383,25 +385,44 @@ describe('ComposeEditor', () => {
     assert.equal(next.workingClaims[0].epistemicStatus, 'WORKING')
   })
 
-  it('Add step produces an editable, blank row over the served vocabulary', () => {
-    let next: DraftPayload | null = null
-    const tree = ComposeEditor({
-      draft: EMPTY_DRAFT,
-      vocab: VOCAB,
-      pool: POOL,
-      issues: [],
-      onChange: (value) => {
-        next = value
+  it('offers separate premise, inference and challenge step presets', () => {
+    const cases = [
+      { label: 'Add step', seedLabel: '', inferenceType: 'DEDUCTIVE' },
+      {
+        label: 'Add inference step',
+        seedLabel: 'Inference step',
+        inferenceType: 'UNSPECIFIED',
       },
-    })
-    const add = buttonByText(tree, 'Add step')
-    assert.ok(add !== undefined)
-    ;(add?.props?.onClick as () => void)()
-    assert.ok(next !== null)
-    assert.equal(next.steps.length, 1)
-    assert.equal(next.steps[0].inferenceType, 'DEDUCTIVE')
-    const html = render(treeFor(next))
-    assert.ok(html.includes('Unlabelled step'))
+      {
+        label: 'Add challenge',
+        seedLabel: 'Challenge',
+        inferenceType: 'UNSPECIFIED',
+      },
+    ] as const
+
+    for (const testCase of cases) {
+      let next: DraftPayload | null = null
+      const tree = ComposeEditor({
+        draft: EMPTY_DRAFT,
+        vocab: VOCAB,
+        pool: POOL,
+        issues: [],
+        onChange: (value) => {
+          next = value
+        },
+      })
+      const add = buttonByText(tree, testCase.label)
+      assert.ok(add !== undefined, `missing button: ${testCase.label}`)
+      ;(add?.props?.onClick as () => void)()
+      assert.ok(next !== null)
+      assert.equal(next.steps.length, 1)
+      assert.equal(next.steps[0].label, testCase.seedLabel)
+      assert.equal(next.steps[0].inferenceType, testCase.inferenceType)
+    }
+
+    const html = render(treeFor(EMPTY_DRAFT))
+    assert.ok(html.includes('Add inference step'))
+    assert.ok(html.includes('Add challenge'))
   })
 
   it('cannot create an empty chain before a step exists and looks visibly disabled', () => {

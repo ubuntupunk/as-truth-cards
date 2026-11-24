@@ -150,8 +150,8 @@ flowchart TD
     K --> L
 
     L --> M["1. What is the assertion?<br/>Add working assertion<br/>label / status / note / source pointer"]
-    M --> N["2. What reasons are offered?<br/>3. How does the reasoning work?<br/>Add step: premises, conclusion, inference type, status"]
-    N --> O["4. What challenges or qualifies it?<br/>COUNTERPREMISE / COUNTER / ALTERNATIVE / CONTEXT roles<br/>no separate challenge control in S1"]
+    M --> N["2. What reasons are offered?<br/>3. How does the reasoning work?<br/>Add step / Add inference step / Add challenge presets<br/>premises, conclusion, inference type, status"]
+    N --> O["4. What challenges or qualifies it?<br/>COUNTERPREMISE / COUNTER / ALTERNATIVE / CONTEXT roles<br/>challenge preset seeds a labelled step; no separate card"]
     O --> P["5. Construct an argument<br/>Add chain after >=1 step<br/>auto-attach first step as MAIN"]
 
     P --> Q{"Client save gate<br/>draftIssues"}
@@ -293,7 +293,13 @@ Formal term help text: `formal term: premises`, `formal term: inference step`, a
 
 The redundant `Used only in the draft vocabulary; it never changes the canonical ontology.` note is removed.
 
-Primary action: `Add step`.
+Primary actions, grouped as one row of three presets:
+
+- `Add step` — blank card with the served vocabulary's first inference type; focuses `Label`.
+- `Add inference step` — labels the new step `Inference step`, sets `UNSPECIFIED`, focuses `Inference type`.
+- `Add challenge` — labels the new step `Challenge`, sets `UNSPECIFIED`, focuses the premise-add control. The role remains the author's choice.
+
+All three create the same `DraftStep` shape via `addStep`. No preset pre-fills claims, roles or a required challenge.
 
 `StepCard` fields and controls:
 
@@ -310,7 +316,7 @@ Primary action: `Add step`.
 
 ### Step 6 — What challenges or qualifies it?
 
-Formal term help text: `formal term: counterpremise / challenge`, always visible. Collapsed `Example` disclosure: `Longer waiting times may reflect staffing levels rather than the number of form stages.` Guidance line: `A premise may be marked COUNTERPREMISE, or a COUNTER step may be attached in a chain. A challenge is optional in a draft.` This is **guidance only** in S1; there is no separate `Add challenge` button or challenge card.
+Formal term help text: `formal term: counterpremise / challenge`, always visible. Collapsed `Example` disclosure: `Longer waiting times may reflect staffing levels rather than the number of form stages.` Guidance line: `A premise may be marked COUNTERPREMISE, or a COUNTER step may be attached in a chain. Add challenge seeds a labelled step; the role is still yours to choose. A challenge is optional in a draft.` The `Add challenge` preset creates the same kind of step card as `Add step`; there is no separate challenge card or new validation.
 
 Challenge semantics are expressed through:
 
@@ -497,7 +503,7 @@ Server validation additionally resolves every canonical ref with `findClaimByRef
 The UI/UX review answered the original eight questions. The maintainer-authorized Bucket A pass addressed Q2, Q4, Q7 and Q8, plus the a11y defect and disabled-action styling:
 
 - **Q2 — example placement:** every question keeps its `formal term:` help text visible and adds a collapsed `Example` disclosure with a muted, italic quote block and the “illustration only” caveat.
-- **Q4 — challenge guidance:** a one-line pointer names the existing `COUNTERPREMISE` premise role and `COUNTER` chain-step role; no new control was added and no challenge is required.
+- **Q4 — challenge guidance:** a one-line pointer names the `COUNTERPREMISE` premise role and `COUNTER` chain-step role. A maintainer-directed follow-up added an `Add challenge` step preset; it seeds a labelled step without pre-filling a role, and no challenge is required.
 - **Q7 — terminology:** the read panel is titled “Recorded reasoning”; step rows use `Canonical` / `Not yet canonical`, with the raw `is_canonical` boolean behind a disclosure.
 - **Q8 — empty-state tone:** one “not currently recorded” explanation remains in the read panel; editor sections use short invitations such as “Start with an assertion.”
 - **A11y / disabled action:** premise- and chain-step-role selects have accessible names; unavailable `Add chain` keeps visible button styling and `aria-disabled="true"`.

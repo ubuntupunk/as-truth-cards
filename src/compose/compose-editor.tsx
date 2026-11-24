@@ -356,15 +356,20 @@ function CardFrame({
   children,
   onRemove,
   removeLabel,
+  stepKey,
 }: {
   title: string
   badge?: string
   children: ComponentChildren
   onRemove: () => void
   removeLabel: string
+  stepKey?: string
 }) {
   return (
-    <li className="rounded-lg border border-graph-border/60 bg-background p-4">
+    <li
+      data-step-key={stepKey}
+      className="rounded-lg border border-graph-border/60 bg-background p-4"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
           <span className="text-sm font-semibold text-foreground">{title}</span>
@@ -472,6 +477,7 @@ function StepCard({
       badge={step.inferenceType}
       onRemove={onRemove}
       removeLabel={`Remove step ${step.label || 'without a label'}`}
+      stepKey={step.key}
     >
       <label className="block">
         <span className="text-xs font-medium text-muted-foreground">Label</span>
@@ -840,6 +846,56 @@ const FALLBACK_INFERENCE_TYPE = 'UNSPECIFIED'
 const FALLBACK_CHAIN_KIND = 'EDITORIAL_RECONSTRUCTION'
 /** A working assertion is never assumed established: the author must name its standing. */
 const FALLBACK_WORKING_STATUS = 'WORKING'
+/** Shared styling for the three step presets so they read as one control group. */
+const STEP_PRESET_BUTTON_CLASS =
+  'rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted'
+
+/** The control each preset puts the caret in once its step card appears. */
+type AddedStepFocus = 'label' | 'inference' | 'premise'
+
+/**
+ * Move focus into the step card that was just added.
+ *
+ * @param stepKey The client-stable key of the new step.
+ * @param focus Which control to focus: label, inference select or premise select.
+ * @returns Nothing; focus moves on the next frame so the card exists first.
+ */
+function focusAddedStep(
+  stepKey: string | undefined,
+  focus: AddedStepFocus,
+): void {
+  if (stepKey === undefined || typeof document === 'undefined') return
+
+  const moveFocus = () => {
+    const card = document.querySelector<HTMLElement>(
+      `[data-step-key="${stepKey}"]`,
+    )
+    if (card === null) return
+
+    const select =
+      focus === 'inference'
+        ? card.querySelector<HTMLSelectElement>(
+            'select[aria-label="Inference type"]',
+          )
+        : focus === 'premise'
+          ? (card.querySelector<HTMLSelectElement>(
+              'select[aria-label="Add a premise claim"]',
+            ) ??
+            card.querySelector<HTMLSelectElement>(
+              'select[aria-label="Add a working premise"]',
+            ))
+          : null
+    const control =
+      select ?? card.querySelector<HTMLInputElement>('input[type="text"]')
+    control?.focus()
+  }
+
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(moveFocus)
+  } else {
+    queueMicrotask(moveFocus)
+  }
+}
 
 /**
  * One researcher-authored working claim. Never a canonical claim, source or fact.
@@ -989,6 +1045,24 @@ export function ComposeEditor({
 }: ComposeEditorProps) {
   const apply = (next: DraftPayload) => onChange(next)
 
+  const addStepPreset = (
+    seedLabel: string,
+    inferenceType: InferenceTypeValue,
+    focus: AddedStepFocus,
+  ) => {
+    const next = addStep(draft, {
+      label: seedLabel,
+      description: '',
+      inferenceType,
+      epistemicStatus: '',
+      notes: null,
+      premises: [],
+      conclusions: [],
+    })
+    apply(next)
+    focusAddedStep(next.steps[next.steps.length - 1]?.key, focus)
+  }
+
   return (
     <div data-testid="compose-editor" className="space-y-6">
       <p className="text-sm text-muted-foreground">
@@ -1050,7 +1124,7 @@ export function ComposeEditor({
       </section>
 
       <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <QuestionHeading
               label="What reasons are offered?"
@@ -1072,29 +1146,43 @@ export function ComposeEditor({
               data-testid="challenge-guidance"
             >
               A premise may be marked COUNTERPREMISE, or a COUNTER step may be
-              attached in a chain. A challenge is optional in a draft.
+              attached in a chain. Add challenge seeds a labelled step; the role
+              is still yours to choose. A challenge is optional in a draft.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() =>
-              apply(
-                addStep(draft, {
-                  label: '',
-                  description: '',
-                  inferenceType:
-                    vocab.inferenceTypes[0] ?? FALLBACK_INFERENCE_TYPE,
-                  epistemicStatus: '',
-                  notes: null,
-                  premises: [],
-                  conclusions: [],
-                }),
-              )
-            }
-            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
-          >
-            Add step
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                addStepPreset(
+                  '',
+                  vocab.inferenceTypes[0] ?? FALLBACK_INFERENCE_TYPE,
+                  'label',
+                )
+              }
+              className={STEP_PRESET_BUTTON_CLASS}
+            >
+              Add step
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                addStepPreset('Inference step', 'UNSPECIFIED', 'inference')
+              }
+              className={STEP_PRESET_BUTTON_CLASS}
+            >
+              Add inference step
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                addStepPreset('Challenge', 'UNSPECIFIED', 'premise')
+              }
+              className={STEP_PRESET_BUTTON_CLASS}
+            >
+              Add challenge
+            </button>
+          </div>
         </div>
 
         {draft.steps.length === 0 ? (
