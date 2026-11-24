@@ -56,11 +56,15 @@ describe('CanonicalDecomposition', () => {
     assert.ok(!html.includes('failed'))
   })
 
-  it('says recorded steps, not canonical steps, and discloses each row’s flag', () => {
+  it('says recorded steps in plain language and keeps the raw flag on demand', () => {
     const html = render(<CanonicalDecomposition data={NON_CANONICAL_STEP} />)
     assert.ok(html.includes('Reasoning steps recorded for this card'))
     assert.ok(!html.includes('Canonical reasoning steps'))
+    assert.ok(html.includes('Not yet canonical'))
+    assert.ok(html.includes('Raw is_canonical flag'))
     assert.ok(html.includes('is_canonical: false'))
+    assert.ok(html.includes('This recorded reasoning comes from the corpus.'))
+    assert.ok(!html.includes('canonical decomposition'))
   })
 
   it('states the flag explicitly for a canonical step too', () => {
@@ -74,6 +78,14 @@ describe('CanonicalDecomposition', () => {
     )
     assert.ok(html.includes('is_canonical: true'))
     assert.ok(!html.includes('is_canonical: false'))
+    assert.ok(html.includes('· Canonical'))
+    assert.ok(!html.includes('Not yet canonical'))
+  })
+
+  it('names the pending state as recorded reasoning', () => {
+    const html = render(<CanonicalDecomposition data={null} />)
+    assert.ok(html.includes('Loading the recorded reasoning…'))
+    assert.ok(!html.includes('canonical decomposition'))
   })
 
   it('names absent recorded chains without implying a projection failure', () => {

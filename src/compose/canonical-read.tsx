@@ -1,5 +1,5 @@
 /**
- * The canonical decomposition, read-only, beside the compose editor.
+ * The recorded reasoning panel, read-only, beside the compose editor.
  *
  * Everything in this panel comes from the `trope_graph` projection and nothing the author
  * types can reach it. It exists so the composer studies the corpus's own reasoning while
@@ -74,7 +74,7 @@ export function CanonicalDecomposition({ data }: CanonicalDecompositionProps) {
   if (data === null) {
     return (
       <p className="text-sm text-muted-foreground">
-        Loading the canonical decomposition…
+        Loading the recorded reasoning…
       </p>
     )
   }
@@ -112,7 +112,7 @@ export function CanonicalDecomposition({ data }: CanonicalDecompositionProps) {
 
       <ListSection
         title="Reasoning steps recorded for this card"
-        note="Published corpus records. Each row discloses its own is_canonical flag — recorded steps can be marked non-canonical, so the flag is shown per row rather than assumed for the section."
+        note="Published corpus records. A step may or may not be canonical; each row says which."
       >
         {data.steps.length === 0 ? (
           <p className="mt-1 text-sm text-muted-foreground">
@@ -137,9 +137,17 @@ export function CanonicalDecomposition({ data }: CanonicalDecompositionProps) {
                   {step.description}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Status: {step.epistemicStatus} · is_canonical:{' '}
-                  {step.isCanonical ? 'true' : 'false'}
+                  Status: {step.epistemicStatus} ·{' '}
+                  {step.isCanonical ? 'Canonical' : 'Not yet canonical'}
                 </p>
+                <details className="mt-0.5 text-xs text-muted-foreground">
+                  <summary className="cursor-pointer">
+                    Raw is_canonical flag
+                  </summary>
+                  <p className="mt-0.5 font-mono">
+                    is_canonical: {step.isCanonical ? 'true' : 'false'}
+                  </p>
+                </details>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -215,8 +223,8 @@ export function CanonicalDecomposition({ data }: CanonicalDecompositionProps) {
       </ListSection>
 
       <p className="text-xs text-muted-foreground">
-        This canonical decomposition is read from the ontology. It cannot be
-        edited here, and nothing you author below becomes part of it.
+        This recorded reasoning comes from the corpus. It cannot be edited here,
+        and nothing you author below becomes part of it.
       </p>
     </div>
   )

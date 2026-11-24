@@ -296,7 +296,7 @@ const Compose = () => {
         </select>
       )}
       <p className="mt-2 text-sm text-muted-foreground">
-        Author a decomposition of one card. The canonical reasoning is shown for
+        Author a decomposition of one card. The recorded reasoning is shown for
         study, kept separate, and never edited here.
       </p>
     </section>
@@ -374,7 +374,7 @@ const Compose = () => {
         <PageHeading
           eyebrow="Research / Compose"
           title="Compose"
-          description="Study a card's canonical decomposition, then author your own — saved to your account, never into the corpus."
+          description="Study a card's recorded reasoning, then author your own — saved to your account, never into the corpus."
           testId="compose-heading"
         />
 

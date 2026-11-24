@@ -103,7 +103,7 @@ PageShell / PageBreadcrumb / PageHeading
 - Entry from Research workspace: card row → `Compose` (`?card=<slug>&returnTo=<safe path>`)
 - Breadcrumb: `Trope Cards · Research · Compose`
 - Heading: `Research / Compose`
-- Description: `Study a card's canonical decomposition, then author your own — saved to your account, never into the corpus.`
+- Description: `Study a card's recorded reasoning, then author your own — saved to your account, never into the corpus.`
 - Geometry: shared `PageShell` container, `pt-24 pb-16`, theme-aware `bg-muted`, aligned header/main/footer edges.
 
 ### Component inventory
@@ -199,7 +199,7 @@ flowchart LR
 - **Empty corpus:** `No cards in the corpus yet.`
 - **Unknown slug:** `“{slug}” is not a card in the served listing.` + `Pick one from the list to author its decomposition.`
 - **No selection:** `Choose a card above to start composing.`
-- **Explainer:** `Author a decomposition of one card. The canonical reasoning is shown for study, kept separate, and never edited here.`
+- **Explainer:** `Author a decomposition of one card. The recorded reasoning is shown for study, kept separate, and never edited here.`
 
 Selecting another card rewrites the URL and remounts the workspace, so no draft from the previous card can remain in view.
 
@@ -215,7 +215,7 @@ The draft `GET` is the only session probe. There is no route-level guard.
 
 Sign-in link preserves the exact Compose route, card slug and nested research return context.
 
-### Step 2 — Read the recorded decomposition
+### Step 2 — Read the recorded reasoning
 
 Panel: `CanonicalDecomposition`, test id `canonical-decomposition`.
 
@@ -226,17 +226,17 @@ Subsections:
    - Empty: `Canonical claims are not currently recorded for this card. You can begin with a working assertion below; it stays in your draft.`
    - Rows show statement, `StatusBadge`, optional description.
 2. **Reasoning steps recorded for this card**
-   - Helper: `Published corpus records. Each row discloses its own is_canonical flag — recorded steps can be marked non-canonical, so the flag is shown per row rather than assumed for the section.`
+   - Helper: `Published corpus records. A step may or may not be canonical; each row says which.`
    - Empty: `No reasoning steps are currently recorded for this card.`
-   - Rows show label, inference-type badge, description, `Status: {status} · is_canonical: {true|false}`, premises (statement + role) and conclusions.
+   - Rows show label, inference-type badge, description, `Status: {status} · Canonical` or `Not yet canonical`, premises (statement + role) and conclusions. A `Raw is_canonical flag` disclosure keeps the underlying boolean available on demand.
 3. **Argument chains**
    - Helper: `Named paths through the recorded steps. Whatever you draft below is yours, never one of these.`
    - Empty: `No argument chains are currently recorded for this card. You can construct your own below; it stays in your draft.`
    - Rows show label, kind badge, description, `{n} step(s) · status {status}`.
 
-Closing disclaimer: `This canonical decomposition is read from the ontology. It cannot be edited here, and nothing you author below becomes part of it.`
+Closing disclaimer: `This recorded reasoning comes from the corpus. It cannot be edited here, and nothing you author below becomes part of it.`
 
-**Wording note for reviewer:** the UI says *recorded*, not *canonical*, for steps because a row may carry `is_canonical: false`. The flag is disclosed per row.
+**Wording note:** the UI says *recorded*, not *canonical*, for steps because a row may carry `is_canonical: false`. Rows use plain `Canonical` / `Not yet canonical` wording; the raw boolean remains available through the per-row disclosure. Underlying flags are unchanged.
 
 ### Step 3 — Save bar orientation
 
@@ -259,12 +259,12 @@ Buttons:
 
 Intro: `A draft for you, on this card only. It can never become canonical.`
 
-Empty: `Canonical claims are not currently recorded for this card. You can begin with a working assertion below; it stays in your draft and is not added to the corpus.`
+Empty editor invitation: `Start with an assertion. It stays in your draft.` The single `not currently recorded` explanation lives in the read panel (Step 2), not in every editor section.
 
 Prompt disclosure (approved refinement):
 
 - Summary: `Example assertion`
-- Body: `Example: “The new rule reduced waiting times because it made the application process simpler.”`
+- Body: a muted, italic `<blockquote>` reading `Example: “The new rule reduced waiting times because it made the application process simpler.”`
 - Caveat: `Illustration only — not pre-filled, and not an assertion about this card.`
 
 Helper copy: `Write the claim you are examining, and state its status. A source pointer is optional and is not evidence.`
@@ -303,7 +303,7 @@ Primary action: `Add step`.
 
 ### Step 6 — What challenges or qualifies it?
 
-Disclosure: `formal term: counterpremise / challenge`. This is **guidance only** in S1; there is no separate `Add challenge` button or challenge card.
+Disclosure: `formal term: counterpremise / challenge`. Guidance line: `A premise may be marked COUNTERPREMISE, or a COUNTER step may be attached in a chain. A challenge is optional in a draft.` This is **guidance only** in S1; there is no separate `Add challenge` button or challenge card.
 
 Challenge semantics are expressed through:
 
@@ -318,7 +318,7 @@ Disclosure: `formal term: argument chain`.
 
 Helper: `Name a path through your own steps. A chain needs at least one actual step and a MAIN step; a COUNTER or CHALLENGE is optional in a draft. Paths and names are yours to confirm.`
 
-Primary action: `Add chain`, disabled until at least one step exists. Adding a chain immediately attaches the draft’s first step as `MAIN`, so the UI never creates an empty chain.
+Primary action: `Add chain`, disabled until at least one step exists. When unavailable it keeps visible button styling (muted border/background/text, `not-allowed` cursor) and exposes `aria-disabled="true"` alongside the native `disabled` state. Adding a chain immediately attaches the draft’s first step as `MAIN`, so the UI never creates an empty chain.
 
 `ChainCard` fields:
 
@@ -457,15 +457,15 @@ Server validation additionally resolves every canonical ref with `findClaimByRef
 | Card list loading | `Loading the card list…` | — |
 | Unknown card | `“{slug}” is not a card in the served listing.` | — |
 | No card chosen | `Choose a card above to start composing.` | — |
-| Projection loading | `Loading the decomposition…` / `Loading the canonical decomposition…` | — |
+| Projection loading | `Loading the decomposition…` / `Loading the recorded reasoning…` | — |
 | Draft loading | `Loading your draft…` | — |
 | API error | `The API replied {status}` / `Network error` + server message | — |
 | Malformed response | `Malformed graph response` + bug-report instruction | — |
 | Zero canonical claims | `Canonical claims are not currently recorded for this card…` | 02, 06 |
-| No working assertion | `No working assertion yet. Add one if the card has no recorded claim to start from, or if your reading differs from them.` | 02, 05, 06 |
-| No steps | `No reasoning step yet. Add one to connect reasons to a conclusion — a working assertion on its own is enough to save a partial draft.` | 02, 03, 05, 06 |
-| No chains | `Chains are optional. Add a reasoning step first; a new chain starts with that step so it is never empty.` | 02, 03, 05, 06 |
-| Populated canonical | Claims + steps + chains with badges and `is_canonical` disclosure | 05 |
+| No working assertion | `Start with an assertion. It stays in your draft.` | 02, 05, 06 |
+| No steps | `Add a step to connect reasons to a conclusion.` | 02, 03, 05, 06 |
+| No chains | `Add a reasoning step first, then construct a chain.` (with `Add chain` visibly disabled) | 02, 03, 05, 06 |
+| Populated canonical | Claims + steps + chains with badges; step rows say `Canonical` / `Not yet canonical` with a `Raw is_canonical flag` disclosure | 05 |
 | Saved working-only draft | `Saved at HH:MM`, no issue banner | 03 |
 | Saved full draft | Assertion + step + chain, all saved | 04 |
 | Unsavedable | `The draft is not saveable yet.` + bullets | 02, 05, 06 |
@@ -474,28 +474,30 @@ Server validation additionally resolves every canonical ref with `findClaimByRef
 
 ## 8. Accessibility and responsive notes for review
 
-- Most authoring controls have accessible labels (`Assertion`, `Label`, `Inference type`, `Add a working premise`, etc.). The premise-role and chain-step-role selects currently have no accessible name.
+- Authoring controls have accessible labels (`Assertion`, `Label`, `Inference type`, `Add a working premise`, etc.), including the premise-role (`Premise role`) and chain-step-role (`Role in chain`) selects.
 - Progressive disclosure uses native `<details>`/`<summary>`; keyboard-operable by default.
 - Remove controls use explicit `aria-label`s rather than relying on the `×` glyph.
 - Status/blocker text is rendered as words, not colour alone.
 - Shared page shell provides the `pt-24` header offset; the previously reported 375px heading/nav overlap is resolved.
-- At 375px the page stacks into one column; see screenshot 06.
+- At 375px the page stacks into one column with no horizontal overflow; see screenshot 06.
+- The unavailable `Add chain` action keeps button styling and exposes `aria-disabled="true"` with the native `disabled` state.
 - There is no dedicated `src/pages/Compose.test.tsx`; behaviour is covered by component, model, projector, contract and API suites.
 
 ---
 
-## 9. Focused questions for the UI/UX reviewer
+## 9. Review questions and Bucket A outcomes
 
-1. **Hierarchy:** is the read-only canonical panel sufficiently subordinate to the authoring surface, or does its density compete for attention on populated cards (screenshot 05)?
-2. **Example placement:** does the expanded `Example assertion` disclosure clearly read as guidance rather than a pre-filled value (screenshot 02)?
-3. **Long-form ergonomics:** the step and chain cards are dense on a fully developed draft (screenshot 04). Should sections collapse, or is the linear scroll acceptable for S1?
-4. **Challenge guidance:** `What challenges or qualifies it?` currently has no dedicated control. Is the role-based expression discoverable enough, or does the prompt imply an affordance that is missing?
-5. **Save bar:** is a single top save bar enough on a long page, or should a sticky/section-level status be considered later?
-6. **Mobile:** at 375px the document is necessarily long (screenshot 06). Are the entry points and empty states still scannable, or would progressive sections help?
-7. **Terminology:** `is_canonical: false` is exposed per recorded step. Is that transparency useful, too technical, or better placed behind a tooltip?
-8. **Empty state tone:** do the “not currently recorded” messages strike the right balance between honest sparsity and an invitation to author?
+The UI/UX review answered the original eight questions. The maintainer-authorized Bucket A pass addressed Q2, Q4, Q7 and Q8, plus the a11y defect and disabled-action styling:
 
-Please record findings against these questions rather than proposing S2–S4 scope changes; those remain gated.
+- **Q2 — example placement:** the example is a muted, italic quote block, collapsed by default, with the “illustration only” caveat.
+- **Q4 — challenge guidance:** a one-line pointer names the existing `COUNTERPREMISE` premise role and `COUNTER` chain-step role; no new control was added and no challenge is required.
+- **Q7 — terminology:** the read panel is titled “Recorded reasoning”; step rows use `Canonical` / `Not yet canonical`, with the raw `is_canonical` boolean behind a disclosure.
+- **Q8 — empty-state tone:** one “not currently recorded” explanation remains in the read panel; editor sections use short invitations such as “Start with an assertion.”
+- **A11y / disabled action:** premise- and chain-step-role selects have accessible names; unavailable `Add chain` keeps visible button styling and `aria-disabled="true"`.
+
+Still open as design questions (Bucket B, explicitly not authorized in this pass): Q1 hierarchy/boxing and default expansion of the populated read panel, Q3 collapsing step/chain cards, Q5 sticky save bar and banner timing, Q6 default-collapsing sections on mobile.
+
+Any further work requires a separate maintainer decision; S2–S4 remain gated.
 
 ---
 

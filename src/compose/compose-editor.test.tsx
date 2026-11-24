@@ -19,6 +19,7 @@ import { buttonByText, buttonsLabelled, walk } from '@/deck/test-fixtures'
 import { ComposeEditor, PermissionGate, SaveBar } from './compose-editor'
 import {
   addChain,
+  addChainStep,
   addStep,
   type ComposeAuthState,
   EMPTY_DRAFT,
@@ -262,6 +263,7 @@ describe('ComposeEditor', () => {
     )
     assert.ok(assertionSection.includes('data-testid="assertion-example"'))
     assert.ok(assertionSection.includes('Example assertion'))
+    assert.ok(assertionSection.includes('<blockquote'))
     assert.ok(
       assertionSection.includes(
         'Example: “The new rule reduced waiting times because it made the application process simpler.”',
@@ -275,7 +277,7 @@ describe('ComposeEditor', () => {
     assert.ok(html.includes('formal term: argument chain'))
   })
 
-  it('says canonical claims are not recorded when the pool is empty, and offers a working start', () => {
+  it('offers a short working start without repeating the read panel’s empty explanation', () => {
     const html = render(
       ComposeEditor({
         draft: EMPTY_DRAFT,
@@ -285,9 +287,56 @@ describe('ComposeEditor', () => {
         onChange: () => {},
       }),
     )
-    assert.ok(html.includes('Canonical claims are not currently recorded'))
-    assert.ok(html.includes('begin with a working assertion'))
+    assert.ok(html.includes('Start with an assertion.'))
+    assert.ok(!html.includes('Canonical claims are not currently recorded'))
+    assert.ok(!html.includes('data-testid="no-canonical-claims"'))
     assert.ok(!html.includes('Loading'))
+  })
+
+  it('points to the existing challenge controls without implying a new one', () => {
+    const html = render(treeFor(EMPTY_DRAFT))
+    const guidance = html.slice(
+      html.indexOf('What challenges or qualifies it?'),
+      html.indexOf('Construct an argument'),
+    )
+    assert.ok(guidance.includes('data-testid="challenge-guidance"'))
+    assert.ok(guidance.includes('A premise may be marked COUNTERPREMISE'))
+    assert.ok(guidance.includes('a COUNTER step may be attached in a chain'))
+    assert.ok(guidance.includes('A challenge is optional in a draft.'))
+    assert.ok(!html.includes('Add challenge'))
+  })
+
+  it('gives premise-role and chain-step-role selects accessible names', () => {
+    const step: DraftPayload['steps'][number] = {
+      key: 'step-0',
+      label: 'First move',
+      description: 'A working explanation.',
+      inferenceType: 'DEDUCTIVE',
+      epistemicStatus: 'WORKING',
+      notes: null,
+      premises: [
+        { kind: 'canonical', claimId: 'c-1', role: 'PRIMARY', ordinal: 0 },
+      ],
+      conclusions: [{ kind: 'canonical', claimId: 'c-2', ordinal: 0 }],
+    }
+    const withChain = addChain(
+      { ...EMPTY_DRAFT, steps: [step] },
+      {
+        label: 'A path',
+        description: 'A working path.',
+        kind: 'PRIMARY_ARGUMENT',
+        epistemicStatus: 'WORKING',
+      },
+    )
+    const withAttached = addChainStep(
+      withChain,
+      withChain.chains[0].key,
+      step.key,
+      'MAIN',
+    )
+    const html = render(treeFor(withAttached))
+    assert.ok(html.includes('aria-label="Premise role"'))
+    assert.ok(html.includes('aria-label="Role in chain"'))
   })
 
   it('lets the researcher add a working assertion from an empty draft', () => {
@@ -330,7 +379,7 @@ describe('ComposeEditor', () => {
     assert.ok(html.includes('Unlabelled step'))
   })
 
-  it('cannot create an empty chain before a step exists', () => {
+  it('cannot create an empty chain before a step exists and looks visibly disabled', () => {
     const tree = ComposeEditor({
       draft: EMPTY_DRAFT,
       vocab: VOCAB,
@@ -340,6 +389,11 @@ describe('ComposeEditor', () => {
     })
     const add = buttonByText(tree, 'Add chain')
     assert.equal(add?.props?.disabled, true)
+    assert.equal(add?.props?.['aria-disabled'], true)
+    const html = render(tree)
+    assert.ok(html.includes('aria-disabled="true"'))
+    assert.ok(html.includes('disabled:bg-muted'))
+    assert.ok(html.includes('disabled:text-muted-foreground'))
   })
 
   it('Add chain starts with the draft’s first step as MAIN, never empty', () => {

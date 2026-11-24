@@ -259,13 +259,17 @@ function VocabSelect({
   value,
   options,
   label,
+  ariaLabel,
   onSelect,
 }: {
   value: string
   options: readonly string[]
   label: string
+  /** Accessible name for selects whose visual label is deliberately omitted. */
+  ariaLabel?: string
   onSelect: (value: string) => void
 }) {
+  const accessibleName = ariaLabel ?? label
   return (
     <label className="block">
       {label !== '' ? (
@@ -275,6 +279,7 @@ function VocabSelect({
       ) : null}
       <select
         value={value}
+        aria-label={accessibleName !== '' ? accessibleName : undefined}
         onChange={(event) =>
           onSelect((event.target as HTMLSelectElement).value)
         }
@@ -552,6 +557,7 @@ function StepCard({
                       value={premise.role}
                       options={vocab.premiseRoles}
                       label=""
+                      ariaLabel="Premise role"
                       onSelect={(value) => {
                         const role = value as InferencePremiseRoleValue
                         if (premise.kind === 'working') {
@@ -782,6 +788,7 @@ function ChainCard({
                     value={chainStep.role}
                     options={vocab.stepRoles}
                     label=""
+                    ariaLabel="Role in chain"
                     onSelect={(value) =>
                       onSetRole(
                         chainStep.stepKey,
@@ -954,7 +961,9 @@ function QuestionHeading({
           data-testid="assertion-example"
         >
           <summary className="cursor-pointer">Example assertion</summary>
-          <p className="mt-1">Example: “{example}”</p>
+          <blockquote className="mt-1 border-l-2 border-muted-foreground/40 pl-3 italic text-muted-foreground">
+            Example: “{example}”
+          </blockquote>
           <p className="mt-0.5">
             Illustration only — not pre-filled, and not an assertion about this
             card.
@@ -994,17 +1003,6 @@ export function ComposeEditor({
         A draft for you, on this card only. It can never become canonical.
       </p>
 
-      {pool.size === 0 && draft.workingClaims.length === 0 ? (
-        <p
-          className="rounded-lg border border-dashed border-graph-border/70 bg-graph-muted/30 p-4 text-sm text-muted-foreground"
-          data-testid="no-canonical-claims"
-        >
-          Canonical claims are not currently recorded for this card. You can
-          begin with a working assertion below; it stays in your draft and is
-          not added to the corpus.
-        </p>
-      ) : null}
-
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
@@ -1041,8 +1039,7 @@ export function ComposeEditor({
             className="rounded-lg border border-dashed border-graph-border/70 bg-graph-muted/30 p-4 text-sm text-muted-foreground"
             data-testid="no-working-claims"
           >
-            No working assertion yet. Add one if the card has no recorded claim
-            to start from, or if your reading differs from them.
+            Start with an assertion. It stays in your draft.
           </p>
         ) : (
           <ul className="space-y-3">
@@ -1075,6 +1072,13 @@ export function ComposeEditor({
               label="What challenges or qualifies it?"
               formal="counterpremise / challenge"
             />
+            <p
+              className="mt-0.5 text-sm text-muted-foreground"
+              data-testid="challenge-guidance"
+            >
+              A premise may be marked COUNTERPREMISE, or a COUNTER step may be
+              attached in a chain. A challenge is optional in a draft.
+            </p>
           </div>
           <button
             type="button"
@@ -1103,8 +1107,7 @@ export function ComposeEditor({
             className="rounded-lg border border-dashed border-graph-border/70 bg-graph-muted/30 p-4 text-sm text-muted-foreground"
             data-testid="no-steps"
           >
-            No reasoning step yet. Add one to connect reasons to a conclusion —
-            a working assertion on its own is enough to save a partial draft.
+            Add a step to connect reasons to a conclusion.
           </p>
         ) : (
           <ul className="space-y-3">
@@ -1169,6 +1172,7 @@ export function ComposeEditor({
           <button
             type="button"
             disabled={draft.steps.length === 0}
+            aria-disabled={draft.steps.length === 0}
             data-testid="add-chain"
             onClick={() => {
               if (draft.steps.length === 0) return
@@ -1181,7 +1185,7 @@ export function ComposeEditor({
               const newKey = withChain.chains[withChain.chains.length - 1].key
               apply(addChainStep(withChain, newKey, draft.steps[0].key, 'MAIN'))
             }}
-            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:border-muted disabled:bg-muted disabled:text-muted-foreground"
           >
             Add chain
           </button>
@@ -1192,8 +1196,7 @@ export function ComposeEditor({
             className="rounded-lg border border-dashed border-graph-border/70 bg-graph-muted/30 p-4 text-sm text-muted-foreground"
             data-testid="no-chains"
           >
-            Chains are optional. Add a reasoning step first; a new chain starts
-            with that step so it is never empty.
+            Add a reasoning step first, then construct a chain.
           </p>
         ) : (
           <ul className="space-y-3">
