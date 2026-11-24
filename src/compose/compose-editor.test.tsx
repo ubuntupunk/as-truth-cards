@@ -146,9 +146,11 @@ describe('SaveBar', () => {
     savedAt: null,
     saving: false,
     savingError: null as string | null,
+    sticky: true,
     onSave: () => {},
     onDiscard: () => {},
     onDelete: () => {},
+    onReviewIssues: () => {},
   }
 
   it('reads the signed-out state without buttons', () => {
@@ -158,14 +160,39 @@ describe('SaveBar', () => {
     assert.equal(buttonsLabelled(SaveBar(props), 'Save draft').length, 0)
   })
 
-  it('disables Save while unsaveable and names the blocker with its count', () => {
-    const props = { ...base, dirty: true, canSave: false, issueCount: 3 }
+  it('keeps Save focusable while blocked and summarizes the blocker with a review action', () => {
+    let saved = 0
+    let reviewed = 0
+    const props = {
+      ...base,
+      dirty: true,
+      canSave: false,
+      issueCount: 3,
+      onSave: () => {
+        saved += 1
+      },
+      onReviewIssues: () => {
+        reviewed += 1
+      },
+    }
     const tree = SaveBar(props)
     const save = buttonByText(tree, 'Save draft')
-    assert.equal(save?.props?.disabled, true)
+    const review = buttonByText(tree, 'Review 3 issues')
+    assert.equal(save?.props?.['aria-disabled'], true)
+    assert.equal(save?.props?.disabled, undefined)
+    assert.ok(save?.props?.['aria-describedby'] === 'compose-save-blocker')
+    assert.ok(review !== undefined)
+    ;(save?.props?.onClick as () => void)()
+    ;(review?.props?.onClick as () => void)()
+    assert.equal(saved, 0)
+    assert.equal(reviewed, 1)
     const html = render(tree)
-    assert.ok(html.includes('3 issues block saving'))
+    assert.ok(html.includes('3 issues to fix before saving'))
+    assert.ok(html.includes('Review 3 issues'))
     assert.ok(html.includes('Unsaved changes'))
+    assert.ok(html.includes('role="status"'))
+    assert.ok(html.includes('aria-live="polite"'))
+    assert.ok(!html.includes('3 issues block saving'))
   })
 
   it('enables Save only when dirty and saveable, and fires it', () => {
@@ -180,7 +207,8 @@ describe('SaveBar', () => {
     }
     const tree = SaveBar(props)
     const save = buttonByText(tree, 'Save draft')
-    assert.equal(save?.props?.disabled, false)
+    assert.equal(save?.props?.['aria-disabled'], false)
+    assert.equal(save?.props?.disabled, undefined)
     ;(save?.props?.onClick as () => void)()
     assert.equal(saved, 1)
   })
@@ -218,8 +246,88 @@ describe('SaveBar', () => {
   })
 
   it('renders the saving word while the write is in flight', () => {
-    const html = render(<SaveBar {...base} dirty saving />)
+    const tree = SaveBar({ ...base, dirty: true, saving: true, canSave: true })
+    const html = render(tree)
     assert.ok(html.includes('Saving…'))
+    assert.equal(buttonByText(tree, 'Saving…')?.props?.disabled, true)
+    assert.equal(buttonByText(tree, 'Discard changes')?.props?.disabled, true)
+    assert.equal(
+      buttonByText(tree, 'Delete saved draft')?.props?.disabled,
+      true,
+    )
+  })
+
+  it('stays neutral for a pristine empty draft even when the model reports issues', () => {
+    const html = render(<SaveBar {...base} dirty={false} issueCount={3} />)
+    assert.ok(html.includes('No draft saved yet.'))
+    assert.ok(!html.includes('Review 3 issues'))
+    assert.ok(!html.includes('issues to fix'))
+    assert.equal(
+      buttonByText(SaveBar(base), 'Save draft')?.props?.['aria-disabled'],
+      true,
+    )
+  })
+
+  it('names a ready dirty draft without treating it as blocked', () => {
+    const html = render(<SaveBar {...base} dirty canSave />)
+    assert.ok(html.includes('Unsaved changes'))
+    assert.ok(html.includes('Ready to save.'))
+    assert.ok(!html.includes('<p id='))
+  })
+
+  it('keeps issues discoverable on a saved draft that is now invalid', () => {
+    const html = render(
+      <SaveBar
+        {...base}
+        dirty={false}
+        canSave={false}
+        issueCount={2}
+        hasDraft
+        savedAt="2026-10-08T14:05:00Z"
+      />,
+    )
+    assert.ok(html.includes('Saved at'))
+    assert.ok(!html.includes('Unsaved changes'))
+    assert.ok(
+      html.includes(
+        'This saved draft has 2 issues to fix before it can be saved again.',
+      ),
+    )
+    assert.ok(html.includes('Review 2 issues'))
+  })
+
+  it('announces an exact server failure as an alert and leaves Save actionable', () => {
+    let saved = 0
+    const props = {
+      ...base,
+      dirty: true,
+      canSave: true,
+      savingError: 'Some claims are not on this card.',
+      onSave: () => {
+        saved += 1
+      },
+    }
+    const tree = SaveBar(props)
+    const html = render(tree)
+    assert.ok(html.includes('role="alert"'))
+    assert.ok(html.includes('Some claims are not on this card.'))
+    assert.equal(
+      buttonByText(tree, 'Save draft')?.props?.['aria-disabled'],
+      false,
+    )
+    assert.equal(
+      buttonByText(tree, 'Save draft')?.props?.['aria-describedby'],
+      'compose-save-error',
+    )
+    ;(buttonByText(tree, 'Save draft')?.props?.onClick as () => void)()
+    assert.equal(saved, 1)
+  })
+
+  it('sticks only when the host opts in', () => {
+    const html = render(<SaveBar {...base} />)
+    assert.ok(html.includes('compose-sticky-bar'))
+    const flat = render(<SaveBar {...base} sticky={false} />)
+    assert.ok(!flat.includes('compose-sticky-bar'))
   })
 })
 
@@ -233,6 +341,8 @@ describe('ComposeEditor', () => {
       vocab: VOCAB,
       pool: POOL,
       issues,
+      dirty: issues.length > 0,
+      hasDraft: false,
       onChange: () => {},
     })
   }
@@ -491,8 +601,54 @@ describe('ComposeEditor', () => {
     assert.ok(html.includes('The draft is not saveable yet.'))
     assert.ok(html.includes('Create at least one reasoning step.'))
     assert.ok(html.includes('The step needs at least one premise claim.'))
+    assert.ok(html.includes('id="compose-issues"'))
+    assert.ok(html.includes('tabindex="-1"'))
     const clear = render(treeFor(DRAFT_WITH_BLANK_STEP))
     assert.ok(!clear.includes('data-testid="compose-issues"'))
+  })
+
+  it('does not turn pristine empty issues into an error banner', () => {
+    const html = render(
+      ComposeEditor({
+        draft: EMPTY_DRAFT,
+        vocab: VOCAB,
+        pool: POOL,
+        issues: [
+          {
+            subject: 'draft',
+            key: null,
+            message: 'Create at least one reasoning step.',
+          },
+        ],
+        dirty: false,
+        hasDraft: false,
+        onChange: () => {},
+      }),
+    )
+    assert.ok(!html.includes('data-testid="compose-issues"'))
+    assert.ok(!html.includes('The draft is not saveable yet.'))
+  })
+
+  it('keeps issues visible on a saved draft that is now invalid', () => {
+    const html = render(
+      ComposeEditor({
+        draft: EMPTY_DRAFT,
+        vocab: VOCAB,
+        pool: POOL,
+        issues: [
+          {
+            subject: 'draft',
+            key: null,
+            message: 'The saved draft now needs attention.',
+          },
+        ],
+        dirty: false,
+        hasDraft: true,
+        onChange: () => {},
+      }),
+    )
+    assert.ok(html.includes('data-testid="compose-issues"'))
+    assert.ok(html.includes('The saved draft now needs attention.'))
   })
 
   it('lets a chain attach only the draft’s own steps, defaulting to MAIN', () => {

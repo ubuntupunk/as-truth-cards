@@ -13,7 +13,8 @@
  * 1. card picker and status first — a deep link `?card=<slug>` is the only navigation, and an
  *    unknown slug is called out rather than guessed at;
  * 2. then the vocabulary and the projection (loading / API error / malformed shape);
- * 3. then the canonical decomposition panel and the authoring surface.
+ * 3. then the recorded reasoning panel, and only then the draft workspace — so the author
+ *    reads before writing, while the two surfaces stay visually and semantically distinct.
  *
  * Auth is derived, not fetched twice: the drafts GET is the only gated request, so a 401
  * *is* the signed-out state, an in-flight GET is the "checking" state, and a success is
@@ -25,7 +26,7 @@
  * back as a link once the author is done.
  */
 
-import { useEffect, useMemo, useState } from 'preact/hooks'
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { safeReturnTo } from '@/auth/journey'
 import {
@@ -85,7 +86,7 @@ const NO_SESSION_STATUS = 401
  * changes, and no effect has to chase that transition.
  *
  * @param props The card slug, the served vocabulary, and the scoped canonical readout.
- * @returns Save bar, canonical read, and the gated editor.
+ * @returns The recorded read panel followed by the draft workspace and gated editor.
  */
 function ComposeWorkspace({
   slug,
@@ -117,6 +118,9 @@ function ComposeWorkspace({
   const serverPayload = draftQuery.data?.draft?.payload ?? EMPTY_DRAFT
 
   const [localDraft, setLocalDraft] = useState<DraftPayload | null>(null)
+  const issuesRef = useRef<HTMLDivElement>(null)
+  const saveButtonRef = useRef<HTMLButtonElement>(null)
+  const wasSaving = useRef(false)
 
   // Hydrate once, after the drafts GET settles. Intentionally not re-synced on every
   // refetch, so a revalidation never clobbers a draft the author is mid-edit on.
@@ -127,6 +131,23 @@ function ComposeWorkspace({
       )
     }
   }, [localDraft, draftQuery])
+
+  // `Save draft` is natively disabled only while the write is in flight, which blurs it.
+  // When the write settles, return focus to the same button unless the author has since
+  // deliberately moved focus elsewhere. Success must not steal focus or caret position.
+  useEffect(() => {
+    if (wasSaving.current && !saveMutation.isPending) {
+      const active = document.activeElement
+      if (
+        active === null ||
+        active === document.body ||
+        saveButtonRef.current?.contains(active) === true
+      ) {
+        saveButtonRef.current?.focus()
+      }
+    }
+    wasSaving.current = saveMutation.isPending
+  }, [saveMutation.isPending])
 
   const dirty = localDraft !== null && !draftsEqual(localDraft, serverPayload)
   const hasDraft = draftQuery.data?.draft !== null
@@ -150,6 +171,14 @@ function ComposeWorkspace({
       onSuccess: () => setLocalDraft(structuredClone(EMPTY_DRAFT)),
     })
   }
+  // Review is presentation-only: focusing the existing banner never edits the draft,
+  // marks it dirty, persists anything, or reaches the canonical graph.
+  const onReviewIssues = () => {
+    const target = issuesRef.current
+    if (target === null) return
+    target.focus()
+    target.scrollIntoView({ block: 'nearest' })
+  }
 
   const savingError =
     saveMutation.error instanceof GraphApiError
@@ -165,33 +194,56 @@ function ComposeWorkspace({
 
   return (
     <div data-testid="compose-editor-region" className="space-y-4">
-      <SaveBar
-        auth={auth}
-        dirty={dirty}
-        canSave={canSave}
-        issueCount={issues.length}
-        hasDraft={hasDraft}
-        savedAt={savedAt}
-        saving={saveMutation.isPending}
-        savingError={savingError}
-        onSave={onSave}
-        onDiscard={onDiscard}
-        onDelete={onDelete}
-      />
-      <CanonicalDecomposition data={projection} />
-      <PermissionGate auth={auth} onSignIn={onSignIn}>
-        {localDraft !== null ? (
-          <ComposeEditor
-            draft={localDraft}
-            vocab={vocab}
-            pool={pool}
-            issues={issues}
-            onChange={setLocalDraft}
-          />
-        ) : (
-          <LoadingState labelled="Loading your draft…" />
-        )}
-      </PermissionGate>
+      <CanonicalDecomposition data={projection} auth={auth} />
+      <section
+        data-testid="compose-draft-workspace"
+        aria-labelledby="compose-draft-heading"
+        className="compose-scroll-target space-y-4 rounded-lg border border-graph-border/70 bg-background p-4 shadow-sm"
+      >
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <h2
+            id="compose-draft-heading"
+            className="text-lg font-semibold text-foreground"
+          >
+            Your decomposition draft
+          </h2>
+          <span className="rounded-full border border-amber-600/40 bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800 dark:text-amber-200">
+            NOT CANONICAL
+          </span>
+        </div>
+        <SaveBar
+          auth={auth}
+          dirty={dirty}
+          canSave={canSave}
+          issueCount={issues.length}
+          hasDraft={hasDraft}
+          savedAt={savedAt}
+          saving={saveMutation.isPending}
+          savingError={savingError}
+          sticky={auth === 'signed-in'}
+          saveRef={saveButtonRef}
+          onSave={onSave}
+          onDiscard={onDiscard}
+          onDelete={onDelete}
+          onReviewIssues={onReviewIssues}
+        />
+        <PermissionGate auth={auth} onSignIn={onSignIn}>
+          {localDraft !== null ? (
+            <ComposeEditor
+              draft={localDraft}
+              vocab={vocab}
+              pool={pool}
+              issues={issues}
+              dirty={dirty}
+              hasDraft={hasDraft}
+              issuesRef={issuesRef}
+              onChange={setLocalDraft}
+            />
+          ) : (
+            <LoadingState labelled="Loading your draft…" />
+          )}
+        </PermissionGate>
+      </section>
     </div>
   )
 }

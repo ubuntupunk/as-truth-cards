@@ -1,6 +1,6 @@
 # Compose page — UI/UX design review handoff
 
-**Status:** design review input for the shipped S0/S1 Compose workflow (Issue #16). This document describes current behaviour; it is not a new spec decision and does not authorize S2–S4.
+**Status:** design review input for the shipped S0/S1 Compose workflow plus Bucket B Stage 1 (Q1 hierarchy + Q5 save feedback, Issue #16). This document describes current behaviour; it is not a new spec decision and does not authorize Stage 2 (Q3), Stage 3 (Q6), or S2–S4.
 
 **Purpose:** give a UI/UX reviewer everything needed to pick up the page: product intent, full step flow, every data/UI type, exact copy, states, screenshots, and focused review questions.
 
@@ -38,16 +38,20 @@ Formal ontology terms remain available through `<details>` disclosures. The asse
 
 ## 2. Screenshot index
 
-Captured locally against `http://localhost:8080` (Vite) + `http://localhost:3001` (Express) on 2026-11-23. Desktop captures: 1440×1000 viewport, full page. Mobile capture: 375×812 viewport, full page. No production credentials or deployed account data appear.
+Captured locally against `http://localhost:8080` (Vite) + `http://localhost:3001` (Express) on 2026-11-24 using `agent-browser`. Captures 01–06 are full page at 1440×1000 except 06, which is full page at 375×812. Captures 07–10 are viewport captures that show the sticky bar while scrolling (07–09 at desktop, 10 at 375×700). No production credentials or deployed account data appear.
 
 | # | File | State |
 |---|---|---|
-| 01 | [`01-signed-out-gate.png`](compose/screenshots/01-signed-out-gate.png) | Signed out, card selected: read-only corpus visible; authoring gated behind sign-in |
-| 02 | [`02-zero-claim-empty.png`](compose/screenshots/02-zero-claim-empty.png) | Signed in, zero-claim card, empty draft, example disclosure expanded |
-| 03 | [`03-working-assertion-saved.png`](compose/screenshots/03-working-assertion-saved.png) | One saved working assertion; no steps/chains yet |
+| 01 | [`01-signed-out-gate.png`](compose/screenshots/01-signed-out-gate.png) | Signed out, card selected: read panel stays open; authoring gated behind sign-in |
+| 02 | [`02-zero-claim-empty.png`](compose/screenshots/02-zero-claim-empty.png) | Signed in, zero-claim card, pristine empty draft, example disclosure expanded; no issue banner |
+| 03 | [`03-working-assertion-saved.png`](compose/screenshots/03-working-assertion-saved.png) | One saved working assertion; no steps/chains yet; saved status and `NOT CANONICAL` draft frame |
 | 04 | [`04-step-and-chain.png`](compose/screenshots/04-step-and-chain.png) | Developed draft: working assertion + reasoning step + named chain, saved |
-| 05 | [`05-populated-canonical.png`](compose/screenshots/05-populated-canonical.png) | Populated canonical card (`canaanite-card`), read-only panel plus empty draft |
+| 05 | [`05-populated-canonical.png`](compose/screenshots/05-populated-canonical.png) | Signed in, card with recorded claims: read panel collapsed with `Read recorded`; pristine draft |
 | 06 | [`06-mobile-375.png`](compose/screenshots/06-mobile-375.png) | 375px stacked layout, signed in, zero-claim card, empty draft |
+| 07 | [`07-desktop-sticky-bar.png`](compose/screenshots/07-desktop-sticky-bar.png) | Desktop: sticky save bar pinned below the fixed header while scrolling a populated draft |
+| 08 | [`08-blocked-review.png`](compose/screenshots/08-blocked-review.png) | Dirty blocked draft: `Review 4 issues`, amber issue banner, Save blocked but focusable |
+| 09 | [`09-save-failure.png`](compose/screenshots/09-save-failure.png) | Simulated 400 response: exact server message in `role="alert"` |
+| 10 | [`10-mobile-sticky-bar.png`](compose/screenshots/10-mobile-sticky-bar.png) | Mobile 375px: sticky save bar pinned below the header at 104px |
 
 ### 01 — Signed-out gate
 
@@ -73,6 +77,22 @@ Captured locally against `http://localhost:8080` (Vite) + `http://localhost:3001
 
 ![Mobile 375px](compose/screenshots/06-mobile-375.png)
 
+### 07 — Desktop sticky bar
+
+![Desktop sticky bar](compose/screenshots/07-desktop-sticky-bar.png)
+
+### 08 — Blocked draft and review action
+
+![Blocked draft and review action](compose/screenshots/08-blocked-review.png)
+
+### 09 — Save failure alert
+
+![Save failure alert](compose/screenshots/09-save-failure.png)
+
+### 10 — Mobile sticky bar
+
+![Mobile sticky bar](compose/screenshots/10-mobile-sticky-bar.png)
+
 ---
 
 ## 3. Information architecture / screen anatomy
@@ -80,21 +100,27 @@ Captured locally against `http://localhost:8080` (Vite) + `http://localhost:3001
 Render order is deliberate: **choose card → understand recorded reasoning → author your own**.
 
 ```
-PageShell / PageBreadcrumb / PageHeading
+PageShell / PageBreadcrumb / PageHeading ("Compose", h1)
 └── Card picker section                 "Choose a card"
     ├── Card <select>                  "Pick a card…"
     ├── Optional "Back to research"
     └── Separation explainer
 └── ComposeWorkspace                    keyed by active card slug
-    ├── SaveBar                        status + blockers + Save/Discard/Delete
-    ├── CanonicalDecomposition         read-only study panel
+    ├── CanonicalDecomposition         h2 "Recorded reasoning" (read-only study panel)
+    │   └── h3 Claims / Reasoning steps / Argument chains
     └── PermissionGate
-        └── ComposeEditor
-            ├── Working assertion section
-            ├── Reasoning step section
-            ├── Argument chain section
-            └── Unsavedable-issues banner
+        └── Draft workspace            h2 "Your decomposition draft" + NOT CANONICAL
+            ├── SaveBar                sticky under header: status + count + Save/Discard/Delete
+            └── ComposeEditor
+                ├── h3 What is the assertion?
+                ├── h3 What reasons are offered?
+                ├── h3 How does the reasoning work?
+                ├── h3 What challenges or qualifies it?
+                ├── h3 Construct an argument
+                └── #compose-issues    full issue list; rendered only once issues exist
 ```
+
+DOM order is intentionally **choose card → read recorded material → author draft**. The recorded panel and the draft frame are two distinct `h2` surfaces; no heading jumps from `h1` to `h4`.
 
 ### Shared page chrome
 
@@ -113,9 +139,9 @@ PageShell / PageBreadcrumb / PageHeading
 | `Compose` | `src/pages/Compose.tsx` | URL state, card choice, queries, auth probe, workspace keying |
 | `ComposeWorkspace` | `src/pages/Compose.tsx` | Draft hydration, dirty state, issue computation, save/delete wiring |
 | `PermissionGate` | `src/compose/compose-editor.tsx` | Renders editor only for `signed-in`; checking/signed-out states |
-| `SaveBar` | `src/compose/compose-editor.tsx` | Status, issue count, Save/Discard/Delete |
-| `CanonicalDecomposition` | `src/compose/canonical-read.tsx` | Read-only claims/steps/chains panel |
-| `ComposeEditor` | `src/compose/compose-editor.tsx` | Three authoring sections + issue banner |
+| `SaveBar` | `src/compose/compose-editor.tsx` | Sticky status, issue count, `Review {n} issues`, Save/Discard/Delete, exact-error alert |
+| `CanonicalDecomposition` | `src/compose/canonical-read.tsx` | Read-only claims/steps/chains panel; native disclosure with counts for populated cards |
+| `ComposeEditor` | `src/compose/compose-editor.tsx` | Five authoring sections + one authoritative issue banner |
 | `QuestionHeading` | `src/compose/compose-editor.tsx` | Plain-language prompt + progressive disclosure |
 | `WorkingClaimCard` | `src/compose/compose-editor.tsx` | Assertion/notes/status/source fields |
 | `StepCard` | `src/compose/compose-editor.tsx` | Step fields, premise/conclusion lists and role selects |
@@ -135,7 +161,7 @@ flowchart TD
     C -- "No card chosen" --> C2["'Choose a card above to start composing.'"]
     C -- "Yes" --> D["Load graph projection<br/>view=argument, depth=3"]
     D --> E["Scope by projection.focus.id<br/>not first card node"]
-    E --> F["CanonicalDecomposition<br/>read-only study panel"]
+    E --> F["CanonicalDecomposition<br/>populated signed-in: collapsed with counts<br/>signed-out / zero-claim: open"]
 
     B --> G["GET /api/drafts/:slug<br/>session probe"]
     G --> H{"Draft response"}
@@ -146,7 +172,7 @@ flowchart TD
     I --> I1["Sign in with returnTo<br/>preserve card + research context"]
     I1 --> K
 
-    F --> L["Authoring surface"]
+    F --> L["Draft workspace<br/>NOT CANONICAL<br/>sticky SaveBar beneath header"]
     K --> L
 
     L --> M["1. What is the assertion?<br/>Add working assertion<br/>label / status / note / source pointer"]
@@ -155,14 +181,14 @@ flowchart TD
     O --> P["5. Construct an argument<br/>Add chain after >=1 step<br/>auto-attach first step as MAIN"]
 
     P --> Q{"Client save gate<br/>draftIssues"}
-    Q -- "Issues" --> R["Issue banner + blocker count<br/>Save disabled"]
+    Q -- "Issues" --> R["Review {n} issues in sticky bar<br/>full banner at #compose-issues<br/>Save aria-disabled but focusable"]
     R --> L
     Q -- "Clean + dirty" --> S["Save enabled"]
     S --> T["PUT /api/drafts/:slug"]
     T --> U{"Server validation"}
-    U -- "400" --> V["Save error text<br/>return to issues"]
+    U -- "400" --> V["role=alert with exact server message<br/>focus returns to Save"]
     V --> L
-    U -- "200" --> W["Saved at HH:MM<br/>Save disabled, Delete available"]
+    U -- "200" --> W["Saved at HH:MM<br/>focus returns to Save, no banner if valid"]
 
     W --> X["Discard changes → restore server copy"]
     W --> Y["Delete saved draft → empty draft"]
@@ -219,6 +245,8 @@ Sign-in link preserves the exact Compose route, card slug and nested research re
 
 Panel: `CanonicalDecomposition`, test id `canonical-decomposition`.
 
+The recorded surface is an `h2` named **Recorded reasoning**; its three subsections are `h3`s. When a card has recorded material and the author is signed in, the panel is a native `<details data-testid="recorded-disclosure">`, collapsed by default. Its `<summary>` always shows `READ ONLY · CORPUS`, accurate `{claims} claims · {steps} steps · {chains} chains`, and the cue `Read recorded` (or `Hide recorded reasoning` while expanded). It is left open for signed-out authors and for zero-claim cards, where the honest empty explanation must be visible. Expansion is local view state only: it never changes the draft, marks it dirty, persists, saves, or affects the canonical graph.
+
 Subsections:
 
 1. **Claims on this card**
@@ -240,18 +268,25 @@ Closing disclaimer: `This recorded reasoning comes from the corpus. It cannot be
 
 ### Step 3 — Save bar orientation
 
-| State | Copy |
-|---|---|
-| No server draft | `No draft saved yet.` |
-| Saved clean | `Saved at HH:MM` |
-| Unsaved clean | `Unsaved changes` |
-| Saving | `Saving…` |
-| Blocked by issues, when dirty | `{n} issue{s} block saving` |
-| Save failed | `The draft has N problem(s) to fix.` / `Some claims are not on this card.` / `Request failed with HTTP {status} while trying to {action}` |
+The save bar lives **inside the draft workspace**, after the recorded panel in DOM order. For signed-in authors it uses CSS `position: sticky` and an opaque background so status and actions stay reachable without a viewport-bottom fixed bar. Measured in-browser: header bottom is 81.5px at 1440px and 95px at 375px; the bar sticks at 88px / 104px respectively, with scroll margins 168px / 240px so focus and review jumps clear both the header and the bar.
+
+Status is a polite live region (`role="status" aria-live="polite"`). Blocker detail is guidance, not an error: the bar only summarizes counts and offers `Review {n} issues`; the full, single issue list lives in `#compose-issues`. A genuine save failure is an assertive `role="alert"` carrying the server's exact `error` text, and `aria-describedby` points Save at the active alert or blocker.
+
+| State | Status | Detail / action |
+|---|---|---|
+| Pristine empty | `No draft saved yet.` | No detail, no issue banner; Save / Discard / Delete inactive |
+| Pristine saved, valid | `Saved at HH:MM` | No issue banner |
+| Pristine saved, now invalid | `Saved at HH:MM` | Amber `This saved draft has {n} issues to fix before it can be saved again.` + `Review {n} issues`; no dirty flag |
+| Dirty, valid | `Unsaved changes` | `Ready to save.`; Save enabled |
+| Dirty, blocked | `Unsaved changes` | `{n} issue{s} to fix before saving` + `Review {n} issues`; Save `aria-disabled="true"` but still focusable |
+| Saving | `Saving…` | No detail; Save natively `disabled` only during the write |
+| Saved | `Saved at HH:MM` | Focus returns to `Save draft`, not stolen to the body or a new region |
+| Save failed | `Unsaved changes` | Exact server message in `role="alert"`; Save remains available for retry |
 
 Buttons:
 
-- `Save draft` — enabled only when dirty **and** client gate clean **and** not saving.
+- `Save draft` — inert unless dirty and client-clean; natively `disabled` only while saving. Focus is restored to this button when the write settles.
+- `Review {n} issues` — focuses `#compose-issues` (`tabIndex={-1}`); disclosure, review and focus never mutate the payload, mark dirty, persist, or affect canonical data.
 - `Discard changes` — enabled only when dirty and not saving; restores the server copy.
 - `Delete saved draft` — enabled only when a draft exists and not saving; server `DELETE` is idempotent.
 
@@ -344,7 +379,7 @@ Only the draft’s own steps can be attached; a chain can never point at a canon
 
 ### Step 8 — Resolve issues and save
 
-Banner: `The draft is not saveable yet.` followed by bullet messages.
+One authoritative banner: `The draft is not saveable yet.` followed by bullet messages, rendered at `#compose-issues` with `tabIndex={-1}` so `Review {n} issues` can move focus there. It is intentionally absent for a pristine empty draft and for a clean saved draft; a saved draft that is now invalid still shows it without becoming dirty. The sticky bar never duplicates the bullet list.
 
 Exact issue messages:
 
@@ -481,24 +516,34 @@ Server validation additionally resolves every canonical ref with `findClaimByRef
 | Populated canonical | Claims + steps + chains with badges; step rows say `Canonical` / `Not yet canonical` with a `Raw is_canonical flag` disclosure | 05 |
 | Saved working-only draft | `Saved at HH:MM`, no issue banner | 03 |
 | Saved full draft | Assertion + step + chain, all saved | 04 |
-| Unsavedable | `The draft is not saveable yet.` + bullets | 02, 05, 06 |
+| Pristine empty | `No draft saved yet.`; no amber banner | 02, 05, 06 |
+| Dirty valid | `Unsaved changes` / `Ready to save.` | 07 |
+| Dirty blocked | `Review {n} issues`, full banner at `#compose-issues`, Save `aria-disabled` but focusable | 08 |
+| Saving | `Saving…`; Save natively disabled only in flight | — |
+| Save failed | Exact server message in `role="alert"` | 09 |
+| Saved draft, now invalid | `Saved at HH:MM` + issue banner + `Review {n} issues`; not marked dirty | — |
+| Sticky geometry | Bar at 88px desktop / 104px mobile below fixed header | 07, 10 |
 
 ---
 
 ## 8. Accessibility and responsive notes for review
 
 - Authoring controls have accessible labels (`Assertion`, `Label`, `Inference type`, `Add a working premise`, etc.), including the premise-role (`Premise role`) and chain-step-role (`Role in chain`) selects.
-- Progressive disclosure uses native `<details>`/`<summary>`; keyboard-operable by default.
+- Progressive disclosure uses native `<details>`/`<summary>`; keyboard-operable by default. Enter/Space toggles `Read recorded` while focus remains on the `<summary>`.
+- Headings are `Compose` (`h1`) → `Recorded reasoning` / `Your decomposition draft` (`h2`) → their sections (`h3`); there is no `h1 → h4` jump.
+- Status/blocker text is rendered as words, not colour alone. Status uses `role="status" aria-live="polite"`; a genuine failure uses `role="alert"` with the server's exact message.
+- `Review {n} issues` moves focus to `#compose-issues`; it does not mutate the draft or steal focus on save success. Focus restoration after a save was verified with `agent-browser`.
+- The sticky bar uses measured offsets (88px desktop / 104px mobile) and scroll margins (168px / 240px); browser checks covered top/bottom fields, keyboard-like 375×420 viewport, resize, and visible focus.
 - Remove controls use explicit `aria-label`s rather than relying on the `×` glyph.
-- Status/blocker text is rendered as words, not colour alone.
 - Shared page shell provides the `pt-24` header offset; the previously reported 375px heading/nav overlap is resolved.
-- At 375px the page stacks into one column with no horizontal overflow; see screenshot 06.
+- At 375px the empty and zero-claim layouts stack into one column with no horizontal overflow (screenshot 06). A populated step/chain draft still has the filed horizontal-overflow follow-up `as-truth-cards-z6q`; that fix belongs to Stage 3, not Stage 1.
 - The unavailable `Add chain` action keeps button styling and exposes `aria-disabled="true"` with the native `disabled` state.
-- There is no dedicated `src/pages/Compose.test.tsx`; behaviour is covered by component, model, projector, contract and API suites.
+- A read-only vision QA pass over screenshots 01–10 found no clipping, overlap, misalignment, cramped spacing, low contrast or layout breakage; exact offsets, sticky behaviour, keyboard focus and live-region behaviour were verified separately in `agent-browser`.
+- Behaviour is covered by component, model, projector, contract and API suites; see §10.
 
 ---
 
-## 9. Review questions and Bucket A outcomes
+## 9. Review questions and Bucket outcomes
 
 The UI/UX review answered the original eight questions. The maintainer-authorized Bucket A pass addressed Q2, Q4, Q7 and Q8, plus the a11y defect and disabled-action styling:
 
@@ -508,9 +553,12 @@ The UI/UX review answered the original eight questions. The maintainer-authorize
 - **Q8 — empty-state tone:** one “not currently recorded” explanation remains in the read panel; editor sections use short invitations such as “Start with an assertion.”
 - **A11y / disabled action:** premise- and chain-step-role selects have accessible names; unavailable `Add chain` keeps visible button styling and `aria-disabled="true"`.
 
-Still open as design questions (Bucket B, explicitly not authorized in this pass): Q1 hierarchy/boxing and default expansion of the populated read panel, Q3 collapsing step/chain cards, Q5 sticky save bar and banner timing, Q6 default-collapsing sections on mobile.
+Bucket B Stage 1 (Q1 + Q5) is implemented per the accepted proposal and the maintainer's Stage 1 authorization in issue #16 comment `7127734161`:
 
-Any further work requires a separate maintainer decision; S2–S4 remain gated.
+- **Q1 — hierarchy:** picker → recorded panel → draft workspace remains in DOM order; the two surfaces are distinct `h2`s with `NOT CANONICAL` on the draft; populated signed-in recorded material collapses behind native `Read recorded` with accurate counts; signed-out and zero-claim panels stay open.
+- **Q5 — save feedback:** the opaque save bar sticks below the fixed header, summarizes blockers with `Review {n} issues`, keeps one full issue banner, uses polite status, shows exact server failures in an assertive alert, and restores focus to Save without stealing focus on success.
+
+Still gated: Q3 step/chain disclosure (Stage 2), Q6 mobile section defaults and the populated-draft overflow follow-up (Stage 3), and S2–S4. Any further work requires a separate maintainer decision.
 
 ---
 
@@ -526,6 +574,7 @@ Any further work requires a separate maintainer decision; S2–S4 remain gated.
 - `src/compose/compose-projector.ts` — focus-scoped projection
 - `src/compose/use-compose.ts` — queries/mutations and error decoding
 - `src/compose/sign-in-return.ts` — safe sign-in handoff
+- `src/index.css` — sticky-offset and scroll-margin tokens
 - `server/composition/draft-contract.ts` — authoritative validation
 - `server/api/drafts.ts` — HTTP routes and isolation
 - `SPEC.md` §9.5, `ROADMAP.md` Milestone 4 — product contract and staging
@@ -539,6 +588,7 @@ Any further work requires a separate maintainer decision; S2–S4 remain gated.
 - `src/compose/draft-types.test.tsx`
 - `src/compose/use-compose.test.tsx`
 - `src/compose/sign-in-return.test.tsx`
+- `src/pages/Compose.test.tsx` — page-level render-order contract
 - `server/composition/draft-contract.test.ts`
 - `server/api/drafts.test.ts`
 

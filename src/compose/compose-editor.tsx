@@ -9,7 +9,7 @@
  * the only write the surface can perform is to the user's own draft.
  */
 
-import type { ComponentChildren } from 'preact'
+import type { ComponentChildren, Ref } from 'preact'
 import type {
   ArgumentChainKindValue,
   InferencePremiseRoleValue,
@@ -126,9 +126,15 @@ export type SaveBarProps = {
   readonly savedAt: string | null
   readonly saving: boolean
   readonly savingError: string | null
+  /** Whether the host wants the bar pinned below the site header. Signed-out bars stay flat. */
+  readonly sticky?: boolean
+  /** Lets the host restore focus to Save after the native `disabled` saving state blurs it. */
+  readonly saveRef?: Ref<HTMLButtonElement>
   readonly onSave: () => void
   readonly onDiscard: () => void
   readonly onDelete: () => void
+  /** Focuses the authoritative issue list; presentation only, never touches the draft. */
+  readonly onReviewIssues: () => void
 }
 
 /** `HH:MM` clock time, locale-neutral for the Node tests. */
@@ -142,10 +148,11 @@ function formatTime(iso: string): string {
 /**
  * The save gate's voice: status + Save / Discard / Delete.
  *
- * The gate is honest about why a Save is disabled: "unsaveable" is spelled out as the
- * defect count, because a silently-grey button is how a broken draft looks like it saved.
- * The saved state shows the time and says nothing about canonicality — a draft cannot be
- * canonical, so there is nothing to claim about it.
+ * The bar is the *summary*, not the full issue list: it says how many issues block a save
+ * and offers a review action that focuses the one authoritative banner in the editor.
+ * Blockers are guidance (`aria-disabled`, still focusable); a real server failure is an
+ * assertive alert carrying the server's exact message. A sticky opt-in pins the opaque
+ * bar below the site header, so status and actions survive a long draft's scroll.
  *
  * @param props See {@link SaveBarProps}.
  * @returns The save controls for the current state.
@@ -159,9 +166,12 @@ export function SaveBar({
   savedAt,
   saving,
   savingError,
+  sticky = false,
+  saveRef,
   onSave,
   onDiscard,
   onDelete,
+  onReviewIssues,
 }: SaveBarProps) {
   if (auth !== 'signed-in') {
     return (
@@ -173,53 +183,99 @@ export function SaveBar({
     )
   }
 
-  const blocker =
-    dirty && !canSave
-      ? `${issueCount} issue${issueCount === 1 ? '' : 's'} block saving`
-      : null
+  const issuesLabel = `${issueCount} issue${issueCount === 1 ? '' : 's'}`
+  const blocked = !saving && dirty && !canSave && issueCount > 0
+  const savedInvalid = !saving && !dirty && hasDraft && issueCount > 0
+  const showReview = blocked || savedInvalid
+  const status = saving
+    ? 'Saving…'
+    : dirty
+      ? 'Unsaved changes'
+      : hasDraft && savedAt !== null
+        ? `Saved at ${formatTime(savedAt)}`
+        : 'No draft saved yet.'
+  const detail = saving
+    ? null
+    : blocked
+      ? `${issuesLabel} to fix before saving`
+      : savedInvalid
+        ? `This saved draft has ${issuesLabel} to fix before it can be saved again.`
+        : dirty && canSave
+          ? 'Ready to save.'
+          : null
+  const saveInert = saving || !dirty || !canSave
+  const describedBy =
+    savingError !== null
+      ? 'compose-save-error'
+      : showReview
+        ? 'compose-save-blocker'
+        : undefined
+  const barClass = [
+    'flex flex-wrap items-center justify-between gap-2 rounded-lg border border-graph-border/70 bg-background px-3 py-2 shadow-sm sm:gap-3 sm:px-4 sm:py-3',
+    sticky ? 'compose-sticky-bar' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
-    <div
-      data-testid="compose-save-bar"
-      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-graph-border/70 bg-graph-muted/30 px-4 py-3"
-    >
-      <div className="min-w-0">
+    <div data-testid="compose-save-bar" className={barClass}>
+      <div
+        className="min-w-0"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
         <p
-          className="text-sm text-foreground"
+          className="text-xs text-foreground sm:text-sm"
           data-testid="compose-save-status"
         >
-          {saving
-            ? 'Saving…'
-            : dirty
-              ? 'Unsaved changes'
-              : hasDraft && savedAt !== null
-                ? `Saved at ${formatTime(savedAt)}`
-                : 'No draft saved yet.'}
+          {status}
         </p>
-        {savingError !== null ? (
+        {detail !== null ? (
           <p
-            className="mt-0.5 text-sm text-red-600 dark:text-red-400"
-            data-testid="compose-save-error"
-          >
-            {savingError}
-          </p>
-        ) : null}
-        {blocker !== null ? (
-          <p
-            className="mt-0.5 text-xs text-muted-foreground"
+            id={showReview ? 'compose-save-blocker' : undefined}
+            className="mt-0.5 text-[11px] text-amber-700 dark:text-amber-300 sm:text-xs"
             data-testid="compose-save-blocker"
           >
-            {blocker}
+            {detail}
           </p>
         ) : null}
       </div>
+      {savingError !== null ? (
+        <p
+          id="compose-save-error"
+          role="alert"
+          className="mt-0.5 w-full text-xs text-red-600 dark:text-red-400 sm:text-sm"
+          data-testid="compose-save-error"
+        >
+          {savingError}
+        </p>
+      ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-1 sm:gap-2">
+        {showReview ? (
+          <button
+            type="button"
+            data-testid="compose-save-review"
+            onClick={onReviewIssues}
+            className="rounded-md border border-amber-600/40 bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-800 hover:bg-amber-500/20 dark:text-amber-200 sm:px-3 sm:py-1.5 sm:text-sm"
+          >
+            Review {issuesLabel}
+          </button>
+        ) : null}
         <button
+          ref={saveRef}
           type="button"
-          disabled={!dirty || !canSave || saving}
-          onClick={onSave}
-          className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+          aria-disabled={saveInert}
+          aria-describedby={describedBy}
+          disabled={saving ? true : undefined}
+          onClick={() => {
+            if (saveInert) return
+            onSave()
+          }}
+          className={`rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-foreground sm:px-3 sm:py-1.5 sm:text-sm ${
+            saveInert ? 'cursor-not-allowed opacity-40' : 'hover:bg-muted'
+          }`}
         >
           {saving ? 'Saving…' : 'Save draft'}
         </button>
@@ -227,7 +283,7 @@ export function SaveBar({
           type="button"
           disabled={!dirty || saving}
           onClick={onDiscard}
-          className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:py-1.5 sm:text-sm"
         >
           Discard changes
         </button>
@@ -235,7 +291,7 @@ export function SaveBar({
           type="button"
           disabled={!hasDraft || saving}
           onClick={onDelete}
-          className="rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40 sm:px-3 sm:py-1.5 sm:text-sm"
         >
           Delete saved draft
         </button>
@@ -251,6 +307,12 @@ export type ComposeEditorProps = {
   /** The card's own claims (the only claims a draft may reason over). */
   readonly pool: ReadonlyMap<string, CanonicalClaim>
   readonly issues: readonly ComposeIssue[]
+  /** Whether the author has edits that are not yet saved. Gates the issue banner. */
+  readonly dirty?: boolean
+  /** Whether a saved draft exists; keeps a saved-but-now-invalid issue list discoverable. */
+  readonly hasDraft?: boolean
+  /** Optional focus target for the sticky bar's `Review issues` action. */
+  readonly issuesRef?: Ref<HTMLDivElement>
   readonly onChange: (next: DraftPayload) => void
 }
 
@@ -1041,9 +1103,15 @@ export function ComposeEditor({
   vocab,
   pool,
   issues,
+  dirty = false,
+  hasDraft = false,
+  issuesRef,
   onChange,
 }: ComposeEditorProps) {
   const apply = (next: DraftPayload) => onChange(next)
+  // A pristine empty draft is a neutral starting point, not an error state. A saved
+  // draft that has since become invalid still needs its full issue list discoverable.
+  const showIssues = issues.length > 0 && (dirty || hasDraft)
 
   const addStepPreset = (
     seedLabel: string,
@@ -1069,7 +1137,7 @@ export function ComposeEditor({
         A draft for you, on this card only. It can never become canonical.
       </p>
 
-      <section className="space-y-3">
+      <section className="compose-scroll-target space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <QuestionHeading
@@ -1123,7 +1191,7 @@ export function ComposeEditor({
         )}
       </section>
 
-      <section className="space-y-3">
+      <section className="compose-scroll-target space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <QuestionHeading
@@ -1239,7 +1307,7 @@ export function ComposeEditor({
         )}
       </section>
 
-      <section className="space-y-3">
+      <section className="compose-scroll-target space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
           <div>
             <QuestionHeading
@@ -1307,10 +1375,13 @@ export function ComposeEditor({
         )}
       </section>
 
-      {issues.length > 0 ? (
+      {showIssues ? (
         <div
+          id="compose-issues"
+          ref={issuesRef}
+          tabIndex={-1}
           data-testid="compose-issues"
-          className="rounded-lg border border-amber-600/40 bg-amber-500/10 p-4"
+          className="compose-scroll-target rounded-lg border border-amber-600/40 bg-amber-500/10 p-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
           <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
             The draft is not saveable yet.

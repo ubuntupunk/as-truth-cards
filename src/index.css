@@ -140,6 +140,39 @@
   }
 }
 
+/* Compose chrome shared by the recorded panel and the draft workspace.
+   `--compose-sticky-top` clears the fixed site header; scroll margins clear that
+   header *plus* the sticky save bar so focus and validation jumps never land
+   underneath either one. Keep these tokens here rather than sprinkling `top-20`
+   through components: the header is shared geometry (see lib/page-layout.ts).
+   Measured in-browser: header bottom is 81.5px at 1440px and 95px at 375px. */
+@layer components {
+  :root {
+    --compose-sticky-top: 5.5rem;
+    --compose-scroll-margin-top: 10.5rem;
+  }
+
+  @media (max-width: 640px) {
+    :root {
+      --compose-sticky-top: 6.5rem;
+      --compose-scroll-margin-top: 15rem;
+    }
+  }
+
+  .compose-sticky-bar {
+    position: sticky;
+    top: var(--compose-sticky-top);
+    z-index: 40;
+    scroll-margin-top: var(--compose-scroll-margin-top);
+  }
+
+  .compose-scroll-target,
+  .compose-scroll-target
+    :is(a[href], button, input, select, textarea, summary, [tabindex='-1']) {
+    scroll-margin-top: var(--compose-scroll-margin-top);
+  }
+}
+
 @layer base {
   * {
     @apply border-border;

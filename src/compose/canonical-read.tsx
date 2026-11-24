@@ -14,12 +14,15 @@
 
 import type { ComponentChildren } from 'preact'
 import { StatusBadge } from '@/deck/status-badge'
+import type { ComposeAuthState } from './compose-model'
 import type { CanonicalClaim, ComposeProjection } from './compose-projector'
 
 /** Props for {@link CanonicalDecomposition}. */
 export type CanonicalDecompositionProps = {
   /** The featured card's scoped readout, or `null` while it loads. */
   readonly data: ComposeProjection | null
+  /** Drives the default disclosure state; only a signed-in author may start collapsed. */
+  readonly auth: ComposeAuthState
 }
 
 /** One claim, as a reusable <li> in both the pool list and the premise/conclusion reads. */
@@ -53,9 +56,9 @@ function ListSection({
 }) {
   return (
     <section aria-label={title}>
-      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {title}
-      </h4>
+      </h3>
       {note ? (
         <p className="mt-1 text-sm text-muted-foreground">{note}</p>
       ) : null}
@@ -65,12 +68,32 @@ function ListSection({
 }
 
 /**
- * The read-only canonical view: claim pool, canonical steps, canonical chains.
+ * A singular/plural count, e.g. `1 claim` or `0 steps`.
+ *
+ * @param count The number of recorded records.
+ * @param noun The singular noun.
+ * @returns The count phrase.
+ */
+function countLabel(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`
+}
+
+/**
+ * The read-only recorded reasoning view: claim pool, steps, and chains.
+ *
+ * A populated card is summarized in a native disclosure for a signed-in author, so the
+ * draft workspace stays the active surface without skipping the recorded material. A
+ * zero-claim card has no disclosure to hide behind: its honest empty notes stay visible.
+ * Signed-out authors keep the panel open because it is the substantive read surface on
+ * this route. Every recorded section is `h3` under the panel's single `h2`.
  *
  * @param props See {@link CanonicalDecompositionProps}.
  * @returns The panel, or a pending note while the projection loads.
  */
-export function CanonicalDecomposition({ data }: CanonicalDecompositionProps) {
+export function CanonicalDecomposition({
+  data,
+  auth,
+}: CanonicalDecompositionProps) {
   if (data === null) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -87,11 +110,39 @@ export function CanonicalDecomposition({ data }: CanonicalDecompositionProps) {
       : `Claim ${claimId.slice(0, 8)}…`
   }
 
-  return (
-    <div
-      data-testid="canonical-decomposition"
-      className="space-y-5 rounded-lg border border-graph-border/70 bg-graph-muted/30 p-4"
-    >
+  const counts = [
+    countLabel(data.claims.length, 'claim'),
+    countLabel(data.steps.length, 'step'),
+    countLabel(data.chains.length, 'chain'),
+  ].join(' · ')
+  const populated =
+    data.claims.length + data.steps.length + data.chains.length > 0
+  const collapsible = auth === 'signed-in' && populated
+
+  const heading = (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <h2 className="text-lg font-semibold text-foreground">
+        Recorded reasoning
+      </h2>
+      <span className="rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-muted-foreground">
+        READ ONLY · CORPUS
+      </span>
+      <span className="text-xs text-muted-foreground">{counts}</span>
+      {collapsible || (populated && auth !== 'signed-in') ? (
+        <>
+          <span className="ml-auto text-xs font-medium text-foreground group-open:hidden">
+            Read recorded
+          </span>
+          <span className="ml-auto hidden text-xs font-medium text-muted-foreground group-open:inline">
+            Hide recorded reasoning
+          </span>
+        </>
+      ) : null}
+    </div>
+  )
+
+  const content = (
+    <div className="mt-4 space-y-5">
       <ListSection
         title="Claims on this card"
         note="The authoring pool below is drawn from these claims, and only these."
@@ -226,6 +277,31 @@ export function CanonicalDecomposition({ data }: CanonicalDecompositionProps) {
         This recorded reasoning comes from the corpus. It cannot be edited here,
         and nothing you author below becomes part of it.
       </p>
+    </div>
+  )
+
+  return (
+    <div
+      data-testid="canonical-decomposition"
+      className="compose-scroll-target rounded-lg border border-graph-border/70 bg-graph-muted/30 p-4"
+    >
+      {populated ? (
+        <details
+          data-testid="recorded-disclosure"
+          className="group"
+          open={!collapsible}
+        >
+          <summary className="cursor-pointer rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+            {heading}
+          </summary>
+          {content}
+        </details>
+      ) : (
+        <>
+          {heading}
+          {content}
+        </>
+      )}
     </div>
   )
 }

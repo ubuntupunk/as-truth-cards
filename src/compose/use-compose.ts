@@ -184,8 +184,10 @@ export function useDeleteDraft(cardSlug: string | null) {
           method: 'DELETE',
         },
       )
-      if (!response.ok)
-        throw await decodeError(response, 'delete the decomposition draft')
+      if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null)
+        throw decodeError(response, body, 'delete the decomposition draft')
+      }
     },
     onSuccess: () => {
       if (cardSlug !== null) {
@@ -200,16 +202,20 @@ export function useDeleteDraft(cardSlug: string | null) {
 /**
  * Decode a 2xx-or-4xx draft response into the typed envelope or a typed rejection.
  *
+ * The body is read exactly once: a `Response` body is a one-shot stream, so re-reading it
+ * while building an error would lose the server's own `error` text and leave the editor
+ * showing only the generic HTTP fallback.
+ *
  * @param response The raw response.
  * @returns The typed save response.
  * @throws {GraphApiError} on a non-2xx, carrying the server's issues when present.
  */
-async function decodeDraftResponse(
+export async function decodeDraftResponse(
   response: Response,
 ): Promise<DraftSaveResponse> {
   const body: unknown = await response.json().catch(() => null)
   if (!response.ok) {
-    throw await decodeError(response, 'save the decomposition draft')
+    throw decodeError(response, body, 'save the decomposition draft')
   }
   if (!isDraftEnvelope(body)) {
     throw new ProjectionShapeError(
@@ -232,17 +238,18 @@ async function decodeDraftResponse(
  *
  * The PUT surface advertises its rejection reasons (structurally invalid vs. off-card
  * claims); the editor shows them verbatim, so the message carries `detail` rather than
- * swallowing it.
+ * swallowing it. The already-parsed body is passed in because a `Response` cannot be read twice.
  *
  * @param response The failed response.
+ * @param body The already-parsed response body.
  * @param action Human phrasing for the error fallback.
  * @returns A GraphApiError with the server's message.
  */
-async function decodeError(
+function decodeError(
   response: Response,
+  body: unknown,
   action: string,
-): Promise<GraphApiError> {
-  const body: unknown = await response.json().catch(() => null)
+): GraphApiError {
   if (isRecord(body) && typeof body.error === 'string') {
     const rejection = body
     const detail =

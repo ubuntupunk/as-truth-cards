@@ -10,10 +10,12 @@
 
 import assert from 'node:assert/strict'
 import { afterEach, describe, it } from 'node:test'
+import { GraphApiError } from '../graph/use-graph'
 import {
   canonicalProjectionQueryOptions,
   composeDraftQueryKey,
   DRAFT_VOCABULARIES_QUERY_KEY,
+  decodeDraftResponse,
 } from './use-compose'
 
 /** Stand-in response shape; `fetchValidated` only reads ok/status/json(). */
@@ -57,6 +59,40 @@ describe('DRAFT_VOCABULARIES_QUERY_KEY', () => {
     assert.deepEqual(
       [...DRAFT_VOCABULARIES_QUERY_KEY],
       ['composition', 'vocabularies'],
+    )
+  })
+})
+
+describe('decodeDraftResponse', () => {
+  it('preserves the exact server message on a failed save', async () => {
+    const response = new Response(
+      JSON.stringify({
+        error: 'Some claims are not on this card.',
+        detail: { claims: ['unknown-claim'] },
+      }),
+      {
+        status: 400,
+        headers: { 'content-type': 'application/json' },
+      },
+    )
+
+    await assert.rejects(
+      decodeDraftResponse(response),
+      (error: unknown) =>
+        error instanceof GraphApiError &&
+        error.message === 'Some claims are not on this card.',
+    )
+  })
+
+  it('falls back to an HTTP message when the server sends no error text', async () => {
+    const response = new Response('', { status: 500 })
+
+    await assert.rejects(
+      decodeDraftResponse(response),
+      (error: unknown) =>
+        error instanceof GraphApiError &&
+        error.message ===
+          'Request failed with HTTP 500 while trying to save the decomposition draft',
     )
   })
 })
